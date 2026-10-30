@@ -1,11 +1,11 @@
 import * as React from "react"
 import { cn } from "cn"
 
-/** Centered page container, max 1200px with generous side breathing room. */
+/** Centered page container, max 1360px with slim side margins so components have space to expand. */
 function Container({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
-      className={cn("mx-auto w-full max-w-[1240px] px-6 sm:px-10 lg:px-12", className)}
+      className={cn("mx-auto w-full max-w-[1360px] px-4 sm:px-6 lg:px-8", className)}
       {...props}
     />
   )
@@ -13,7 +13,7 @@ function Container({ className, ...props }: React.ComponentProps<"div">) {
 
 /** Consistent vertical rhythm for page sections. */
 function Section({ className, ...props }: React.ComponentProps<"section">) {
-  return <section className={cn("py-14 sm:py-20", className)} {...props} />
+  return <section className={cn("py-12 sm:py-16", className)} {...props} />
 }
 
 function SectionHeader({
@@ -38,12 +38,12 @@ function SectionHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4",
+        "flex flex-col gap-3",
         align === "center" ? "items-center text-center" : "sm:flex-row sm:items-end sm:justify-between",
         className
       )}
     >
-      <div className={cn("flex flex-col gap-2", align === "center" && "items-center")}>
+      <div className={cn("flex flex-col gap-1.5", align === "center" && "items-center")}>
         {eyebrow && <p className="text-eyebrow text-primary">{eyebrow}</p>}
         <Heading id={id} className={Heading === "h1" ? "text-h1" : "text-h2"}>
           {title}
@@ -60,4 +60,3 @@ function SectionHeader({
 }
 
 export { Container, Section, SectionHeader }
-

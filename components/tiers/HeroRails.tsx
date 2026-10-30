@@ -1,162 +1,187 @@
 import * as React from 'react';
 import Link from 'next/link';
-import { ExternalLink, Sparkles, Zap } from 'lucide-react';
+import { ArrowUpRight, Sparkles, Zap } from 'lucide-react';
 import { cn } from 'cn';
 import type { StartupItem } from '@/lib/type';
 import StartupLogo from '@/components/StartupLogo';
-import { UpvoteButton } from '@/components/UpvoteButton';
 import { TierBadge } from '@/components/tiers/TierBadge';
 import { EmptySlotCard } from '@/components/tiers/EmptySlotCard';
 import { getEffectiveTier } from '@/lib/startups';
-import { outboundUrl } from '@/lib/format';
 
-interface HeroRailsProps {
-  featured: StartupItem[];
-  justListed: StartupItem[];
-  onUpvote?: (id: string, currentUpvotes: number) => void;
-  className?: string;
-}
-
-function CompactRailCard({
-  item,
-  onUpvote,
-}: {
-  item: StartupItem;
-  onUpvote?: (id: string, currentUpvotes: number) => void;
-}) {
+/**
+ * Premium Hero Rail Card:
+ * Spacious 2-row layout with Logo, clear Product Name, Category/Tier,
+ * and 2-line tagline. Vote buttons are intentionally omitted to avoid crowding.
+ */
+export function HeroRailCard({ item }: { item: StartupItem }) {
   const tier = getEffectiveTier(item);
 
   return (
-    <article className="group relative flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-xs hover:border-border-strong hover:bg-subtle/60 transition-all">
-      <div className="flex min-w-0 items-center gap-2.5 flex-1">
-        <Link href={`/products/${item.slug}`} className="shrink-0" tabIndex={-1}>
+    <Link
+      href={`/products/${item.slug}`}
+      className="group relative block rounded-xl border border-border bg-card p-3 sm:p-3.5 shadow-2xs hover:border-primary/40 hover:shadow-xs hover:bg-subtle/50 transition-all duration-150"
+    >
+      <div className="flex items-start justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           <StartupLogo
             name={item.name}
             logoUrl={item.logo_url}
             websiteUrl={item.website_url}
-            size={40}
+            size={38}
           />
-        </Link>
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <h4 className="text-xs font-semibold text-foreground truncate max-w-[130px]">
-              <Link href={`/products/${item.slug}`} className="hover:text-primary">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                 {item.name}
-              </Link>
-            </h4>
-            <TierBadge tier={tier} isVerified={item.is_verified} size="sm" />
+              </span>
+              {tier !== 'free' && (
+                <TierBadge tier={tier} isVerified={item.is_verified} size="sm" />
+              )}
+            </div>
+            <span className="text-[11px] font-medium text-muted-foreground block truncate">
+              {item.category} · {item.pricing_type}
+            </span>
           </div>
-          <p className="text-[11px] text-muted-foreground truncate">
-            {item.tagline}
-          </p>
         </div>
+
+        <span className="shrink-0 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all">
+          <ArrowUpRight className="size-4" aria-hidden="true" />
+        </span>
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
-        <a
-          href={outboundUrl(item.website_url)}
-          target="_blank"
-          rel={tier === 'free' ? 'noopener' : 'sponsored noopener'}
-          aria-label={`Visit ${item.name}`}
-          className="size-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <ExternalLink className="size-3.5" aria-hidden="true" />
-        </a>
-        <UpvoteButton
-          startupId={item.id}
-          startupName={item.name}
-          count={item.upvotes}
-          variant="inline"
-          onUpvote={onUpvote}
-        />
-      </div>
-    </article>
+      <p className="mt-2 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+        {item.tagline}
+      </p>
+    </Link>
   );
 }
 
-export function HeroRails({
-  featured,
-  justListed,
-  onUpvote,
+// Keep CompactRailCard for backward compatibility if referenced elsewhere
+export const CompactRailCard = HeroRailCard;
+
+/** Left Rail: Featured Spotlights */
+export function FeaturedRail({
+  items,
   className,
-}: HeroRailsProps) {
+}: {
+  items: StartupItem[];
+  onUpvote?: (id: string, currentUpvotes: number) => void;
+  className?: string;
+}) {
   return (
-    <div
+    <section
+      aria-label="Featured startup spotlights"
       className={cn(
-        'grid grid-cols-1 lg:grid-cols-2 gap-6 w-full pt-6',
+        'flex flex-col justify-between gap-3 rounded-2xl border border-border bg-card/75 p-4 shadow-xs backdrop-blur-xs',
         className
       )}
     >
-      {/* Left Rail: Featured Spotlights */}
-      <section
-        aria-label="Featured startup spotlights"
-        className="flex flex-col gap-2.5 rounded-2xl border border-border bg-subtle/50 p-4"
-      >
-        <div className="flex items-center justify-between px-1 pb-1">
-          <div className="flex items-center gap-1.5">
-            <span className="flex size-5 items-center justify-center rounded-md bg-primary-soft text-primary">
-              <Sparkles className="size-3" aria-hidden="true" />
-            </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Featured Launches
-            </span>
+      <div className="flex items-center justify-between pb-2 border-b border-border/70">
+        <div className="flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-lg bg-primary-soft text-primary">
+            <Sparkles className="size-3.5" aria-hidden="true" />
+          </span>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+              Featured Spotlights
+            </h3>
+            <p className="text-[10px] text-muted-foreground">High-visibility launches</p>
           </div>
-          <Link
-            href="/submit?plan=featured"
-            className="text-[11px] font-medium text-primary hover:underline"
-          >
-            Get spotlighted →
-          </Link>
         </div>
+        <Link
+          href="/submit?plan=featured"
+          className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-primary hover:underline"
+        >
+          <span>Boost</span>
+          <ArrowUpRight className="size-3" aria-hidden="true" />
+        </Link>
+      </div>
 
-        <div className="space-y-2">
-          {featured.map((item) => (
-            <CompactRailCard key={item.id} item={item} onUpvote={onUpvote} />
-          ))}
-          <EmptySlotCard
-            tier="featured"
-            title="Your product here"
-            subtitle="Get featured placement · from ₹999"
-            compact
-          />
-        </div>
-      </section>
+      <div className="space-y-2.5 flex-1 my-1">
+        {items.map((item) => (
+          <HeroRailCard key={item.id} item={item} />
+        ))}
+      </div>
 
-      {/* Right Rail: Just Listed */}
-      <section
-        aria-label="Just listed startups"
-        className="flex flex-col gap-2.5 rounded-2xl border border-border bg-subtle/50 p-4"
-      >
-        <div className="flex items-center justify-between px-1 pb-1">
-          <div className="flex items-center gap-1.5">
-            <span className="flex size-5 items-center justify-center rounded-md bg-amber-100 text-amber-800">
-              <Zap className="size-3" aria-hidden="true" />
-            </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-              Just Listed
-            </span>
-          </div>
-          <Link
-            href="/directory?sort=newest"
-            className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
-          >
-            View all new →
-          </Link>
-        </div>
-
-        <div className="space-y-2">
-          {justListed.map((item) => (
-            <CompactRailCard key={item.id} item={item} onUpvote={onUpvote} />
-          ))}
-          <EmptySlotCard
-            tier="free"
-            title="Launch for free today"
-            subtitle="Join the directory & AI index in 2 minutes"
-            compact
-          />
-        </div>
-      </section>
-    </div>
+      <EmptySlotCard
+        tier="featured"
+        title="Your product here"
+        subtitle="Get featured placement · from ₹999"
+        compact
+      />
+    </section>
   );
 }
 
+/** Right Rail: Just Listed */
+export function JustListedRail({
+  items,
+  className,
+}: {
+  items: StartupItem[];
+  onUpvote?: (id: string, currentUpvotes: number) => void;
+  className?: string;
+}) {
+  return (
+    <section
+      aria-label="Just listed startups"
+      className={cn(
+        'flex flex-col justify-between gap-3 rounded-2xl border border-border bg-card/75 p-4 shadow-xs backdrop-blur-xs',
+        className
+      )}
+    >
+      <div className="flex items-center justify-between pb-2 border-b border-border/70">
+        <div className="flex items-center gap-2">
+          <span className="flex size-6 items-center justify-center rounded-md bg-amber-100 text-amber-800">
+            <Zap className="size-3.5" aria-hidden="true" />
+          </span>
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+              Just Listed
+            </h3>
+            <p className="text-[10px] text-muted-foreground">Fresh community additions</p>
+          </div>
+        </div>
+        <Link
+          href="/directory?sort=newest"
+          className="inline-flex items-center gap-0.5 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+        >
+          <span>View all</span>
+          <ArrowUpRight className="size-3" aria-hidden="true" />
+        </Link>
+      </div>
+
+      <div className="space-y-2.5 flex-1 my-1">
+        {items.map((item) => (
+          <HeroRailCard key={item.id} item={item} />
+        ))}
+      </div>
+
+      <EmptySlotCard
+        tier="free"
+        title="Launch for free today"
+        subtitle="Join directory & AI index in 2 mins"
+        compact
+      />
+    </section>
+  );
+}
+
+/** Legacy 2-column container */
+export function HeroRails({
+  featured,
+  justListed,
+  className,
+}: {
+  featured: StartupItem[];
+  justListed: StartupItem[];
+  onUpvote?: (id: string, currentUpvotes: number) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn('grid grid-cols-1 lg:grid-cols-2 gap-5 w-full pt-4', className)}>
+      <FeaturedRail items={featured} />
+      <JustListedRail items={justListed} />
+    </div>
+  );
+}

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { HeroLaunchForm } from '@/components/home/HeroLaunchForm';
 import { HomeLeaderboard } from '@/components/home/HomeLeaderboard';
-import { HeroRails } from '@/components/tiers/HeroRails';
+import { FeaturedRail, JustListedRail } from '@/components/tiers/HeroRails';
 import { NewsletterForm } from '@/components/home/NewsletterForm';
 import { Accordion, AccordionItem } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
@@ -79,49 +79,59 @@ export default async function HomePage() {
 
   return (
     <main>
-      {/* 1. HERO AREA WITH RAILS */}
-      <section className="border-b border-border bg-subtle/70 pt-12 pb-14 sm:pt-16 sm:pb-20">
-        <Container className="space-y-10">
-          <div className="mx-auto max-w-3xl space-y-6 text-center">
-            <Badge variant="primary" size="md" className="mx-auto">
-              <Sparkles aria-hidden="true" />
-              <span>Week {weekNumber} launches are live</span>
-            </Badge>
-
-            <h1 className="text-display text-foreground">
-              Launch your startup.{' '}
-              <span className="text-primary">Get discovered.</span>
-            </h1>
-
-            <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-              The launch platform and permanent directory for SaaS &amp; AI products. Go live in
-              minutes, collect community upvotes, earn a dofollow backlink and get indexed by AI
-              search engines.
-            </p>
-
-            <div className="pt-2">
-              <HeroLaunchForm />
+      {/* 1. HERO AREA WITH 3-COLUMN LAYOUT: LEFT (FEATURED) | CENTER (HERO TEXT) | RIGHT (JUST LISTED) */}
+      <section className="border-b border-border bg-subtle/60 py-8 sm:py-12 lg:py-14">
+        <Container>
+          <div className="grid grid-cols-1 items-stretch gap-5 lg:grid-cols-12 lg:gap-5 xl:gap-6">
+            {/* LEFT RAIL: Featured Spotlights */}
+            <div className="order-2 lg:order-1 lg:col-span-3 flex">
+              <FeaturedRail items={heroRails.featured} className="w-full h-full" />
             </div>
 
-            {/* Trust chips */}
-            <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-xs font-medium text-muted-foreground">
-              <li className="inline-flex items-center gap-1.5">
-                <Check className="size-3.5 text-success" aria-hidden="true" />
-                <span>Free to launch</span>
-              </li>
-              <li className="inline-flex items-center gap-1.5">
-                <Check className="size-3.5 text-success" aria-hidden="true" />
-                <span>Permanent product page + dofollow link</span>
-              </li>
-              <li className="inline-flex items-center gap-1.5">
-                <Check className="size-3.5 text-success" aria-hidden="true" />
-                <span>{startups.length}+ SaaS &amp; AI tools listed</span>
-              </li>
-            </ul>
-          </div>
+            {/* CENTER: Main Hero Content */}
+            <div className="order-1 lg:order-2 lg:col-span-6 flex flex-col justify-center space-y-6 text-center px-2 lg:px-4 py-2 lg:py-3">
+              <Badge variant="primary" size="md" className="mx-auto">
+                <Sparkles aria-hidden="true" />
+                <span>Week {weekNumber} launches are live</span>
+              </Badge>
 
-          {/* Left Rail (Featured) & Right Rail (Just Listed) */}
-          <HeroRails featured={heroRails.featured} justListed={heroRails.justListed} />
+              <h1 className="text-display text-foreground">
+                Launch your startup.{' '}
+                <span className="text-primary">Get discovered.</span>
+              </h1>
+
+              <p className="mx-auto max-w-xl text-sm sm:text-base leading-relaxed text-muted-foreground">
+                The launch platform and permanent directory for SaaS &amp; AI products. Go live in
+                minutes, collect community upvotes, earn a dofollow backlink and get indexed by AI
+                search engines.
+              </p>
+
+              <div className="pt-1 max-w-md mx-auto w-full">
+                <HeroLaunchForm />
+              </div>
+
+              {/* Trust chips */}
+              <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 pt-1 text-xs font-medium text-muted-foreground">
+                <li className="inline-flex items-center gap-1.5">
+                  <Check className="size-3.5 text-success" aria-hidden="true" />
+                  <span>Free to launch</span>
+                </li>
+                <li className="inline-flex items-center gap-1.5">
+                  <Check className="size-3.5 text-success" aria-hidden="true" />
+                  <span>Permanent page</span>
+                </li>
+                <li className="inline-flex items-center gap-1.5">
+                  <Check className="size-3.5 text-success" aria-hidden="true" />
+                  <span>{startups.length}+ tools listed</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* RIGHT RAIL: Just Listed */}
+            <div className="order-3 lg:order-3 lg:col-span-3 flex">
+              <JustListedRail items={heroRails.justListed} className="w-full h-full" />
+            </div>
+          </div>
         </Container>
       </section>
 
