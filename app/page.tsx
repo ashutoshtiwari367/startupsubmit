@@ -1,254 +1,312 @@
 // app/page.tsx
-'use client';
-
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  Sparkles, 
-  ArrowRight, 
-  Rocket, 
-  ShieldCheck, 
-  Zap, 
-  Loader2, 
-  Flame, 
-  Trophy, 
-  CheckCircle2, 
-  TrendingUp, 
-  LayoutGrid, 
-  List,
-  Crown
+import {
+  ArrowRight,
+  Bot,
+  Check,
+  Globe,
+  Link2,
+  Sparkles,
+  TrendingUp,
 } from 'lucide-react';
-import { supabase, normalizeStartup } from '@/lib/supabase';
-import StartupCard, { StartupItem } from '@/components/StartupCard';
-import { DEMO_STARTUPS } from '@/lib/demo-startups';
+import { HeroLaunchForm } from '@/components/home/HeroLaunchForm';
+import { HomeLeaderboard } from '@/components/home/HomeLeaderboard';
+import { HeroRails } from '@/components/tiers/HeroRails';
+import { NewsletterForm } from '@/components/home/NewsletterForm';
+import { Accordion, AccordionItem } from '@/components/ui/accordion';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Container, Section, SectionHeader } from '@/components/ui/container';
+import { formatNumber, isoWeek } from '@/lib/format';
+import { categories, categoryHref } from '@/lib/site-config';
+import { getApprovedStartups, getHeroRails } from '@/lib/startups';
 
-export default function HomePage() {
-  const [startups, setStartups] = useState<StartupItem[]>(DEMO_STARTUPS);
-  const [loading, setLoading] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+export const revalidate = 60;
 
-  // Fetch approved startups from Supabase and merge with demo dataset
-  useEffect(() => {
-    async function fetchHomeStartups() {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('startups')
-          .select('*')
-          .eq('status', 'approved')
-          .order('upvotes', { ascending: false });
+const WHY_CARDS = [
+  {
+    icon: Globe,
+    title: 'Permanent product page',
+    description:
+      'Every submission gets a fast, indexable profile page that keeps sending founders and buyers long after launch week ends.',
+  },
+  {
+    icon: Link2,
+    title: 'High-signal dofollow backlink',
+    description:
+      'Embed our launch badge on your site (or pick Instant Boost/Featured) to unlock a clean dofollow link that builds domain authority.',
+  },
+  {
+    icon: Bot,
+    title: 'Structured for AI search',
+    description:
+      'Listings ship with SoftwareApplication JSON-LD and are published to our live /llms.txt index for ChatGPT, Perplexity and Gemini.',
+  },
+];
 
-        if (error) {
-          console.error('Home page fetch error:', error.message);
-          setStartups(DEMO_STARTUPS);
-        } else if (data && data.length > 0) {
-          const dbNormalized = data.map(normalizeStartup) as StartupItem[];
-          const dbSlugs = new Set(dbNormalized.map((s) => s.slug));
-          const remainingDemos = DEMO_STARTUPS.filter((d) => !dbSlugs.has(d.slug));
-          setStartups([...dbNormalized, ...remainingDemos]);
-        } else {
-          setStartups(DEMO_STARTUPS);
-        }
-      } catch (err) {
-        console.error('Fetch error:', err);
-        setStartups(DEMO_STARTUPS);
-      } finally {
-        setLoading(false);
-      }
-    }
+const HOME_FAQS = [
+  {
+    q: 'How does the weekly launch leaderboard work?',
+    a: 'Submit your startup any day of the week. Community members discover and upvote products they find useful, and the highest-upvoted products earn top-3 medals and placement in our Best of the Year index.',
+  },
+  {
+    q: 'Is it really free to launch?',
+    a: 'Yes. Free Launch costs ₹0 and gives you a permanent product page, community upvotes and inclusion in /llms.txt. Embedding our verification badge on your website activates your dofollow backlink.',
+  },
+  {
+    q: 'What is the difference between Featured and Premium Launch?',
+    a: 'Featured listings get prominent placement in dedicated rails across the home and directory, plus priority category placement. Premium Launch guarantees top placement above all others, verified status, and inclusion in our in-list sponsored banner row.',
+  },
+  {
+    q: 'How does /llms.txt help my startup get cited by AI?',
+    a: 'Answer engines like ChatGPT, Perplexity, Claude and Gemini use structured feeds and schema.org markup to ground product recommendations. Every approved startup is automatically written into our machine-readable /llms.txt endpoint.',
+  },
+];
 
-    fetchHomeStartups();
-  }, []);
+export default async function HomePage() {
+  const startups = await getApprovedStartups();
+  const weekNumber = isoWeek();
+  const heroRails = getHeroRails(startups);
 
-  // Real-time Upvote logic
-  const handleUpvote = async (id: string, currentUpvotes: number) => {
-    setStartups((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, upvotes: item.upvotes + 1 } : item
-      )
-    );
-
-    try {
-      await supabase
-        .from('startups')
-        .update({ upvotes: currentUpvotes + 1 })
-        .eq('id', id);
-    } catch (err) {
-      console.error('Upvote error:', err);
-    }
-  };
-
-  const featuredStartups = startups.filter((s) => s.is_featured);
-  const regularStartups = startups.filter((s) => !s.is_featured);
+  // Real counts computed directly from the dataset
+  const totalUpvotes = startups.reduce((sum, s) => sum + (s.upvotes || 0), 0);
+  const categoryCounts = startups.reduce<Record<string, number>>((acc, s) => {
+    const key = s.category.toLowerCase();
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
 
   return (
-    <main className="min-h-screen bg-[#070709] text-white pt-6 pb-24 px-4 font-sans relative overflow-hidden">
-      
-      {/* Background Ambient Glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-orange-600/20 via-amber-600/10 to-transparent blur-[160px] pointer-events-none -z-10" />
+    <main>
+      {/* 1. HERO AREA WITH RAILS */}
+      <section className="border-b border-border bg-subtle/70 pt-12 pb-14 sm:pt-16 sm:pb-20">
+        <Container className="space-y-10">
+          <div className="mx-auto max-w-3xl space-y-6 text-center">
+            <Badge variant="primary" size="md" className="mx-auto">
+              <Sparkles aria-hidden="true" />
+              <span>Week {weekNumber} launches are live</span>
+            </Badge>
 
-      <div className="max-w-6xl mx-auto space-y-16">
-        
-        {/* Hero Section */}
-        <div className="text-center space-y-6 pt-4 max-w-4xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-xs font-semibold text-orange-400 shadow-sm">
-            <Sparkles className="w-4 h-4" /> Premier Indian Startup Launchpad & AI Search Index
+            <h1 className="text-display text-foreground">
+              Launch your startup.{' '}
+              <span className="text-primary">Get discovered.</span>
+            </h1>
+
+            <p className="mx-auto max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+              The launch platform and permanent directory for SaaS &amp; AI products. Go live in
+              minutes, collect community upvotes, earn a dofollow backlink and get indexed by AI
+              search engines.
+            </p>
+
+            <div className="pt-2">
+              <HeroLaunchForm />
+            </div>
+
+            {/* Trust chips */}
+            <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-xs font-medium text-muted-foreground">
+              <li className="inline-flex items-center gap-1.5">
+                <Check className="size-3.5 text-success" aria-hidden="true" />
+                <span>Free to launch</span>
+              </li>
+              <li className="inline-flex items-center gap-1.5">
+                <Check className="size-3.5 text-success" aria-hidden="true" />
+                <span>Permanent product page + dofollow link</span>
+              </li>
+              <li className="inline-flex items-center gap-1.5">
+                <Check className="size-3.5 text-success" aria-hidden="true" />
+                <span>{startups.length}+ SaaS &amp; AI tools listed</span>
+              </li>
+            </ul>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.1]">
-            List your SaaS. <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500">
-              Get discovered.
-            </span>
-          </h1>
+          {/* Left Rail (Featured) & Right Rail (Just Listed) */}
+          <HeroRails featured={heroRails.featured} justListed={heroRails.justListed} />
+        </Container>
+      </section>
 
-          <p className="text-xs sm:text-base text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            List free, or go live today with Premium. Every listing gets its own page, a dofollow backlink to your site, and founders finding you long after launch day.
-          </p>
+      {/* 2–4. LEADERBOARD WITH PREMIUM PINNED, SPONSORED ROW & RIGHT SIDEBAR */}
+      <Section>
+        <Container>
+          <HomeLeaderboard initialStartups={startups} weekNumber={weekNumber} />
+        </Container>
+      </Section>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-            <Link
-              href="/submit"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 font-bold text-sm text-white shadow-xl shadow-orange-500/25 transition-all hover:scale-105 flex items-center justify-center gap-2"
-            >
-              <Rocket className="w-4 h-4" />
-              <span>Submit Your SaaS (Free) &rarr;</span>
-            </Link>
-
-            <Link
-              href="/directory"
-              className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 font-bold text-sm text-slate-300 hover:text-white transition-all flex items-center justify-center gap-2"
-            >
-              <span>Browse Directory</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {/* Checklist Proof Badges matching reference design */}
-          <div className="flex items-center justify-center gap-6 sm:gap-8 pt-4 text-xs text-slate-300 flex-wrap font-medium">
-            <div className="flex items-center gap-1.5">
-              <span className="text-orange-400 font-bold">✓</span>
-              <span>Free to list</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-orange-400 font-bold">✓</span>
-              <span>AI fills in your listing</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-orange-400 font-bold">✓</span>
-              <span>{startups.length}+ SaaS listed</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Featured Launches (Top sponsored & featured items) */}
-        {featuredStartups.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b border-white/5 pb-3">
-              <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-orange-400">
-                <Zap className="w-4 h-4" /> // featured launches
-              </div>
+      {/* 5. EXPLORE FULL DIRECTORY BY CATEGORY */}
+      <Section className="border-y border-border bg-subtle">
+        <Container className="space-y-8">
+          <SectionHeader
+            eyebrow="Directory"
+            title="Explore the full directory"
+            description="Browse vetted SaaS and AI startups by category, pricing model or popularity."
+            action={
               <Link
                 href="/directory"
-                className="text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-1"
+                className={buttonVariants({ variant: 'secondary', size: 'sm' })}
               >
-                <span>View all in directory</span>
-                <ArrowRight className="w-3 h-3 text-orange-400" />
+                <span>View all {startups.length} products</span>
+                <ArrowRight className="size-3.5" aria-hidden="true" />
               </Link>
-            </div>
+            }
+          />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-              {featuredStartups.slice(0, 4).map((item) => (
-                <StartupCard
-                  key={item.id}
-                  startup={item}
-                  variant="grid"
-                  onUpvote={handleUpvote}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {categories.map((cat) => {
+              const count = categoryCounts[cat.name.toLowerCase()] || 0;
+              // Check if category has any featured/premium listings
+              const hasFeatured = startups.some(
+                (s) =>
+                  s.category.toLowerCase() === cat.name.toLowerCase() &&
+                  (s.tier === 'featured' || s.tier === 'premium' || s.is_featured)
+              );
 
-        {/* Today's Trending Products Grid */}
-        <div className="space-y-5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-white/5 pb-3">
-            <div className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-slate-300">
-              <Flame className="w-4 h-4 text-orange-500" /> // just listed & trending products
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Layout Switcher */}
-              <div className="hidden sm:flex items-center bg-[#121218] p-1 rounded-xl border border-white/10">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-1.5 rounded-lg text-xs transition-colors ${
-                    viewMode === 'grid' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Grid view"
+              return (
+                <Link
+                  key={cat.slug}
+                  href={categoryHref(cat.slug)}
+                  className="group flex flex-col justify-between gap-3 rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] duration-150 hover:border-primary/50 hover:shadow-sm"
                 >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`p-1.5 rounded-lg text-xs transition-colors ${
-                    viewMode === 'list' ? 'bg-orange-500 text-white' : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="List view"
-                >
-                  <List className="w-3.5 h-3.5" />
-                </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold text-foreground group-hover:text-primary">
+                        {cat.name}
+                      </span>
+                      {hasFeatured && (
+                        <span className="size-1.5 rounded-full bg-primary" title="Featured launches available" />
+                      )}
+                    </div>
+                    <Badge variant="neutral" size="sm">
+                      {count}
+                    </Badge>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    {cat.description}
+                  </p>
+                </Link>
+              );
+            })}
+
+            <Link
+              href="/best"
+              className="group flex flex-col justify-between gap-3 rounded-xl border border-primary/25 bg-primary-soft/40 p-4 transition-[border-color,box-shadow] duration-150 hover:border-primary/60 hover:shadow-sm"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-primary-soft-foreground">
+                  Best of 2026
+                </span>
+                <TrendingUp className="size-4 text-primary" aria-hidden="true" />
               </div>
-
-              <Link
-                href="/directory"
-                className="text-xs font-semibold text-orange-400 hover:underline flex items-center gap-1"
-              >
-                <span>View All ({startups.length})</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-            </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                The top-ranked launches of the year, voted by the community.
+              </p>
+            </Link>
           </div>
+        </Container>
+      </Section>
 
-          {loading && (
-            <div className="flex flex-col items-center justify-center py-20 space-y-3 bg-[#0d0d12] rounded-3xl border border-white/5">
-              <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
-              <p className="text-xs text-slate-400">Fetching live Indian launches...</p>
+      {/* 6. STATS STRIP */}
+      <section aria-label="Platform statistics" className="border-b border-border py-12">
+        <Container>
+          <dl className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+            <div className="rounded-xl border border-border bg-card p-5">
+              <dt className="text-xs font-medium text-muted-foreground">Products launched</dt>
+              <dd className="mt-1 text-2xl font-bold tracking-tight text-foreground tabular-nums sm:text-3xl">
+                {formatNumber(startups.length)}
+              </dd>
             </div>
-          )}
+            <div className="rounded-xl border border-border bg-card p-5">
+              <dt className="text-xs font-medium text-muted-foreground">Community upvotes</dt>
+              <dd className="mt-1 text-2xl font-bold tracking-tight text-foreground tabular-nums sm:text-3xl">
+                {formatNumber(totalUpvotes)}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-5">
+              <dt className="text-xs font-medium text-muted-foreground">Curated categories</dt>
+              <dd className="mt-1 text-2xl font-bold tracking-tight text-foreground tabular-nums sm:text-3xl">
+                {categories.length}
+              </dd>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-5">
+              <dt className="text-xs font-medium text-muted-foreground">AI search index</dt>
+              <dd className="mt-1 flex items-baseline gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                <span>100%</span>
+                <a
+                  href="/llms.txt"
+                  className="font-mono text-xs font-medium text-primary hover:underline"
+                >
+                  /llms.txt
+                </a>
+              </dd>
+            </div>
+          </dl>
+        </Container>
+      </section>
 
-          {!loading && regularStartups.length > 0 && (
-            <>
-              {viewMode === 'grid' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {regularStartups.map((item, index) => (
-                    <StartupCard
-                      key={item.id}
-                      startup={item}
-                      variant="grid"
-                      rank={index + 1}
-                      onUpvote={handleUpvote}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {regularStartups.map((item, index) => (
-                    <StartupCard
-                      key={item.id}
-                      startup={item}
-                      variant="list"
-                      rank={index + 1}
-                      onUpvote={handleUpvote}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+      {/* 7. WHY LAUNCH HERE */}
+      <Section>
+        <Container className="space-y-10">
+          <SectionHeader
+            align="center"
+            eyebrow="Built for makers"
+            title="Why founders launch here"
+            description="Launch day spike plus compounding SEO and AI search visibility."
+          />
 
-      </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            {WHY_CARDS.map((card) => {
+              const Icon = card.icon;
+              return (
+                <Card key={card.title} className="p-6">
+                  <span className="inline-flex size-10 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                    <Icon className="size-5" aria-hidden="true" />
+                  </span>
+                  <h3 className="mt-4 text-h4">{card.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {card.description}
+                  </p>
+                </Card>
+              );
+            })}
+          </div>
+        </Container>
+      </Section>
+
+      {/* 8. FAQ ACCORDION */}
+      <Section className="border-t border-border bg-subtle">
+        <Container className="max-w-3xl space-y-8">
+          <SectionHeader
+            align="center"
+            eyebrow="FAQ"
+            title="Frequently asked questions"
+            description="Everything you need to know about launching and ranking your product."
+          />
+
+          <Accordion>
+            {HOME_FAQS.map((item, idx) => (
+              <AccordionItem key={item.q} question={item.q} defaultOpen={idx === 0}>
+                {item.a}
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </Container>
+      </Section>
+
+      {/* 9. NEWSLETTER SIGNUP */}
+      <Section className="border-t border-border">
+        <Container>
+          <div className="flex flex-col items-start justify-between gap-6 rounded-2xl border border-border bg-subtle p-6 sm:p-10 lg:flex-row lg:items-center">
+            <div className="max-w-xl space-y-2">
+              <p className="text-eyebrow text-primary">Weekly launch digest</p>
+              <h2 className="text-h2">Never miss a breakout SaaS launch</h2>
+              <p className="text-sm text-muted-foreground">
+                Get the top-upvoted products of the week delivered every Monday. No spam, one-click
+                unsubscribe.
+              </p>
+            </div>
+            <NewsletterForm />
+          </div>
+        </Container>
+      </Section>
     </main>
   );
 }

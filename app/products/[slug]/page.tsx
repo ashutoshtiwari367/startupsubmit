@@ -1,87 +1,49 @@
 // app/products/[slug]/page.tsx
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Metadata } from 'next';
-import { 
-  ArrowLeft, 
-  ExternalLink, 
-  Sparkles, 
-  ShieldCheck, 
-  Tag, 
-  DollarSign, 
-  User, 
-  Layers, 
-  Cpu, 
+import type { Metadata } from 'next';
+import {
   ArrowRight,
-  Flame,
+  Bot,
+  Calendar,
   CheckCircle2,
-  Calendar
+  ChevronRight,
+  ExternalLink,
+  ShieldCheck,
 } from 'lucide-react';
-import { supabase, normalizeStartup } from '@/lib/supabase';
 import StartupLogo from '@/components/StartupLogo';
-import StartupCard, { StartupItem } from '@/components/StartupCard';
-import ProductDetailInteractive from '@/components/ProductDetailInteractive';
-import { hexToRgba } from '@/lib/image-utils';
+import StartupCard from '@/components/StartupCard';
+import ProductDetailInteractive, {
+  ProductActionBar,
+} from '@/components/ProductDetailInteractive';
+import { OwnerUpgradeCard } from '@/components/OwnerUpgradeCard';
+import { TierBadge } from '@/components/tiers/TierBadge';
+import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Container } from '@/components/ui/container';
+import { cleanDomain, formatDate, outboundUrl, pricingTone } from '@/lib/format';
+import { categoryHref, siteConfig } from '@/lib/site-config';
+import { getEffectiveTier, getRelatedStartups, getStartupBySlug } from '@/lib/startups';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-async function getStartupFromDb(slug: string) {
-  const { data, error } = await supabase
-    .from('startups')
-    .select('*')
-    .eq('slug', slug)
-    .single();
-
-  if (error || !data) {
-    return null;
-  }
-  return normalizeStartup(data);
-}
-
-async function getRelatedStartups(category: string, currentId: string): Promise<StartupItem[]> {
-  try {
-    const { data } = await supabase
-      .from('startups')
-      .select('*')
-      .eq('status', 'approved')
-      .neq('id', currentId)
-      .eq('category', category)
-      .limit(3);
-
-    if (data && data.length > 0) {
-      return (data as any[]).map(normalizeStartup) as StartupItem[];
-    }
-
-    // Fallback: fetch other top approved startups if not enough in same category
-    const { data: fallback } = await supabase
-      .from('startups')
-      .select('*')
-      .eq('status', 'approved')
-      .neq('id', currentId)
-      .order('upvotes', { ascending: false })
-      .limit(3);
-
-    return ((fallback || []) as any[]).map(normalizeStartup) as StartupItem[];
-  } catch {
-    return [];
-  }
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const startup = await getStartupFromDb(slug);
+  const startup = await getStartupBySlug(slug);
 
   if (!startup) {
-    return { title: 'Startup Not Found - Vinay Startup Platform' };
+    return { title: 'Product Not Found' };
   }
 
   return {
-    title: `${startup.name} — ${startup.tagline} | Indian Startup Launchpad`,
+    title: `${startup.name} — ${startup.tagline}`,
     description: startup.description || startup.tagline,
     openGraph: {
-      title: `${startup.name} on Vinay Startup Platform`,
+      title: `${startup.name} — ${startup.tagline}`,
       description: startup.tagline,
       type: 'website',
       images: startup.logo_url ? [startup.logo_url] : undefined,
@@ -91,22 +53,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function StartupDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const startup = await getStartupFromDb(slug);
+  const startup = await getStartupBySlug(slug);
 
   if (!startup) {
     notFound();
   }
 
-  const related = await getRelatedStartups(startup.category, startup.id);
-  const brand = startup.brand_color || '#f97316';
+  const related = await getRelatedStartups(startup.category, startup.id, 3);
+  const domain = cleanDomain(startup.website_url);
+  const launchedOn = formatDate(startup.created_at);
+  const makerHandle = startup.twitter_handle
+    ? `@${startup.twitter_handle.replace('@', '')}`
+    : null;
+  const effectiveTier = getEffectiveTier(startup);
 
-  const jsonLd = {
+  const softwareJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
     name: startup.name,
-    description: startup.description,
+    description: startup.description || startup.tagline,
     applicationCategory: startup.category,
-    operatingSystem: 'All Web Browsers',
+    operatingSystem: 'Web',
+    url: startup.website_url,
     offers: {
       '@type': 'Offer',
       price: startup.pricing_type === 'Free' ? '0' : '999',
@@ -115,283 +83,286 @@ export default async function StartupDetailPage({ params }: PageProps) {
     aggregateRating: {
       '@type': 'AggregateRating',
       ratingValue: '4.9',
-      reviewCount: startup.upvotes || 1,
+      reviewCount: Math.max(startup.upvotes || 1, 1),
     },
   };
 
-  const badgeEmbedCode = `<a href="https://vinaystartup.com/products/${startup.slug}?utm_source=badge" target="_blank"><img src="https://vinaystartup.com/badge.svg" alt="Featured on Vinay Startup" width="230" height="50" /></a>`;
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: siteConfig.url },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: startup.category,
+        item: `${siteConfig.url}${categoryHref(startup.category)}`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: startup.name,
+        item: `${siteConfig.url}/products/${startup.slug}`,
+      },
+    ],
+  };
+
+  const badgeEmbedCode = `<a href="${siteConfig.url}/products/${startup.slug}?utm_source=badge" target="_blank" rel="noopener"><img src="${siteConfig.url}/badge.svg" alt="Featured on ${siteConfig.name}" width="230" height="50" /></a>`;
 
   return (
-    <main className="min-h-screen bg-[#070709] text-white pt-6 pb-24 px-4 relative overflow-hidden font-sans">
-      
-      {/* Background Ambient Glow (matches startup brand color) */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] blur-[160px] pointer-events-none -z-10"
-        style={{
-          background: `radial-gradient(ellipse at top, ${hexToRgba(brand, 0.28)}, transparent 70%)`,
-        }}
-      />
-
-      {/* JSON-LD Schema for AI Crawlers */}
+    <main className="py-8 sm:py-12">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
       />
 
-      <div className="max-w-5xl mx-auto space-y-10">
-        
-        {/* Navigation Breadcrumb */}
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <Link
-            href="/directory"
-            className="inline-flex items-center gap-2 hover:text-white transition-colors font-semibold"
-          >
-            <ArrowLeft className="w-4 h-4 text-orange-400" /> Back to Directory
+      <Container className="space-y-10">
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Link href="/" className="hover:text-foreground">
+            Launches
           </Link>
+          <ChevronRight className="size-3.5" aria-hidden="true" />
+          <Link href="/directory" className="hover:text-foreground">
+            Directory
+          </Link>
+          <ChevronRight className="size-3.5" aria-hidden="true" />
+          <Link href={categoryHref(startup.category)} className="hover:text-foreground">
+            {startup.category}
+          </Link>
+          <ChevronRight className="size-3.5" aria-hidden="true" />
+          <span className="truncate font-medium text-foreground">{startup.name}</span>
+        </nav>
 
-          <div className="flex items-center gap-2">
-            <span className="text-slate-500">Category:</span>
-            <Link
-              href={`/category/${startup.category.toLowerCase()}`}
-              className="text-orange-400 hover:underline font-bold"
-            >
-              {startup.category}
-            </Link>
+        {/* Product header */}
+        <header className="flex flex-col justify-between gap-6 rounded-2xl border border-border bg-card p-6 sm:p-8 lg:flex-row lg:items-center">
+          <div className="flex items-start gap-4 sm:items-center sm:gap-5">
+            <StartupLogo
+              name={startup.name}
+              logoUrl={startup.logo_url}
+              websiteUrl={startup.website_url}
+              size={72}
+            />
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-h1">{startup.name}</h1>
+                {effectiveTier !== 'free' && (
+                  <TierBadge
+                    tier={effectiveTier}
+                    isVerified={startup.is_verified}
+                    size="md"
+                  />
+                )}
+                {startup.is_verified && effectiveTier !== 'premium' && (
+                  <Badge variant="success" size="md">
+                    <ShieldCheck aria-hidden="true" />
+                    Verified
+                  </Badge>
+                )}
+              </div>
+              <p className="max-w-2xl text-base text-muted-foreground">{startup.tagline}</p>
+              <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                <Link href={categoryHref(startup.category)}>
+                  <Badge variant="outline" size="md" className="hover:border-border-strong">
+                    {startup.category}
+                  </Badge>
+                </Link>
+                <Badge variant={pricingTone(startup.pricing_type)} size="md">
+                  {startup.pricing_type}
+                </Badge>
+                {domain && <span className="text-xs text-muted-foreground">· {domain}</span>}
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Top Product Header Card */}
-        <div
-          className="bg-[#0d0d12] border rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden transition-all"
-          style={{
-            borderColor: hexToRgba(brand, 0.35),
-            boxShadow: `0 20px 50px -15px ${hexToRgba(brand, 0.2)}`,
-          }}
-        >
-          {/* Top Brand Ambient Tint Bar */}
-          <div
-            className="absolute inset-x-0 top-0 h-32 pointer-events-none opacity-50"
-            style={{
-              background: `linear-gradient(180deg, ${hexToRgba(brand, 0.3)}, transparent)`,
-            }}
+          <ProductActionBar
+            id={startup.id}
+            slug={startup.slug}
+            name={startup.name}
+            initialUpvotes={startup.upvotes || 1}
+            websiteUrl={startup.website_url}
           />
+        </header>
 
-          <div className="relative space-y-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-              
-              <div className="flex items-start sm:items-center gap-5 sm:gap-6">
-                <StartupLogo
-                  name={startup.name}
-                  logoUrl={startup.logo_url}
-                  websiteUrl={startup.website_url}
-                  brandColor={brand}
-                  size={84}
-                  className="shadow-2xl ring-2 ring-white/10 shrink-0"
-                />
+        {/* Main 2-column content + sticky sidebar */}
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+          {/* Left column: media preview, about, AI index note, badge/share */}
+          <div className="space-y-8 lg:col-span-8">
+            <Card className="p-6 sm:p-8 space-y-4">
+              <h2 className="text-h3">About {startup.name}</h2>
+              <div className="text-body whitespace-pre-line text-muted-foreground">
+                {startup.description || startup.tagline}
+              </div>
+            </Card>
 
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight">
-                      {startup.name}
-                    </h1>
-                    {startup.is_featured && (
-                      <span className="text-[10px] uppercase font-extrabold tracking-wider px-3 py-1 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/40">
-                        Featured Launch
-                      </span>
+            <ProductDetailInteractive
+              id={startup.id}
+              slug={startup.slug}
+              name={startup.name}
+              tagline={startup.tagline}
+              initialUpvotes={startup.upvotes || 1}
+              websiteUrl={startup.website_url}
+              bannerUrl={startup.banner_url}
+              twitterHandle={startup.twitter_handle}
+              badgeEmbedCode={badgeEmbedCode}
+            />
+
+            {/* AI index callout */}
+            <div className="flex items-start gap-3.5 rounded-xl border border-border bg-subtle p-5">
+              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+                <Bot className="size-4" aria-hidden="true" />
+              </span>
+              <div className="space-y-1 text-xs leading-relaxed text-muted-foreground">
+                <p className="font-semibold text-foreground">Indexed for AI &amp; LLM search</p>
+                <p>
+                  This profile includes structured <code className="font-mono text-foreground">SoftwareApplication</code>{' '}
+                  JSON-LD and is listed in our machine-readable{' '}
+                  <a href="/llms.txt" className="font-mono font-medium text-primary hover:underline">
+                    /llms.txt
+                  </a>{' '}
+                  feed so ChatGPT, Perplexity, Gemini and Claude can accurately cite {startup.name}.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Right sidebar: key info */}
+          <aside className="space-y-6 lg:sticky lg:top-24 lg:col-span-4">
+            <OwnerUpgradeCard
+              slug={startup.slug}
+              name={startup.name}
+              tier={effectiveTier}
+              expiresAt={startup.tier_expires_at}
+            />
+
+            <Card className="p-5 space-y-4">
+              <h2 className="text-h4">Product information</h2>
+              <dl className="divide-y divide-border text-sm">
+                <div className="flex items-center justify-between py-2.5">
+                  <dt className="text-muted-foreground">Website</dt>
+                  <dd>
+                    <a
+                      href={outboundUrl(startup.website_url)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                    >
+                      <span>{domain || 'Visit'}</span>
+                      <ExternalLink className="size-3.5" aria-hidden="true" />
+                    </a>
+                  </dd>
+                </div>
+
+                <div className="flex items-center justify-between py-2.5">
+                  <dt className="text-muted-foreground">Category</dt>
+                  <dd>
+                    <Link
+                      href={categoryHref(startup.category)}
+                      className="font-medium text-foreground hover:text-primary"
+                    >
+                      {startup.category}
+                    </Link>
+                  </dd>
+                </div>
+
+                <div className="flex items-center justify-between py-2.5">
+                  <dt className="text-muted-foreground">Pricing</dt>
+                  <dd>
+                    <Badge variant={pricingTone(startup.pricing_type)} size="sm">
+                      {startup.pricing_type}
+                    </Badge>
+                  </dd>
+                </div>
+
+                <div className="flex items-center justify-between py-2.5">
+                  <dt className="text-muted-foreground">Maker</dt>
+                  <dd className="flex items-center gap-2">
+                    <Avatar name={makerHandle || startup.name} size={24} />
+                    {makerHandle ? (
+                      <a
+                        href={`https://twitter.com/${makerHandle.slice(1)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-foreground hover:text-primary"
+                      >
+                        {makerHandle}
+                      </a>
+                    ) : (
+                      <span className="font-medium text-foreground">Verified Founder</span>
                     )}
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-white/5 text-slate-300 border border-white/10">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> Verified Tech
-                    </span>
+                  </dd>
+                </div>
+
+                {launchedOn && (
+                  <div className="flex items-center justify-between py-2.5">
+                    <dt className="text-muted-foreground">Listed</dt>
+                    <dd className="inline-flex items-center gap-1 text-foreground">
+                      <Calendar className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                      <span>{launchedOn}</span>
+                    </dd>
                   </div>
+                )}
 
-                  <p className="text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed">
-                    {startup.tagline}
-                  </p>
+                <div className="flex items-center justify-between py-2.5">
+                  <dt className="text-muted-foreground">AI Index</dt>
+                  <dd className="inline-flex items-center gap-1 font-medium text-success">
+                    <CheckCircle2 className="size-3.5" aria-hidden="true" />
+                    <span>Indexed</span>
+                  </dd>
                 </div>
-              </div>
-            </div>
+              </dl>
+            </Card>
 
-            {/* Quick Specs Matrix */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-6 border-t border-white/10">
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 uppercase">
-                  <Tag className="w-3 h-3 text-orange-400" /> Category
-                </div>
-                <div className="font-bold text-sm text-white">{startup.category}</div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 uppercase">
-                  <DollarSign className="w-3 h-3 text-emerald-400" /> Pricing Model
-                </div>
-                <div className="font-bold text-sm text-white">{startup.pricing_type}</div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 uppercase">
-                  <User className="w-3 h-3 text-blue-400" /> Maker
-                </div>
-                <div className="font-bold text-sm text-white truncate">
-                  {startup.twitter_handle ? `@${startup.twitter_handle.replace('@', '')}` : 'Verified Founder'}
-                </div>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/5 space-y-1">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-400 uppercase">
-                  <Sparkles className="w-3 h-3 text-amber-400" /> AI Index Status
-                </div>
-                <div className="font-bold text-sm text-emerald-400 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Indexed
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Interactive Action Hub & Browser Mockup Preview */}
-        <ProductDetailInteractive
-          id={startup.id}
-          slug={startup.slug}
-          name={startup.name}
-          tagline={startup.tagline}
-          initialUpvotes={startup.upvotes || 1}
-          websiteUrl={startup.website_url}
-          brandColor={brand}
-          twitterHandle={startup.twitter_handle}
-          category={startup.category}
-          badgeEmbedCode={badgeEmbedCode}
-        />
-
-        {/* Detailed Product About & Capabilities Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          
-          <div className="md:col-span-2 space-y-6">
-            <div className="bg-[#0d0d12] border border-white/10 rounded-3xl p-6 sm:p-8 space-y-5">
-              <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-orange-500" /> About {startup.name}
-              </h2>
-              <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-line space-y-4">
-                {startup.description}
-              </div>
-
-              {/* Product Highlights Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-4 border-t border-white/10">
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-orange-400">
-                    <Cpu className="w-4 h-4" /> Built For Performance
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Designed to provide seamless workflow and top productivity for Indian and global users.
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400">
-                    <ShieldCheck className="w-4 h-4" /> Verified Platform
-                  </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Legitimate product validated by Vinay Startup Launchpad with direct founder links.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* AI Crawler & LLM Readability Banner */}
-            <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/5 to-transparent border border-orange-500/20 rounded-3xl p-6 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-extrabold text-orange-400 uppercase tracking-wider">
-                <ShieldCheck className="w-4 h-4" /> AI Engine & Search Indexing
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                This startup profile is mapped directly into machine-readable JSON-LD schemas and our live <code className="text-orange-300 bg-white/5 px-1.5 py-0.5 rounded">/llms.txt</code> feed. This ensures ChatGPT, Perplexity AI, Google Gemini, and Claude accurately cite {startup.name} when answering user queries about top {startup.category} tools.
-              </p>
-            </div>
-          </div>
-
-          {/* Sidebar Info */}
-          <div className="space-y-6">
-            <div className="bg-[#0d0d12] border border-white/10 rounded-3xl p-6 space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-white">
-                Product Details
+            <Card className="bg-subtle p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">
+                Building a SaaS or AI product?
               </h3>
-              
-              <div className="space-y-3 text-xs">
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
-                  <span className="text-slate-400">Product Name</span>
-                  <span className="font-semibold text-white">{startup.name}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
-                  <span className="text-slate-400">Category</span>
-                  <span className="font-semibold text-orange-400">{startup.category}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
-                  <span className="text-slate-400">Pricing Model</span>
-                  <span className="font-semibold text-emerald-400">{startup.pricing_type}</span>
-                </div>
-                <div className="flex items-center justify-between py-2 border-b border-white/5">
-                  <span className="text-slate-400">Official Link</span>
-                  <a
-                    href={startup.website_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-semibold text-white hover:text-orange-400 flex items-center gap-1"
-                  >
-                    <span>Visit</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-slate-400">Status</span>
-                  <span className="font-semibold text-emerald-400 capitalize">
-                    {startup.status || 'Approved'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-[#121218] to-[#0a0a0e] border border-white/10 rounded-3xl p-6 space-y-3">
-              <h4 className="text-xs font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-orange-400" /> Have a Startup to Launch?
-              </h4>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Submit your product in less than 2 minutes and get indexed by top AI crawlers and early adopters.
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Submit your startup in under two minutes to get a permanent profile, community
+                upvotes and a dofollow backlink.
               </p>
               <Link
                 href="/submit"
-                className="w-full inline-flex items-center justify-center gap-2 py-3 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs shadow-md transition-all"
+                className={buttonVariants({ variant: 'primary', size: 'sm', className: 'w-full' })}
               >
-                <span>Submit Your Startup</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <span>Submit your product</span>
+                <ArrowRight className="size-3.5" aria-hidden="true" />
               </Link>
-            </div>
-          </div>
-
+            </Card>
+          </aside>
         </div>
 
-        {/* Similar / Related Startups Discovery Section */}
+        {/* Alternatives / similar products */}
         {related.length > 0 && (
-          <div className="space-y-6 pt-6 border-t border-white/10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-300">
-                <Flame className="w-4 h-4 text-orange-500" /> Similar Products & Alternatives in {startup.category}
-              </div>
+          <section
+            aria-labelledby="similar-heading"
+            className="space-y-5 border-t border-border pt-10"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <h2 id="similar-heading" className="text-h3">
+                Alternatives &amp; similar products in {startup.category}
+              </h2>
               <Link
-                href="/directory"
-                className="text-xs font-semibold text-orange-400 hover:underline flex items-center gap-1"
+                href={categoryHref(startup.category)}
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
-                <span>Browse Directory</span>
-                <ArrowRight className="w-3 h-3" />
+                <span>View all in {startup.category}</span>
+                <ArrowRight className="size-3.5" aria-hidden="true" />
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               {related.map((item) => (
                 <StartupCard key={item.id} startup={item} variant="grid" />
               ))}
             </div>
-          </div>
+          </section>
         )}
-
-      </div>
+      </Container>
     </main>
   );
 }

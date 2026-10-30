@@ -1,41 +1,58 @@
 // app/submit/page.tsx
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import {
-  Sparkles,
+  AlertCircle,
   ArrowLeft,
   CheckCircle2,
-  ShieldCheck,
-  Zap,
-  Globe,
-  Tag,
-  DollarSign,
-  User,
-  FileText,
-  Loader2,
-  AlertCircle,
-  ImagePlus,
-  UploadCloud,
-  X,
   ChevronUp,
+  Crown,
+  Loader2,
   Palette,
   RefreshCw,
+  UploadCloud,
+  X,
 } from 'lucide-react';
 import { submitStartupAction } from '@/actions/submit-startup';
 import { uploadLogoAction } from '@/actions/upload-logo';
-import { processLogo, hexToRgba, DEFAULT_BRAND_COLOR } from '@/lib/image-utils';
+import { DEFAULT_BRAND_COLOR, processLogo } from '@/lib/image-utils';
+import { cleanDomain, pricingTone } from '@/lib/format';
 import StartupLogo from '@/components/StartupLogo';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Container, SectionHeader } from '@/components/ui/container';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { NativeSelect } from '@/components/ui/native-select';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from '@/components/ui/toast';
+import { PlanCard } from '@/components/tiers/PlanCard';
+import { TierBadge } from '@/components/tiers/TierBadge';
+import { tierConfig } from '@/lib/site-config';
+import type { ListingTier } from '@/lib/type';
 
 const ACCEPTED = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/gif'];
-const MAX_SIZE = 5 * 1024 * 1024; // raw input limit (compressed before upload)
+const MAX_SIZE = 5 * 1024 * 1024;
 
-export default function SubmitPage() {
+type FieldErrors = Partial<Record<'name' | 'tagline' | 'websiteUrl' | 'description', string>>;
+
+function SubmitForm() {
+  const searchParams = useSearchParams();
+  const initialUrl = searchParams.get('url') || '';
+  const requestedPlan = searchParams.get('plan') as ListingTier | null;
+  const initialTier: ListingTier =
+    requestedPlan === 'premium' || requestedPlan === 'featured' ? requestedPlan : 'free';
+
   const [submitted, setSubmitted] = useState(false);
+  const [createdSlug, setCreatedSlug] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   // Logo state
   const [logoBlob, setLogoBlob] = useState<Blob | null>(null);
@@ -48,12 +65,14 @@ export default function SubmitPage() {
   const [formData, setFormData] = useState({
     name: '',
     tagline: '',
-    websiteUrl: '',
+    websiteUrl: initialUrl,
     category: 'SaaS',
     pricingType: 'Freemium',
     description: '',
     twitterHandle: '',
-    listingType: 'free',
+    listingType: initialTier,
+    bannerTitle: '',
+    bannerImage: '',
   });
 
   useEffect(() => {
@@ -66,11 +85,11 @@ export default function SubmitPage() {
     if (!file) return;
     setErrorMessage('');
     if (!ACCEPTED.includes(file.type)) {
-      setErrorMessage('Sirf PNG, JPG, WEBP, SVG ya GIF logo upload karein.');
+      setErrorMessage('Please upload a PNG, JPG, WEBP, SVG or GIF logo.');
       return;
     }
     if (file.size > MAX_SIZE) {
-      setErrorMessage('Logo 5MB se chhota hona chahiye.');
+      setErrorMessage('Logo must be smaller than 5 MB.');
       return;
     }
     try {
@@ -80,7 +99,7 @@ export default function SubmitPage() {
       setLogoPreview(processed.previewUrl);
       setBrandColor(processed.brandColor);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : 'Logo process nahi ho paya.');
+      setErrorMessage(err instanceof Error ? err.message : 'Could not process logo.');
     } finally {
       setProcessingLogo(false);
     }
@@ -93,11 +112,28 @@ export default function SubmitPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const validate = (): boolean => {
+    const next: FieldErrors = {};
+    if (!formData.name.trim()) next.name = 'Enter your product name.';
+    if (!formData.tagline.trim()) next.tagline = 'Add a short one-line tagline.';
+    if (!formData.websiteUrl.trim()) {
+      next.websiteUrl = 'Enter your website URL.';
+    } else if (!/^https?:\/\/.+\..+/i.test(formData.websiteUrl.trim())) {
+      next.websiteUrl = 'Include https:// (e.g. https://yourstartup.com).';
+    }
+    if (!formData.description.trim()) {
+      next.description = 'Describe what your product does.';
+    }
+    setFieldErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setErrorMessage('');
+    if (!validate()) return;
 
+    setLoading(true);
     try {
       let logoUrl: string | null = null;
 
@@ -113,176 +149,156 @@ export default function SubmitPage() {
         logoUrl = up.url;
       }
 
-      setLoadingStep('Saving to database...');
+      setLoadingStep('Publishing listing...');
       const res = await submitStartupAction({
         ...formData,
         logoUrl,
         brandColor: logoBlob ? brandColor : null,
       });
 
-      if (res.success) {
+      if (res.success && res.data) {
+        const row = res.data as { slug?: string };
+        const slug = row.slug || formData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        setCreatedSlug(slug);
+
+        // Store maker's submitted startup into localStorage for dashboard & ownership tracking
+        try {
+          const raw = localStorage.getItem('my_startups') || '[]';
+          const list = JSON.parse(raw);
+          if (Array.isArray(list) && !list.includes(slug)) {
+            list.unshift(slug);
+            localStorage.setItem('my_startups', JSON.stringify(list));
+          }
+        } catch {
+          // ignore localStorage issues
+        }
+
+        toast.add({
+          type: 'success',
+          title: `${formData.name} is live!`,
+          description: `Your product is now listed on the leaderboard under the ${tierConfig[formData.listingType].name} plan.`,
+        });
         setSubmitted(true);
       } else {
-        setErrorMessage(res.error || 'Form submit nahi ho paya. Dobara koshish karein.');
+        setErrorMessage(res.error || 'Could not submit your product. Please try again.');
       }
     } catch {
-      setErrorMessage('Network error aaya. Kripya check karein.');
+      setErrorMessage('Network error while submitting. Please check your connection.');
     } finally {
       setLoading(false);
       setLoadingStep('');
     }
   };
 
-  // Dynamic theme derived from the logo
-  const brand = brandColor;
-  const brandStyle = { '--brand': brand } as React.CSSProperties;
-  const inputClass =
-    'w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[var(--brand)] focus:bg-white/[0.07] transition-colors';
-
   if (submitted) {
+    const selectedPlan = tierConfig[formData.listingType];
     return (
-      <main
-        style={brandStyle}
-        className="min-h-screen bg-[#070709] text-white flex items-center justify-center px-4 py-20 relative overflow-hidden font-sans"
-      >
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] blur-[150px] pointer-events-none"
-          style={{ background: hexToRgba(brand, 0.18) }}
-        />
+      <main className="py-16 sm:py-24">
+        <Container className="max-w-lg">
+          <Card className="p-8 text-center space-y-6 shadow-sm">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-success-soft text-success">
+              <CheckCircle2 className="size-8" aria-hidden="true" />
+            </div>
 
-        <div className="max-w-md w-full bg-[#0d0d12] border border-white/10 rounded-3xl p-8 text-center space-y-6 relative z-10 shadow-2xl">
-          {logoPreview ? (
-            <div className="relative mx-auto w-20 h-20">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoPreview}
-                alt="Startup logo"
-                className="w-20 h-20 rounded-2xl bg-white object-contain p-2"
-                style={{ boxShadow: `0 12px 40px -10px ${hexToRgba(brand, 0.6)}` }}
-              />
-              <span
-                className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full flex items-center justify-center border-2 border-[#0d0d12]"
-                style={{ background: brand }}
+            <div className="space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <h1 className="text-h2">{formData.name || 'Your startup'} is live!</h1>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Your listing has been submitted under the{' '}
+                <strong className="text-foreground">{selectedPlan.name}</strong> tier and is
+                now active across the platform.
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-border bg-subtle p-4 text-left space-y-1">
+              <p className="text-xs font-semibold text-foreground">
+                {formData.listingType === 'free'
+                  ? 'Embed your badge for reciprocal dofollow'
+                  : 'Fast-track priority status active'}
+              </p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {formData.listingType === 'free'
+                  ? 'Grab the launch badge HTML from your product profile to verify your reciprocal dofollow backlink.'
+                  : `Your ${selectedPlan.name} status is activated. Your product receives priority positioning across rails and sidebars.`}
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              {createdSlug && (
+                <Link
+                  href={`/products/${createdSlug}`}
+                  className={buttonVariants({ variant: 'primary', size: 'md', className: 'flex-1' })}
+                >
+                  View Product Page
+                </Link>
+              )}
+              <Link
+                href="/dashboard"
+                className={buttonVariants({ variant: 'secondary', size: 'md', className: 'flex-1' })}
               >
-                <CheckCircle2 className="w-5 h-5 text-white" />
-              </span>
+                Maker Dashboard
+              </Link>
             </div>
-          ) : (
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto"
-              style={{ background: hexToRgba(brand, 0.2), border: `1px solid ${hexToRgba(brand, 0.35)}`, color: brand }}
-            >
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black text-white">{formData.name || 'Startup'} is Live! 🎉</h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Aapka startup database me successfully save ho gaya hai aur ab Home, Directory aur{' '}
-              <code style={{ color: brand }}>/llms.txt</code> feed par dikhega.
-            </p>
-          </div>
-
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-left space-y-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider block" style={{ color: brand }}>
-              Next Step for Free Listing:
-            </span>
-            <p className="text-[11px] text-slate-300">
-              Apni website par verification badge embed karein taaki reciprocal dofollow backlink verify ho sake.
-            </p>
-          </div>
-
-          <Link
-            href="/directory"
-            className="inline-block w-full py-3 rounded-full font-bold text-xs text-white transition-all text-center hover:brightness-110"
-            style={{
-              background: `linear-gradient(90deg, ${brand}, ${hexToRgba(brand, 0.75)})`,
-              boxShadow: `0 10px 30px -10px ${hexToRgba(brand, 0.6)}`,
-            }}
-          >
-            Go to Directory
-          </Link>
-        </div>
+          </Card>
+        </Container>
       </main>
     );
   }
 
-  return (
-    <main
-      style={brandStyle}
-      className="min-h-screen bg-[#070709] text-white pt-8 pb-24 px-4 relative overflow-hidden font-sans"
-    >
-      {/* Background Glow (logo color se adapt hota hai) */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[450px] blur-[140px] pointer-events-none -z-10 transition-[background] duration-700"
-        style={{ background: `radial-gradient(ellipse at top, ${hexToRgba(brand, 0.22)}, transparent 70%)` }}
-      />
+  const previewDomain = cleanDomain(formData.websiteUrl) || 'yourstartup.com';
 
-      <div className="max-w-6xl mx-auto">
-        {/* Back Link */}
+  return (
+    <main className="py-10 sm:py-14">
+      <Container className="space-y-8">
         <Link
           href="/"
-          className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors mb-8"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="w-4 h-4" /> Back to Directory
+          <ArrowLeft className="size-3.5" aria-hidden="true" />
+          <span>Back to launches</span>
         </Link>
 
-        {/* Page Header */}
-        <div className="text-center mb-10 space-y-3">
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold transition-colors duration-500"
-            style={{ background: hexToRgba(brand, 0.1), border: `1px solid ${hexToRgba(brand, 0.25)}`, color: brand }}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Launch On Vinay Startup Platform
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">Submit Your Indian Startup</h1>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
-            Get discovered by early adopters, acquire high DR dofollow backlinks, and enable automatic citation on AI
-            search engines (ChatGPT, Perplexity, Gemini).
-          </p>
-        </div>
+        <SectionHeader
+          as="h1"
+          eyebrow="Submit a product"
+          title="Launch your startup"
+          description="Get discovered by founders and early adopters, earn a permanent dofollow backlink and get indexed in /llms.txt for AI search."
+        />
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8 items-start">
-          {/* ───────────── FORM ───────────── */}
-          <div>
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+          {/* Form */}
+          <div className="lg:col-span-8">
             {errorMessage && (
-              <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs flex items-center gap-3">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div
+                role="alert"
+                className="mb-6 flex items-center gap-2.5 rounded-xl border border-destructive/30 bg-destructive-soft p-4 text-xs font-medium text-destructive"
+              >
+                <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
             <form
               onSubmit={handleSubmit}
-              className="bg-[#0d0d12] border border-white/10 rounded-3xl p-6 sm:p-10 space-y-8 shadow-2xl"
+              noValidate
+              className="space-y-8 rounded-2xl border border-border bg-card p-6 sm:p-8"
             >
-              {/* Section 0: Logo */}
-              <div className="space-y-4">
-                <h3
-                  className="text-xs font-bold uppercase tracking-wider border-b border-white/10 pb-2 transition-colors duration-500"
-                  style={{ color: brand }}
-                >
-                  1. Startup Logo
-                </h3>
+              {/* 1. Logo */}
+              <fieldset className="space-y-4">
+                <legend className="text-h4">1. Product logo</legend>
 
                 <input
                   ref={fileInputRef}
-                  id="logo-upload-input"
                   type="file"
+                  id="logo-upload-input"
                   accept={ACCEPTED.join(',')}
-                  className="hidden"
+                  className="sr-only"
                   onChange={(e) => handleLogoFile(e.target.files?.[0])}
                 />
 
                 {!logoPreview ? (
                   <div
-                    id="logo-dropzone"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => fileInputRef.current?.click()}
-                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && fileInputRef.current?.click()}
                     onDragOver={(e) => {
                       e.preventDefault();
                       setDragActive(true);
@@ -293,196 +309,175 @@ export default function SubmitPage() {
                       setDragActive(false);
                       handleLogoFile(e.dataTransfer.files?.[0]);
                     }}
-                    className={`group relative flex flex-col items-center justify-center gap-3 px-6 py-10 rounded-2xl border-2 border-dashed cursor-pointer transition-all ${
+                    onClick={() => fileInputRef.current?.click()}
+                    className={
                       dragActive
-                        ? 'border-[var(--brand)] bg-white/[0.06] scale-[1.01]'
-                        : 'border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]'
-                    }`}
+                        ? 'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary bg-primary-soft/50 p-8 text-center transition-colors'
+                        : 'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-subtle p-8 text-center hover:border-border-strong hover:bg-card transition-colors'
+                    }
                   >
-                    {processingLogo ? (
-                      <>
-                        <Loader2 className="w-8 h-8 animate-spin" style={{ color: brand }} />
-                        <p className="text-xs text-slate-400">Logo process ho raha hai, colors extract kar rahe hain...</p>
-                      </>
-                    ) : (
-                      <>
-                        <div
-                          className="w-14 h-14 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 group-hover:-translate-y-1"
-                          style={{ background: hexToRgba(brand, 0.12), border: `1px solid ${hexToRgba(brand, 0.3)}` }}
-                        >
-                          <UploadCloud className="w-7 h-7" style={{ color: brand }} />
-                        </div>
-                        <div className="text-center space-y-1">
-                          <p className="text-sm font-semibold text-white">
-                            Drag &amp; drop logo, ya <span style={{ color: brand }}>browse</span> karein
-                          </p>
-                          <p className="text-[11px] text-slate-500">
-                            PNG, JPG, WEBP, SVG • Square (1:1) best • Max 5MB
-                          </p>
-                        </div>
-                      </>
-                    )}
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-card border border-border text-primary shadow-xs">
+                      {processingLogo ? (
+                        <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <UploadCloud className="size-5" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">
+                        {processingLogo ? 'Processing logo...' : 'Click to upload logo or drag and drop'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">PNG, JPG, WEBP, SVG or GIF (max 5 MB)</p>
+                    </div>
                   </div>
                 ) : (
-                  <div
-                    className="flex flex-col sm:flex-row items-center gap-5 p-5 rounded-2xl transition-all duration-500"
-                    style={{
-                      background: `linear-gradient(135deg, ${hexToRgba(brand, 0.12)}, ${hexToRgba(brand, 0.02)})`,
-                      border: `1px solid ${hexToRgba(brand, 0.3)}`,
-                    }}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={logoPreview}
-                      alt="Logo preview"
-                      className="w-24 h-24 rounded-2xl bg-white object-contain p-2.5 shrink-0"
-                      style={{ boxShadow: `0 12px 32px -10px ${hexToRgba(brand, 0.7)}` }}
-                    />
-                    <div className="flex-1 space-y-3 text-center sm:text-left">
-                      <div>
-                        <p className="text-sm font-bold text-white flex items-center gap-1.5 justify-center sm:justify-start">
-                          <ImagePlus className="w-4 h-4" style={{ color: brand }} /> Logo ready
-                        </p>
-                        <p className="text-[11px] text-slate-400">
-                          Is logo ke colors se aapke listing card ka theme set ho gaya hai.
-                        </p>
+                  <div className="flex flex-col gap-4 rounded-2xl border border-border bg-subtle p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="flex size-16 shrink-0 items-center justify-center rounded-xl border border-border bg-card p-2 shadow-xs"
+                        style={{ borderColor: brandColor }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={logoPreview}
+                          alt="Logo preview"
+                          className="size-full object-contain"
+                        />
                       </div>
-
-                      <div className="flex items-center gap-3 justify-center sm:justify-start">
-                        <label
-                          htmlFor="brand-color-input"
-                          className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-black/30 border border-white/10 cursor-pointer hover:border-white/25 transition-colors"
-                          title="Brand color change karein"
-                        >
-                          <Palette className="w-3.5 h-3.5 text-slate-400" />
-                          <span className="w-4 h-4 rounded-full border border-white/30" style={{ background: brand }} />
-                          <span className="text-[11px] font-mono text-slate-300 uppercase">{brand}</span>
-                          <input
-                            id="brand-color-input"
-                            type="color"
-                            value={brand}
-                            onChange={(e) => setBrandColor(e.target.value)}
-                            className="sr-only"
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-foreground">Logo processed</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Auto-centered and normalized.
+                        </p>
+                        <div className="flex items-center gap-1.5 pt-0.5 text-xs text-muted-foreground">
+                          <Palette className="size-3 text-muted-foreground" aria-hidden="true" />
+                          <span>Brand accent:</span>
+                          <span
+                            className="inline-block size-3.5 rounded-full border border-border"
+                            style={{ backgroundColor: brandColor }}
+                            aria-label={`Color ${brandColor}`}
                           />
-                        </label>
-
-                        <button
-                          type="button"
-                          id="change-logo-btn"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-white hover:border-white/25 transition-colors"
-                          title="Logo change karein"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          id="remove-logo-btn"
-                          onClick={removeLogo}
-                          className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-red-400 hover:border-red-500/40 transition-colors"
-                          title="Logo hatayein"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                          <code className="font-mono text-[11px] text-foreground">{brandColor}</code>
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center">
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        id="replace-logo-btn"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <RefreshCw className="size-3" aria-hidden="true" />
+                        <span>Replace</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        id="remove-logo-btn"
+                        onClick={removeLogo}
+                      >
+                        <X className="size-3" aria-hidden="true" />
+                        <span>Remove</span>
+                      </Button>
                     </div>
                   </div>
                 )}
-              </div>
+              </fieldset>
 
-              {/* Section 1: Basic Information */}
-              <div className="space-y-4">
-                <h3
-                  className="text-xs font-bold uppercase tracking-wider border-b border-white/10 pb-2 transition-colors duration-500"
-                  style={{ color: brand }}
-                >
-                  2. Basic Details
-                </h3>
+              {/* 2. Basic details */}
+              <fieldset className="space-y-4 border-t border-border pt-6">
+                <legend className="text-h4">2. Product details</legend>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label htmlFor="startup-name" className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5" style={{ color: brand }} /> Startup Name *
-                    </label>
-                    <input
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field
+                    id="startup-name"
+                    label="Startup name"
+                    required
+                    error={fieldErrors.name}
+                  >
+                    <Input
                       id="startup-name"
-                      type="text"
                       required
+                      aria-invalid={Boolean(fieldErrors.name) || undefined}
                       placeholder="e.g. BharatPay Analytics"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className={inputClass}
+                      onChange={(e) => {
+                        setFormData({ ...formData, name: e.target.value });
+                        if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined });
+                      }}
                     />
-                  </div>
+                  </Field>
 
-                  <div className="space-y-1.5">
-                    <label htmlFor="startup-tagline" className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5" style={{ color: brand }} /> Tagline (One sentence) *
-                    </label>
-                    <input
-                      id="startup-tagline"
-                      type="text"
-                      required
-                      maxLength={90}
-                      placeholder="e.g. Track UPI payments for B2B SaaS"
-                      value={formData.tagline}
-                      onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label htmlFor="startup-website" className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                      <Globe className="w-3.5 h-3.5" style={{ color: brand }} /> Website URL *
-                    </label>
-                    <input
+                  <Field
+                    id="startup-website"
+                    label="Website URL"
+                    required
+                    error={fieldErrors.websiteUrl}
+                  >
+                    <Input
                       id="startup-website"
                       type="url"
                       required
+                      aria-invalid={Boolean(fieldErrors.websiteUrl) || undefined}
                       placeholder="https://yourstartup.com"
                       value={formData.websiteUrl}
-                      onChange={(e) => setFormData({ ...formData, websiteUrl: e.target.value })}
-                      className={inputClass}
+                      onChange={(e) => {
+                        setFormData({ ...formData, websiteUrl: e.target.value });
+                        if (fieldErrors.websiteUrl)
+                          setFieldErrors({ ...fieldErrors, websiteUrl: undefined });
+                      }}
                     />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label htmlFor="startup-twitter" className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5" style={{ color: brand }} /> Founder Twitter/X Handle
-                    </label>
-                    <input
-                      id="startup-twitter"
-                      type="text"
-                      placeholder="@founder_handle"
-                      value={formData.twitterHandle}
-                      onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
-                      className={inputClass}
-                    />
-                  </div>
+                  </Field>
                 </div>
-              </div>
 
-              {/* Section 2: Classification */}
-              <div className="space-y-4">
-                <h3
-                  className="text-xs font-bold uppercase tracking-wider border-b border-white/10 pb-2 transition-colors duration-500"
-                  style={{ color: brand }}
+                <Field
+                  id="startup-tagline"
+                  label="One-line tagline"
+                  required
+                  counter={`${formData.tagline.length}/90`}
+                  error={fieldErrors.tagline}
                 >
-                  3. Classification
-                </h3>
+                  <Input
+                    id="startup-tagline"
+                    required
+                    maxLength={90}
+                    aria-invalid={Boolean(fieldErrors.tagline) || undefined}
+                    placeholder="e.g. Real-time UPI revenue analytics for B2B SaaS"
+                    value={formData.tagline}
+                    onChange={(e) => {
+                      setFormData({ ...formData, tagline: e.target.value });
+                      if (fieldErrors.tagline)
+                        setFieldErrors({ ...fieldErrors, tagline: undefined });
+                    }}
+                  />
+                </Field>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label htmlFor="startup-category" className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5" style={{ color: brand }} /> Category *
-                    </label>
-                    <select
+                <Field
+                  id="startup-twitter"
+                  label="Maker X (Twitter) handle"
+                  hint="Optional — shown on your product page."
+                >
+                  <Input
+                    id="startup-twitter"
+                    placeholder="@founder"
+                    value={formData.twitterHandle}
+                    onChange={(e) => setFormData({ ...formData, twitterHandle: e.target.value })}
+                  />
+                </Field>
+              </fieldset>
+
+              {/* 3. Classification & description */}
+              <fieldset className="space-y-4 border-t border-border pt-6">
+                <legend className="text-h4">3. Category &amp; description</legend>
+
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field id="startup-category" label="Category" required>
+                    <NativeSelect
                       id="startup-category"
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className={`${inputClass} bg-[#121218]`}
                     >
                       <option value="SaaS">SaaS Tools</option>
                       <option value="AI">AI &amp; Machine Learning</option>
@@ -490,191 +485,192 @@ export default function SubmitPage() {
                       <option value="DevTools">Developer Tools</option>
                       <option value="Marketing">Marketing &amp; SEO</option>
                       <option value="Productivity">Productivity</option>
-                    </select>
-                  </div>
+                      <option value="E-Commerce">E-Commerce</option>
+                    </NativeSelect>
+                  </Field>
 
-                  <div className="space-y-1.5">
-                    <label htmlFor="startup-pricing" className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                      <DollarSign className="w-3.5 h-3.5" style={{ color: brand }} /> Pricing Model *
-                    </label>
-                    <select
+                  <Field id="startup-pricing" label="Pricing model" required>
+                    <NativeSelect
                       id="startup-pricing"
                       value={formData.pricingType}
                       onChange={(e) => setFormData({ ...formData, pricingType: e.target.value })}
-                      className={`${inputClass} bg-[#121218]`}
                     >
                       <option value="Free">Free</option>
                       <option value="Freemium">Freemium</option>
                       <option value="Paid">Paid</option>
-                    </select>
-                  </div>
+                    </NativeSelect>
+                  </Field>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label htmlFor="startup-description" className="text-xs font-medium text-slate-300 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5" style={{ color: brand }} /> Description *
-                  </label>
-                  <textarea
-                    id="startup-description"
-                    rows={4}
-                    required
-                    placeholder="Briefly explain what your product does, problems it solves, key features..."
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className={`${inputClass} resize-none`}
-                  />
-                </div>
-              </div>
-
-              {/* Section 3: Select Plan */}
-              <div className="space-y-4">
-                <h3
-                  className="text-xs font-bold uppercase tracking-wider border-b border-white/10 pb-2 transition-colors duration-500"
-                  style={{ color: brand }}
+                <Field
+                  id="startup-description"
+                  label="Description"
+                  required
+                  error={fieldErrors.description}
+                  hint="Explain what your product does, who it is for and key capabilities."
                 >
-                  4. Select Launch Plan
-                </h3>
+                  <Textarea
+                    id="startup-description"
+                    rows={5}
+                    required
+                    aria-invalid={Boolean(fieldErrors.description) || undefined}
+                    placeholder="What problem does your startup solve, how does it work, and what makes it different?"
+                    value={formData.description}
+                    onChange={(e) => {
+                      setFormData({ ...formData, description: e.target.value });
+                      if (fieldErrors.description)
+                        setFieldErrors({ ...fieldErrors, description: undefined });
+                    }}
+                  />
+                </Field>
+              </fieldset>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    {
-                      id: 'free',
-                      title: 'Free Launch',
-                      price: '₹0',
-                      icon: <ShieldCheck className="w-4 h-4 text-emerald-400" />,
-                      desc: 'Standard review queue. Badge embed required on your website to verify reciprocal backlink.',
-                    },
-                    {
-                      id: 'premium',
-                      title: 'Instant Boost',
-                      price: '₹999',
-                      icon: <Zap className="w-4 h-4 text-amber-400" />,
-                      desc: 'Instant auto-approval, featured status, immediate indexation without badge embed requirement.',
-                    },
-                  ].map((plan) => {
-                    const active = formData.listingType === plan.id;
-                    return (
-                      <div
-                        key={plan.id}
-                        id={`plan-${plan.id}`}
-                        onClick={() => setFormData({ ...formData, listingType: plan.id })}
-                        className={`p-4 rounded-2xl border cursor-pointer transition-all ${
-                          active ? '' : 'bg-white/5 border-white/10 hover:border-white/20'
-                        }`}
-                        style={active ? { background: hexToRgba(brand, 0.1), borderColor: brand } : undefined}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                            {plan.icon} {plan.title}
-                          </span>
-                          <span className="text-xs font-extrabold" style={{ color: active ? brand : undefined }}>
-                            {plan.price}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-400 leading-normal">{plan.desc}</p>
-                      </div>
-                    );
-                  })}
+              {/* 4. Launch Tier Selection (Free, Featured, Premium) */}
+              <fieldset className="space-y-4 border-t border-border pt-6">
+                <div>
+                  <legend className="text-h4">4. Choose your launch tier</legend>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Free listing is 100% free with no credit card required. Upgrade anytime for featured placement.
+                  </p>
                 </div>
-              </div>
 
-              {/* Submit Button */}
-              <button
-                id="submit-startup-btn"
-                type="submit"
-                disabled={loading || processingLogo}
-                className="w-full py-4 rounded-full text-white font-bold text-sm hover:scale-[1.01] hover:brightness-110 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2"
-                style={{
-                  background: `linear-gradient(90deg, ${brand}, ${hexToRgba(brand, 0.75)}, ${brand})`,
-                  boxShadow: `0 16px 40px -12px ${hexToRgba(brand, 0.65)}`,
-                }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>{loadingStep || 'Saving...'}</span>
-                  </>
-                ) : (
-                  <span>Submit Startup Now 🚀</span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {(['free', 'featured', 'premium'] as ListingTier[]).map((tierKey) => (
+                    <PlanCard
+                      key={tierKey}
+                      tier={tierKey}
+                      selected={formData.listingType === tierKey}
+                      onSelect={() => setFormData({ ...formData, listingType: tierKey })}
+                    />
+                  ))}
+                </div>
+
+                {/* Optional Premium Sponsored Banner Details */}
+                {formData.listingType === 'premium' && (
+                  <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4 space-y-3 mt-4">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-amber-900">
+                      <Crown className="size-4 text-amber-600" aria-hidden="true" />
+                      <span>Premium Sponsored Banner Options (Optional)</span>
+                    </div>
+                    <p className="text-xs text-amber-800/80 leading-relaxed">
+                      Your listing qualifies for an in-list sponsored banner row on the homepage leaderboard.
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <Field id="banner-title" label="Banner Callout / Promo Headline">
+                        <Input
+                          id="banner-title"
+                          placeholder="e.g. Try our API free for 14 days"
+                          value={formData.bannerTitle}
+                          onChange={(e) => setFormData({ ...formData, bannerTitle: e.target.value })}
+                        />
+                      </Field>
+                      <Field id="banner-image" label="Banner Image URL">
+                        <Input
+                          id="banner-image"
+                          placeholder="https://..."
+                          value={formData.bannerImage}
+                          onChange={(e) => setFormData({ ...formData, bannerImage: e.target.value })}
+                        />
+                      </Field>
+                    </div>
+                  </div>
                 )}
-              </button>
+              </fieldset>
+
+              <div className="border-t border-border pt-6 space-y-3">
+                <Button
+                  id="submit-startup-btn"
+                  type="submit"
+                  size="lg"
+                  loading={loading}
+                  disabled={processingLogo}
+                  className="w-full"
+                >
+                  <span>
+                    {loading
+                      ? loadingStep || 'Submitting...'
+                      : formData.listingType === 'free'
+                      ? 'Submit product (100% Free)'
+                      : `Launch as ${tierConfig[formData.listingType].name} (${tierConfig[formData.listingType].priceDisplay})`}
+                  </span>
+                </Button>
+                <p className="text-center text-xs text-muted-foreground">
+                  {formData.listingType === 'free'
+                    ? '100% Free · 1-click submit · No credit card required'
+                    : `Instant activation enabled · ${tierConfig[formData.listingType].name} includes ${tierConfig[formData.listingType].period} placement`}
+                </p>
+              </div>
             </form>
           </div>
 
-          {/* ───────────── LIVE PREVIEW ───────────── */}
-          <aside className="lg:sticky lg:top-8 space-y-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: brand }} />
-              Live Preview
-            </p>
+          {/* Live card preview */}
+          <aside className="space-y-3 lg:sticky lg:top-24 lg:col-span-4">
+            <p className="text-eyebrow text-muted-foreground">Live card preview</p>
 
-            <div
-              className="relative overflow-hidden rounded-3xl p-5 bg-[#0d0d12] transition-all duration-500"
-              style={{
-                border: `1px solid ${hexToRgba(brand, 0.35)}`,
-                boxShadow: `0 20px 60px -20px ${hexToRgba(brand, 0.45)}`,
-              }}
-            >
-              {/* Banner tinted by logo color */}
-              <div
-                className="absolute inset-x-0 top-0 h-24 transition-all duration-500"
-                style={{ background: `linear-gradient(180deg, ${hexToRgba(brand, 0.35)}, transparent)` }}
-              />
-
-              <div className="relative space-y-4">
-                <div className="flex items-start justify-between gap-3 pt-6">
+            <Card className="p-5 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <StartupLogo
                     name={formData.name || 'Startup'}
                     logoUrl={logoPreview}
                     websiteUrl={formData.websiteUrl}
-                    brandColor={brand}
-                    size={64}
-                    className="ring-4 ring-[#0d0d12]"
+                    size={48}
                   />
-
-                  {formData.listingType === 'premium' && (
-                    <span
-                      className="text-[9px] uppercase font-bold px-2 py-0.5 rounded-full"
-                      style={{ background: hexToRgba(brand, 0.2), color: brand, border: `1px solid ${hexToRgba(brand, 0.35)}` }}
-                    >
-                      Featured
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <h4 className="font-bold text-base text-white truncate">{formData.name || 'Your Startup Name'}</h4>
-                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed min-h-[2.5rem]">
-                    {formData.tagline || 'Aapki one-line tagline yahan dikhegi.'}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-white/5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-medium px-2 py-1 rounded-md" style={{ background: hexToRgba(brand, 0.12), color: brand }}>
-                      {formData.category}
-                    </span>
-                    <span className="text-[10px] font-medium text-slate-400 bg-white/5 px-2 py-1 rounded-md">
-                      {formData.pricingType}
-                    </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h3 className="truncate text-sm font-semibold text-foreground">
+                        {formData.name || 'Your startup name'}
+                      </h3>
+                      <TierBadge
+                        tier={formData.listingType}
+                        isVerified={formData.listingType === 'premium'}
+                        size="sm"
+                      />
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">{previewDomain}</p>
                   </div>
-                  <span
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white"
-                    style={{ background: hexToRgba(brand, 0.12), border: `1px solid ${hexToRgba(brand, 0.35)}` }}
-                  >
-                    <ChevronUp className="w-3.5 h-3.5" style={{ color: brand }} /> 1
-                  </span>
                 </div>
-              </div>
-            </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed">
-              💡 Tip: Transparent background wala square logo sabse accha dikhta hai. Theme color logo se automatically
-              pick hota hai — chahein toh palette se change kar sakte hain.
+                <span className="flex h-12 min-w-11 flex-col items-center justify-center rounded-lg border border-border bg-subtle text-xs font-semibold text-foreground">
+                  <ChevronUp className="size-3.5 text-primary" aria-hidden="true" />1
+                </span>
+              </div>
+
+              <p className="line-clamp-2 min-h-[2.5rem] text-sm text-muted-foreground">
+                {formData.tagline || 'Your one-line value proposition appears here.'}
+              </p>
+
+              <div className="flex items-center gap-1.5 border-t border-border pt-3">
+                <Badge variant="outline" size="sm">
+                  {formData.category}
+                </Badge>
+                <Badge variant={pricingTone(formData.pricingType)} size="sm">
+                  {formData.pricingType}
+                </Badge>
+              </div>
+            </Card>
+
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Tip: A square (1:1) logo with a transparent or solid background looks crispest on the
+              leaderboard.
             </p>
           </aside>
         </div>
-      </div>
+      </Container>
     </main>
+  );
+}
+
+export default function SubmitPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[50vh] items-center justify-center">
+          <Loader2 className="size-6 animate-spin text-primary" aria-hidden="true" />
+        </div>
+      }
+    >
+      <SubmitForm />
+    </Suspense>
   );
 }

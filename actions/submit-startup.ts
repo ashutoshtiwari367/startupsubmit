@@ -2,6 +2,8 @@
 'use server';
 
 import { supabase, getServiceSupabase } from '@/lib/supabase';
+import { tierConfig } from '@/lib/site-config';
+import type { ListingTier } from '@/lib/type';
 
 export interface SubmitStartupInput {
   name: string;
@@ -11,19 +13,21 @@ export interface SubmitStartupInput {
   pricingType: string;
   description: string;
   twitterHandle?: string;
-  listingType: string;
+  listingType: string; // 'free' | 'featured' | 'premium'
   logoUrl?: string | null;
   brandColor?: string | null;
+  bannerTitle?: string | null;
+  bannerImage?: string | null;
 }
 
 export async function submitStartupAction(formData: SubmitStartupInput) {
   try {
     // 1. Validation check
     if (!formData.name || !formData.websiteUrl || !formData.tagline || !formData.description) {
-      return { success: false, error: 'Kripya saare zaroori fields fill karein.' };
+      return { success: false, error: 'Please fill in all required fields.' };
     }
 
-    // 2. SEO-friendly unique slug generate karein
+    // 2. SEO-friendly unique slug
     const baseSlug = formData.name
       .toLowerCase()
       .trim()
@@ -43,36 +47,65 @@ export async function submitStartupAction(formData: SubmitStartupInput) {
     const brandColor =
       formData.brandColor && /^#[0-9a-f]{6}$/i.test(formData.brandColor) ? formData.brandColor : null;
 
-    // Embed metadata tag so logo_url and brand_color are preserved even if DB columns are not created
-    const metaTag = (formData.logoUrl || brandColor)
-      ? `\n\n<!--meta:${JSON.stringify({ logo_url: formData.logoUrl || null, brand_color: brandColor || null })}-->`
-      : '';
+    const rawTier = formData.listingType as ListingTier;
+    const tier: ListingTier = rawTier === 'premium' || rawTier === 'featured' ? rawTier : 'free';
+    const cfg = tierConfig[tier] || tierConfig.free;
 
-    // 3. Supabase me insert karein
+    const startsAt = new Date().toISOString();
+    const expiresAt =
+      cfg.durationDays && cfg.durationDays > 0
+        ? new Date(Date.now() + cfg.durationDays * 86400000).toISOString()
+        : null;
+
+    const isVerified = tier === 'premium';
+    const isFeatured = tier === 'featured' || tier === 'premium';
+
+    // Embed metadata tag so tier, logo_url, brand_color, etc. are preserved even if DB schema columns are not present
+    const metaTag = `\n\n<!--meta:${JSON.stringify({
+      logo_url: formData.logoUrl || null,
+      brand_color: brandColor || null,
+      tier,
+      tier_starts_at: startsAt,
+      tier_expires_at: expiresAt,
+      is_verified: isVerified,
+      banner_title: formData.bannerTitle || null,
+      banner_image: formData.bannerImage || null,
+    })}-->`;
+
+    // 3. Supabase insert with fallback
     const baseRow = {
-        name: formData.name.trim(),
-        slug: uniqueSlug,
-        tagline: formData.tagline.trim(),
-        description: formData.description.trim() + metaTag,
-        website_url: formData.websiteUrl.trim(),
-        twitter_handle: formData.twitterHandle ? formData.twitterHandle.trim() : null,
-        category: formData.category,
-        pricing_type: formData.pricingType,
-        listing_type: formData.listingType,
-        status: 'approved', // Instant live approval so it shows immediately on Home & Directory
-        upvotes: 1,
-        is_featured: formData.listingType === 'premium',
+      name: formData.name.trim(),
+      slug: uniqueSlug,
+      tagline: formData.tagline.trim(),
+      description: formData.description.trim() + metaTag,
+      website_url: formData.websiteUrl.trim(),
+      twitter_handle: formData.twitterHandle ? formData.twitterHandle.trim() : null,
+      category: formData.category,
+      pricing_type: formData.pricingType,
+      listing_type: formData.listingType,
+      status: 'approved',
+      upvotes: 1,
+      is_featured: isFeatured,
     };
 
     let { data, error } = await db
       .from('startups')
-      .insert([{ ...baseRow, logo_url: formData.logoUrl || null, brand_color: brandColor }])
+      .insert([
+        {
+          ...baseRow,
+          logo_url: formData.logoUrl || null,
+          brand_color: brandColor,
+          tier,
+          tier_starts_at: startsAt,
+          tier_expires_at: expiresAt,
+          is_verified: isVerified,
+        },
+      ])
       .select()
       .single();
 
-    // Agar DB me logo_url / brand_color columns abhi nahi bane hain, toh metadata-backed baseRow save karein
-    if (error && /logo_url|brand_color/i.test(error.message)) {
-      console.warn('logo_url/brand_color columns missing. Saving with embedded metadata in description.');
+    // If native columns don't exist in Supabase, insert baseRow (which preserves metadata in description)
+    if (error && /logo_url|brand_color|tier|is_verified/i.test(error.message)) {
       ({ data, error } = await db.from('startups').insert([baseRow]).select().single());
     }
 
@@ -82,8 +115,8 @@ export async function submitStartupAction(formData: SubmitStartupInput) {
     }
 
     return { success: true, data };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Submission server error:', err);
-    return { success: false, error: 'Submission me issue aaya. Dobara try karein.' };
+    return { success: false, error: 'Submission encountered an error. Please try again.' };
   }
 }

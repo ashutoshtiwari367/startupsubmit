@@ -1,7 +1,7 @@
 // lib/image-utils.ts
 // Client-only helpers for processing an uploaded startup logo.
 
-export const DEFAULT_BRAND_COLOR = '#f97316'; // orange-500
+export const DEFAULT_BRAND_COLOR = '#4f46e5'; // primary indigo
 
 export interface ProcessedLogo {
   blob: Blob;

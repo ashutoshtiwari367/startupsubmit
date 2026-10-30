@@ -1,93 +1,153 @@
 // components/layout/Footer.tsx
 import Link from 'next/link';
+import { ArrowUpRight, Rocket } from 'lucide-react';
+import { categories, categoryHref, siteConfig } from '@/lib/site-config';
+import { Container } from '@/components/ui/container';
 
 export function Footer() {
-  return (
-    <footer className="border-t border-white/10 bg-[#070709] text-slate-400 text-xs mt-20 relative">
-      
-      {/* Soft Glow Effect at Bottom */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-40 bg-gradient-to-t from-orange-500/5 to-transparent pointer-events-none" />
+  const year = 2026;
 
-      <div className="max-w-6xl mx-auto px-4 py-12 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-          
-          {/* Column 1: Brand Info */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center font-bold text-xs text-white shadow-md shadow-orange-500/20">
-                🇮🇳
-              </div>
-              <span className="font-extrabold text-white text-base">
-                Vinay<span className="text-orange-500"> Startup</span>
+  return (
+    <footer className="mt-20 border-t border-border bg-subtle text-sm text-muted-foreground">
+      <Container className="py-14">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-12">
+          {/* Brand column */}
+          <div className="space-y-4 md:col-span-4">
+            <Link href="/" className="inline-flex items-center gap-2.5">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
+                <Rocket className="size-4" aria-hidden="true" />
               </span>
-            </div>
-            <p className="text-slate-400 text-[11px] leading-relaxed">
-              The premier product launchpad built for Indian founders & SaaS creators. Get early users, high DR dofollow backlinks, and machine-readable AI search visibility.
+              <span className="text-base font-bold tracking-tight text-foreground">
+                {siteConfig.name}
+              </span>
+            </Link>
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+              {siteConfig.description}
             </p>
+            <div className="flex items-center gap-3 pt-1">
+              <a
+                href={siteConfig.social.x}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow on X (Twitter)"
+                className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              >
+                <svg className="size-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
+              <a
+                href={siteConfig.social.linkedin}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow on LinkedIn"
+                className="inline-flex size-8 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              >
+                <svg className="size-3.5 fill-current" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.25c-.91 0-1.64.73-1.64 1.64s.73 1.64 1.64 1.64 1.64-.73 1.64-1.64-.73-1.64-1.64-1.64" />
+                </svg>
+              </a>
+            </div>
           </div>
 
-          {/* Column 2: Categories */}
-          <div>
-            <h4 className="font-bold text-white uppercase text-[11px] tracking-wider mb-4">
-              Categories
-            </h4>
-            <ul className="space-y-2.5">
-              <li><Link href="/directory?category=saas" className="hover:text-orange-400 transition-colors">Indian SaaS Tools</Link></li>
-              <li><Link href="/directory?category=ai" className="hover:text-orange-400 transition-colors">AI & Machine Learning</Link></li>
-              <li><Link href="/directory?category=devtools" className="hover:text-orange-400 transition-colors">Developer Tools</Link></li>
-              <li><Link href="/directory?category=fintech" className="hover:text-orange-400 transition-colors">Fintech & Payments</Link></li>
-              <li><Link href="/directory?category=marketing" className="hover:text-orange-400 transition-colors">Marketing & SEO</Link></li>
+          {/* Categories */}
+          <div className="space-y-3 md:col-span-3">
+            <h3 className="text-eyebrow text-foreground">Categories</h3>
+            <ul className="space-y-2 text-sm">
+              {categories.map((cat) => (
+                <li key={cat.slug}>
+                  <Link
+                    href={categoryHref(cat.slug)}
+                    className="transition-colors hover:text-foreground"
+                  >
+                    {cat.name}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
-          {/* Column 3: AI & SEO Engine */}
-          <div>
-            <h4 className="font-bold text-white uppercase text-[11px] tracking-wider mb-4">
-              AI & SEO Engine
-            </h4>
-            <ul className="space-y-2.5">
+          {/* Platform */}
+          <div className="space-y-3 md:col-span-2">
+            <h3 className="text-eyebrow text-foreground">Platform</h3>
+            <ul className="space-y-2 text-sm">
               <li>
-                <Link href="/llms.txt" target="_blank" className="text-orange-400 font-semibold hover:underline transition-all">
-                  llms.txt (Machine Readable) ↗
+                <Link href="/" className="transition-colors hover:text-foreground">
+                  Launch Leaderboard
                 </Link>
               </li>
-              <li><Link href="/pricing" className="hover:text-white transition-colors">Get Dofollow Backlink</Link></li>
-              <li><Link href="/badge" className="hover:text-white transition-colors">Embed Badge</Link></li>
-              <li><Link href="/pricing" className="hover:text-white transition-colors">100+ Directory Submissions</Link></li>
+              <li>
+                <Link href="/directory" className="transition-colors hover:text-foreground">
+                  Product Directory
+                </Link>
+              </li>
+              <li>
+                <Link href="/best" className="transition-colors hover:text-foreground">
+                  Best of {year}
+                </Link>
+              </li>
+              <li>
+                <Link href="/pricing" className="transition-colors hover:text-foreground">
+                  Pricing
+                </Link>
+              </li>
+              <li>
+                <Link href="/submit" className="transition-colors hover:text-foreground">
+                  Submit a Product
+                </Link>
+              </li>
             </ul>
           </div>
 
-          {/* Column 4: Founders CTA Box */}
-          <div>
-            <h4 className="font-bold text-white uppercase text-[11px] tracking-wider mb-4">
-              For Indian Founders
-            </h4>
-            <div className="bg-[#0f0f14] p-4 rounded-2xl border border-white/10 space-y-2.5">
-              <span className="font-bold text-white block text-xs">🚀 Launch Your Tool</span>
-              <p className="text-[11px] text-slate-400 leading-normal">
-                List your startup for free, embed our badge, and gain instant dofollow backlinks + permanent AI indexing.
-              </p>
-              <Link 
-                href="/submit" 
-                className="inline-block text-[11px] font-bold text-orange-400 hover:text-orange-300 hover:underline"
-              >
-                Submit Startup Now →
-              </Link>
-            </div>
+          {/* AI & SEO */}
+          <div className="space-y-3 md:col-span-3">
+            <h3 className="text-eyebrow text-foreground">AI &amp; SEO Index</h3>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <a
+                  href="/llms.txt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                >
+                  <span>llms.txt (Machine Readable)</span>
+                  <ArrowUpRight className="size-3.5" aria-hidden="true" />
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/badge.svg"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition-colors hover:text-foreground"
+                >
+                  Official Launch Badge
+                </a>
+              </li>
+              <li>
+                <Link href="/pricing" className="transition-colors hover:text-foreground">
+                  Dofollow Backlinks
+                </Link>
+              </li>
+            </ul>
           </div>
-
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between text-slate-500 text-[11px] gap-4">
-          <p>© {new Date().getFullYear()} Vinay Indian Startup Platform. Built for Indian Builders.</p>
-          <div className="flex items-center gap-6">
-            <Link href="/privacy" className="hover:text-slate-400 transition-colors">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-slate-400 transition-colors">Terms of Service</Link>
-          </div>
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border pt-6 text-xs text-muted-foreground sm:flex-row">
+          <p>
+            © {year} {siteConfig.legalName}. Built for SaaS &amp; AI makers.
+          </p>
+          <p className="flex items-center gap-4">
+            <span>Permanent product pages</span>
+            <span aria-hidden="true">·</span>
+            <span>Dofollow backlinks</span>
+            <span aria-hidden="true">·</span>
+            <a href="/llms.txt" className="hover:text-foreground">
+              AI-indexed
+            </a>
+          </p>
         </div>
-
-      </div>
+      </Container>
     </footer>
   );
 }

@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    // Supabase se approved startups fetch karein
     const { data: startups, error } = await supabase
       .from('startups')
       .select('name, tagline, description, category, pricing_type, website_url')
@@ -57,7 +56,7 @@ ${
         'Cache-Control': 'public, max-age=1800, stale-while-revalidate=86400',
       },
     });
-  } catch (err: any) {
+  } catch {
     return new NextResponse('# Error generating llms.txt index\nTry again later.', {
       status: 500,
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
