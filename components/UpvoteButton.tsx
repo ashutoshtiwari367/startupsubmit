@@ -1,141 +1,110 @@
-'use client';
+import React from "react";
+import { cn } from "@/lib/utils";
+import { ChevronUp } from "lucide-react";
 
-import { useState, useSyncExternalStore } from 'react';
-import { ChevronUp } from 'lucide-react';
-import { cn } from 'cn';
-import { getVotedIds, persistUpvote, rememberVote } from '@/lib/upvote';
-
-interface UpvoteButtonProps {
-  startupId: string;
-  startupName: string;
+export interface UpvoteButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   count: number;
-  variant?: 'vertical' | 'inline' | 'hero';
-  onUpvote?: (id: string, currentUpvotes: number) => void;
-  className?: string;
+  isUpvoted?: boolean;
+  onUpvoteToggle?: (newUpvoted: boolean) => void;
+  orientation?: "vertical" | "horizontal";
+  size?: "sm" | "md" | "lg";
 }
 
-const emptySubscribe = () => () => {};
-
-export function UpvoteButton({
-  startupId,
-  startupName,
-  count,
-  variant = 'vertical',
-  onUpvote,
+export const UpvoteButton: React.FC<UpvoteButtonProps> = ({
   className,
-}: UpvoteButtonProps) {
-  const persistedVoted = useSyncExternalStore(
-    emptySubscribe,
-    () => getVotedIds().has(startupId),
-    () => false
-  );
-  const [votedThisSession, setVotedThisSession] = useState(false);
-  const [uncontrolledBonus, setUncontrolledBonus] = useState(0);
-  const [popping, setPopping] = useState(false);
+  count,
+  isUpvoted = false,
+  onUpvoteToggle,
+  orientation = "vertical",
+  size = "md",
+  disabled = false,
+  ...props
+}) => {
+  const [upvoted, setUpvoted] = React.useState(isUpvoted);
+  const [currentCount, setCurrentCount] = React.useState(count);
+  const [isBouncing, setIsBouncing] = React.useState(false);
 
-  const voted = persistedVoted || votedThisSession;
-  const displayCount = count + uncontrolledBonus;
+  React.useEffect(() => {
+    setUpvoted(isUpvoted);
+    setCurrentCount(count);
+  }, [isUpvoted, count]);
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
-    if (voted) return;
+    if (disabled) return;
 
-    const previous = displayCount;
-    setVotedThisSession(true);
-    setPopping(true);
-    rememberVote(startupId);
+    const nextState = !upvoted;
+    setUpvoted(nextState);
+    setCurrentCount((prev) => (nextState ? prev + 1 : prev - 1));
+    setIsBouncing(true);
+    setTimeout(() => setIsBouncing(false), 300);
 
-    if (onUpvote) {
-      onUpvote(startupId, previous);
-    } else {
-      setUncontrolledBonus((b) => b + 1);
-      persistUpvote(startupId, previous);
-    }
+    onUpvoteToggle?.(nextState);
   };
 
-  if (variant === 'hero') {
-    return (
-      <button
-        type="button"
-        onClick={handleClick}
-        aria-pressed={voted}
-        aria-label={voted ? `Upvoted ${startupName} (${displayCount})` : `Upvote ${startupName} (${displayCount})`}
-        className={cn(
-          'inline-flex h-11 items-center gap-2.5 rounded-lg border px-4 text-sm font-semibold tabular-nums transition-[color,background-color,border-color,box-shadow] duration-150 select-none',
-          voted
-            ? 'border-primary bg-primary text-primary-foreground shadow-xs'
-            : 'border-border-strong bg-card text-foreground shadow-xs hover:border-primary hover:bg-primary-soft hover:text-primary-soft-foreground',
-          className
-        )}
-      >
-        <ChevronUp
-          aria-hidden="true"
-          onAnimationEnd={() => setPopping(false)}
-          className={cn('size-4 stroke-[2.5]', popping && 'animate-vote-pop')}
-        />
-        <span>{voted ? 'Upvoted' : 'Upvote'}</span>
-        <span
-          className={cn(
-            'rounded-md px-2 py-0.5 text-xs font-bold',
-            voted ? 'bg-white/20 text-primary-foreground' : 'bg-muted text-foreground'
-          )}
-        >
-          {displayCount}
-        </span>
-      </button>
-    );
-  }
+  const formatCount = (n: number) => {
+    if (n >= 1000) {
+      return (n / 1000).toFixed(1) + "k";
+    }
+    return n.toString();
+  };
 
-  if (variant === 'inline') {
-    return (
-      <button
-        type="button"
-        onClick={handleClick}
-        aria-pressed={voted}
-        aria-label={voted ? `Upvoted ${startupName} (${displayCount})` : `Upvote ${startupName} (${displayCount})`}
-        className={cn(
-          'inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold tabular-nums transition-[color,background-color,border-color] duration-150 select-none',
-          voted
-            ? 'border-primary bg-primary-soft text-primary-soft-foreground'
-            : 'border-border bg-card text-foreground hover:border-primary/60 hover:bg-primary-soft/60 hover:text-primary-soft-foreground',
-          className
-        )}
-      >
-        <ChevronUp
-          aria-hidden="true"
-          onAnimationEnd={() => setPopping(false)}
-          className={cn('size-3.5 stroke-[2.5]', popping && 'animate-vote-pop')}
-        />
-        <span>{displayCount}</span>
-      </button>
-    );
-  }
+  const verticalSizes = {
+    sm: "w-12 h-14 p-1.5 text-xs rounded-[10px]",
+    md: "w-14 h-16 p-2 text-xs rounded-[10px]",
+    lg: "w-16 h-20 p-2.5 text-sm rounded-[12px]",
+  };
+
+  const horizontalSizes = {
+    sm: "h-8 px-3 text-xs gap-1.5 rounded-[8px]",
+    md: "h-10 px-4 text-sm gap-2 rounded-[10px]",
+    lg: "h-12 px-5 text-base gap-2.5 rounded-[10px]",
+  };
+
+  const chevronSizes = {
+    sm: "h-3.5 w-3.5 stroke-[2.5]",
+    md: "h-4 w-4 stroke-[2.5]",
+    lg: "h-5 w-5 stroke-[2.5]",
+  };
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      aria-pressed={voted}
-      aria-label={voted ? `Upvoted ${startupName} (${displayCount})` : `Upvote ${startupName} (${displayCount})`}
+      disabled={disabled}
+      aria-label={`Upvote, currently ${currentCount} upvotes`}
       className={cn(
-        'group/upvote flex h-14 min-w-[3.25rem] shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-2 text-xs font-semibold tabular-nums transition-[color,background-color,border-color,box-shadow] duration-150 select-none',
-        voted
-          ? 'border-primary bg-primary-soft text-primary-soft-foreground shadow-xs'
-          : 'border-border bg-card text-foreground shadow-xs hover:border-primary/60 hover:bg-primary-soft/60 hover:text-primary-soft-foreground',
+        "group relative flex items-center justify-center font-semibold transition-all duration-200 select-none cursor-pointer border",
+        orientation === "vertical"
+          ? cn("flex-col", verticalSizes[size])
+          : cn("flex-row", horizontalSizes[size]),
+        upvoted
+          ? "bg-[#EEF0FE] text-[#5B5BF0] border-[#5B5BF0] shadow-[0_2px_8px_rgba(91,91,240,0.2)]"
+          : "bg-white text-[#0F0F10] border-[#E8E8E3] hover:border-[#D5D5CE] hover:bg-[#FAFAF7] shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+        "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]",
+        disabled && "opacity-50 cursor-not-allowed pointer-events-none",
         className
       )}
+      {...props}
     >
       <ChevronUp
-        aria-hidden="true"
-        onAnimationEnd={() => setPopping(false)}
         className={cn(
-          'size-4 stroke-[2.5] transition-transform duration-150 group-hover/upvote:-translate-y-0.5',
-          voted ? 'text-primary' : 'text-muted-foreground group-hover/upvote:text-primary',
-          popping && 'animate-vote-pop'
+          chevronSizes[size],
+          "transition-transform duration-200",
+          upvoted ? "text-[#5B5BF0]" : "text-[#8E8E93] group-hover:text-[#5B5BF0]",
+          isBouncing && "-translate-y-1 scale-110",
+          !upvoted && "group-hover:-translate-y-0.5"
         )}
       />
-      <span>{displayCount}</span>
+      <span
+        className={cn(
+          "font-mono tracking-tight",
+          upvoted ? "text-[#5B5BF0] font-bold" : "text-[#0F0F10]"
+        )}
+      >
+        {formatCount(currentCount)}
+      </span>
     </button>
   );
-}
+};
+
