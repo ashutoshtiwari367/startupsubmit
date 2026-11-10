@@ -6,11 +6,14 @@ import {
   verifyImageMagicBytes,
 } from "@/lib/validation";
 import { generateUniqueSlug, toBaseSlug } from "@/lib/slug";
+import {
+  generateReferenceCode,
+  generateUniqueReferenceCode,
+} from "@/lib/reference-code";
 import { emitListingSubmitted } from "@/lib/events";
 import { checkListingSubmissionRateLimit } from "@/lib/ratelimit";
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const NUMERIC_ID_REGEX = /^\d+$/;
 
 function getSafeExtension(file: File): string {
   const mimeMap: Record<string, string> = {
@@ -31,17 +34,52 @@ function getClientIp(req: NextRequest): string {
   return req.headers.get("x-real-ip") || "127.0.0.1";
 }
 
-async function verifyCategoryExists(categoryInput: string): Promise<string | null> {
+async function verifyCategoryExists(
+  categoryInput: string,
+  customCategoryInput?: string
+): Promise<number | null> {
   const trimmed = categoryInput.trim();
   if (!trimmed) return null;
 
-  if (UUID_REGEX.test(trimmed)) {
+  // Handle "Other" custom category: resolve or create in public.categories
+  if (trimmed.toLowerCase() === "other") {
+    const customName = String(customCategoryInput || "").trim();
+    if (customName.length < 2) return null;
+
+    const customSlug = toBaseSlug(customName);
+    const { data: existingBySlug } = await db
+      .from("categories")
+      .select("id")
+      .eq("slug", customSlug)
+      .maybeSingle();
+
+    if (existingBySlug?.id) {
+      return Number(existingBySlug.id);
+    }
+
+    const { data: createdCategory } = await db
+      .from("categories")
+      .upsert(
+        {
+          slug: customSlug,
+          name: customName,
+          description: "Custom user-submitted category",
+        },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .single();
+
+    return createdCategory?.id ? Number(createdCategory.id) : null;
+  }
+
+  if (NUMERIC_ID_REGEX.test(trimmed)) {
     const { data: byId } = await db
       .from("categories")
       .select("id")
-      .eq("id", trimmed)
+      .eq("id", Number(trimmed))
       .maybeSingle();
-    return byId?.id || null;
+    return byId?.id ? Number(byId.id) : null;
   }
 
   const categorySlug = toBaseSlug(trimmed);
@@ -51,7 +89,7 @@ async function verifyCategoryExists(categoryInput: string): Promise<string | nul
     .eq("slug", categorySlug)
     .maybeSingle();
 
-  return bySlug?.id || null;
+  return bySlug?.id ? Number(bySlug.id) : null;
 }
 
 /**
@@ -70,7 +108,7 @@ export async function GET(req: NextRequest) {
       const { data, error } = await db
         .from("listings")
         .select(
-          "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
+          "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
         )
         .eq("slug", slug)
         .eq("status", "approved")
@@ -96,13 +134,13 @@ export async function GET(req: NextRequest) {
     let query = db
       .from("listings")
       .select(
-        "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
+        "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
       )
       .eq("status", "approved")
       .order("created_at", { ascending: false });
 
-    if (categoryId) {
-      query = query.eq("category_id", categoryId);
+    if (categoryId && NUMERIC_ID_REGEX.test(categoryId)) {
+      query = query.eq("category_id", Number(categoryId));
     }
 
     const { data, error } = await query;
@@ -150,6 +188,8 @@ export async function POST(req: NextRequest) {
           formData.get("description_long") ?? formData.get("long_description"),
         website_url: formData.get("website_url"),
         category_id: formData.get("category_id") ?? formData.get("category"),
+        custom_category:
+          formData.get("custom_category") ?? formData.get("other_category"),
         pricing_model: formData.get("pricing_model"),
         submitted_by_email:
           formData.get("submitted_by_email") ?? formData.get("submitter_email"),
@@ -188,11 +228,13 @@ export async function POST(req: NextRequest) {
     // Silently drop bot submissions (201 benign response without touching Storage, DB, or events)
     const botTrap = checkHoneypotAndMinSubmitTime(rawFields);
     if (botTrap.triggered) {
+      const fakeRef = generateReferenceCode("L", 6);
       return NextResponse.json(
         {
           ok: true,
           dropped: true,
-          id: "00000000-0000-4000-8000-000000000000",
+          reference_code: fakeRef,
+          id: fakeRef,
           message: "Tool submitted successfully and is pending admin review.",
         },
         { status: 201 }
@@ -231,11 +273,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (validation.isHoneypotTriggered) {
+      const fakeRef = generateReferenceCode("L", 6);
       return NextResponse.json(
         {
           ok: true,
           dropped: true,
-          id: "00000000-0000-4000-8000-000000000000",
+          reference_code: fakeRef,
+          id: fakeRef,
           message: "Tool submitted successfully and is pending admin review.",
         },
         { status: 201 }
@@ -290,8 +334,11 @@ export async function POST(req: NextRequest) {
 
     const validData = validation.data;
 
-    // 2. Verify category_id exists in public.categories
-    const categoryId = await verifyCategoryExists(validData.category_id);
+    // 2. Verify category_id exists in public.categories (or resolve/create if "other")
+    const categoryId = await verifyCategoryExists(
+      validData.category_id,
+      validData.custom_category
+    );
     if (!categoryId) {
       return NextResponse.json(
         {
@@ -372,17 +419,20 @@ export async function POST(req: NextRequest) {
       screenshotUrls.push(ssPublicData.publicUrl);
     }
 
-    // 4. Generate Unique Slug & Insert Listing with Concurrent Collision Retry
+    // 4. Generate Unique Slug + Human-Readable Reference Code (e.g. L-7K2M9Q) & Insert Listing
     const takenInRetry: string[] = [];
+    const takenRefCodes: string[] = [];
     let insertedListing = null;
     let lastDbError: { code?: string; message?: string } | null = null;
 
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidateSlug = await generateUniqueSlug(validData.name, takenInRetry);
+      const candidateRefCode = await generateUniqueReferenceCode(takenRefCodes);
 
       const { data, error } = await db
         .from("listings")
         .insert({
+          reference_code: candidateRefCode,
           name: validData.name,
           slug: candidateSlug,
           tagline: validData.tagline,
@@ -396,7 +446,7 @@ export async function POST(req: NextRequest) {
           submitted_by_email: validData.submitted_by_email,
         })
         .select(
-          "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
+          "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
         )
         .single();
 
@@ -408,6 +458,7 @@ export async function POST(req: NextRequest) {
       lastDbError = error;
       if (error?.code === "23505") {
         takenInRetry.push(candidateSlug);
+        takenRefCodes.push(candidateRefCode);
         continue;
       } else {
         break;
@@ -451,6 +502,7 @@ export async function POST(req: NextRequest) {
     // 6. Emit Event: listing_submitted (server-side after successful submission)
     const eventResult = await emitListingSubmitted({
       listing_id: insertedListing.id,
+      reference_code: insertedListing.reference_code,
       name: insertedListing.name,
       slug: insertedListing.slug,
       submitted_by_email: insertedListing.submitted_by_email,
@@ -465,6 +517,7 @@ export async function POST(req: NextRequest) {
       {
         ok: true,
         id: insertedListing.id,
+        reference_code: insertedListing.reference_code,
         message: "Tool submitted successfully and is pending admin review.",
         listing: {
           ...insertedListing,

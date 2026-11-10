@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { PricingModel, ListingStatus, Json } from "@/types/db";
+import type { PricingModel, ListingStatus, Json, BigIntId } from "@/types/db";
 
 export type ListingEventName =
   | "listing_submitted"
@@ -8,11 +8,12 @@ export type ListingEventName =
   | "listing_rejected";
 
 export interface ListingEventPayload {
-  listing_id: string;
+  listing_id: BigIntId;
+  reference_code?: string;
   name: string;
   slug: string;
   submitted_by_email: string;
-  category_id: string;
+  category_id: BigIntId;
   pricing_model: PricingModel;
   website_url: string;
   status: ListingStatus;
@@ -74,9 +75,14 @@ export async function emitListingLifecycleEvent<T extends ListingEventName>(
 
   // 2. Persist event record in Supabase 'events' table
   try {
+    const numericListingId =
+      typeof payload.listing_id === "number"
+        ? payload.listing_id
+        : Number(payload.listing_id);
+
     await db.from("events").insert({
       event_name: eventName,
-      listing_id: payload.listing_id,
+      listing_id: Number.isFinite(numericListingId) ? numericListingId : null,
       payload: payload as unknown as Json,
     });
   } catch (err) {

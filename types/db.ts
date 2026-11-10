@@ -10,26 +10,28 @@ export type PricingModel = "free" | "freemium" | "paid" | "one_time";
 
 export type ListingStatus = "pending" | "approved" | "rejected";
 
+export type BigIntId = number | string;
+
 export interface Database {
   public: {
     Tables: {
       categories: {
         Row: {
-          id: string;
+          id: number;
           slug: string;
           name: string;
           description: string | null;
           created_at: string;
         };
         Insert: {
-          id?: string;
+          id?: never;
           slug: string;
           name: string;
           description?: string | null;
           created_at?: string;
         };
         Update: {
-          id?: string;
+          id?: never;
           slug?: string;
           name?: string;
           description?: string | null;
@@ -39,7 +41,8 @@ export interface Database {
       };
       listings: {
         Row: {
-          id: string;
+          id: number;
+          reference_code: string;
           slug: string;
           name: string;
           tagline: string;
@@ -47,7 +50,7 @@ export interface Database {
           description_long: string;
           website_url: string;
           logo_url: string;
-          category_id: string;
+          category_id: number;
           pricing_model: PricingModel;
           status: ListingStatus;
           submitted_by_email: string;
@@ -56,7 +59,8 @@ export interface Database {
           approved_at: string | null;
         };
         Insert: {
-          id?: string;
+          id?: never;
+          reference_code?: string;
           slug: string;
           name: string;
           tagline: string;
@@ -64,7 +68,7 @@ export interface Database {
           description_long: string;
           website_url: string;
           logo_url: string;
-          category_id: string;
+          category_id: number;
           pricing_model: PricingModel;
           status?: ListingStatus;
           submitted_by_email: string;
@@ -73,7 +77,8 @@ export interface Database {
           approved_at?: string | null;
         };
         Update: {
-          id?: string;
+          id?: never;
+          reference_code?: string;
           slug?: string;
           name?: string;
           tagline?: string;
@@ -81,7 +86,7 @@ export interface Database {
           description_long?: string;
           website_url?: string;
           logo_url?: string;
-          category_id?: string;
+          category_id?: number;
           pricing_model?: PricingModel;
           status?: ListingStatus;
           submitted_by_email?: string;
@@ -101,20 +106,20 @@ export interface Database {
       };
       listing_screenshots: {
         Row: {
-          id: string;
-          listing_id: string;
+          id: number;
+          listing_id: number;
           url: string;
           position: number;
         };
         Insert: {
-          id?: string;
-          listing_id: string;
+          id?: never;
+          listing_id: number;
           url: string;
           position: number;
         };
         Update: {
-          id?: string;
-          listing_id?: string;
+          id?: never;
+          listing_id?: number;
           url?: string;
           position?: number;
         };
@@ -128,25 +133,43 @@ export interface Database {
           }
         ];
       };
-      events: {
+      customers: {
         Row: {
           id: string;
-          event_name: string;
-          listing_id: string | null;
-          payload: Json;
+          email: string;
           created_at: string;
         };
         Insert: {
-          id?: string;
-          event_name: string;
-          listing_id?: string | null;
-          payload?: Json;
+          id: string;
+          email: string;
           created_at?: string;
         };
         Update: {
           id?: string;
+          email?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      events: {
+        Row: {
+          id: number;
+          event_name: string;
+          listing_id: number | null;
+          payload: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          event_name: string;
+          listing_id?: number | null;
+          payload?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
           event_name?: string;
-          listing_id?: string | null;
+          listing_id?: number | null;
           payload?: Json;
           created_at?: string;
         };
@@ -187,3 +210,4 @@ export type ListingUpdate = Database["public"]["Tables"]["listings"]["Update"];
 export type ListingScreenshotRow = Database["public"]["Tables"]["listing_screenshots"]["Row"];
 export type ListingScreenshotInsert = Database["public"]["Tables"]["listing_screenshots"]["Insert"];
 
+export type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];

@@ -78,66 +78,110 @@ export function checkHoneypotAndMinSubmitTime(input: {
   return { triggered: false };
 }
 
+function isValidHttpsUrl(val: string): boolean {
+  try {
+    const parsed = new URL(val);
+    if (parsed.protocol !== "https:") return false;
+    if (!parsed.hostname || !parsed.hostname.includes(".")) return false;
+    if (/\s/.test(val)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Authoritative Server-Side Zod Schema for Listing Text Fields.
+ * Supports "other" category with required custom_category and optional website_url.
  */
-export const serverListingFieldsSchema = z.object({
-  name: z
-    .string({ message: "Tool name is required." })
-    .trim()
-    .min(1, "Tool name is required."),
-  tagline: z
-    .string({ message: "Tagline is required." })
-    .trim()
-    .min(1, "Tagline is required.")
-    .max(
-      config.maxTaglineChars,
-      `Tagline cannot exceed ${config.maxTaglineChars} characters.`
-    ),
-  description_short: z
-    .string({ message: "Short description is required." })
-    .trim()
-    .min(1, "Short description is required.")
-    .max(
-      config.maxShortDescChars,
-      `Short description cannot exceed ${config.maxShortDescChars} characters.`
-    ),
-  description_long: z
-    .string({ message: "Long description is required." })
-    .trim()
-    .min(1, "Long description is required.")
-    .max(
-      config.maxLongDescChars,
-      `Long description cannot exceed ${config.maxLongDescChars} characters.`
-    ),
-  website_url: z
-    .string({ message: "Website URL is required." })
-    .trim()
-    .min(1, "Website URL is required.")
-    .refine((val) => {
-      try {
-        const parsed = new URL(val);
-        if (parsed.protocol !== "https:") return false;
-        if (!parsed.hostname || !parsed.hostname.includes(".")) return false;
-        if (/\s/.test(val)) return false;
-        return true;
-      } catch {
-        return false;
+export const serverListingFieldsSchema = z
+  .object({
+    name: z
+      .string({ message: "Tool name is required." })
+      .trim()
+      .min(1, "Tool name is required."),
+    tagline: z
+      .string({ message: "Tagline is required." })
+      .trim()
+      .min(1, "Tagline is required.")
+      .max(
+        config.maxTaglineChars,
+        `Tagline cannot exceed ${config.maxTaglineChars} characters.`
+      ),
+    description_short: z
+      .string({ message: "Short description is required." })
+      .trim()
+      .min(1, "Short description is required.")
+      .max(
+        config.maxShortDescChars,
+        `Short description cannot exceed ${config.maxShortDescChars} characters.`
+      ),
+    description_long: z
+      .string({ message: "Long description is required." })
+      .trim()
+      .min(1, "Long description is required.")
+      .max(
+        config.maxLongDescChars,
+        `Long description cannot exceed ${config.maxLongDescChars} characters.`
+      ),
+    website_url: z.string().trim().optional().default(""),
+    category_id: z
+      .string({ message: "Category is required." })
+      .trim()
+      .min(1, "Category is required."),
+    custom_category: z
+      .string()
+      .trim()
+      .max(50, "Custom category cannot exceed 50 characters.")
+      .optional()
+      .default(""),
+    pricing_model: z.enum(VALID_PRICING_MODELS, {
+      message: `Invalid pricing_model. Must be one of: ${VALID_PRICING_MODELS.join(", ")}.`,
+    }),
+    submitted_by_email: z
+      .string({ message: "Submitter email is required." })
+      .trim()
+      .min(1, "Submitter email is required.")
+      .email("Please provide a valid email address."),
+  })
+  .superRefine((data, ctx) => {
+    const isOther = data.category_id.trim().toLowerCase() === "other";
+    const customCat = (data.custom_category || "").trim();
+    const website = (data.website_url || "").trim();
+
+    if (isOther) {
+      if (customCat.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["custom_category"],
+          message: "Please specify your custom category (at least 2 characters).",
+        });
       }
-    }, "Website URL must use HTTPS (https://) and have a valid domain."),
-  category_id: z
-    .string({ message: "Category is required." })
-    .trim()
-    .min(1, "Category is required."),
-  pricing_model: z.enum(VALID_PRICING_MODELS, {
-    message: `Invalid pricing_model. Must be one of: ${VALID_PRICING_MODELS.join(", ")}.`,
-  }),
-  submitted_by_email: z
-    .string({ message: "Submitter email is required." })
-    .trim()
-    .min(1, "Submitter email is required.")
-    .email("Please provide a valid email address."),
-});
+      if (website.length > 0 && !isValidHttpsUrl(website)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["website_url"],
+          message:
+            "Website URL must use HTTPS (https://) and have a valid domain.",
+        });
+      }
+    } else {
+      if (!website) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["website_url"],
+          message: "Website URL is required.",
+        });
+      } else if (!isValidHttpsUrl(website)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["website_url"],
+          message:
+            "Website URL must use HTTPS (https://) and have a valid domain.",
+        });
+      }
+    }
+  });
 
 export interface ValidatedSubmissionFields {
   name: string;
@@ -147,6 +191,7 @@ export interface ValidatedSubmissionFields {
   website_url: string;
   category: string;
   category_id: string;
+  custom_category?: string;
   pricing_model: PricingModel;
   submitted_by_email: string;
 }
@@ -223,6 +268,8 @@ export function validateSubmissionServer(input: {
   website_url?: unknown;
   category?: unknown;
   category_id?: unknown;
+  custom_category?: unknown;
+  other_category?: unknown;
   pricing_model?: unknown;
   submitted_by_email?: unknown;
   submitter_email?: unknown;
@@ -266,6 +313,10 @@ export function validateSubmissionServer(input: {
     category_id:
       typeof (input.category_id ?? input.category) === "string"
         ? String(input.category_id ?? input.category)
+        : "",
+    custom_category:
+      typeof (input.custom_category ?? input.other_category) === "string"
+        ? String(input.custom_category ?? input.other_category)
         : "",
     pricing_model:
       typeof input.pricing_model === "string"

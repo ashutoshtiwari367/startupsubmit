@@ -3,22 +3,23 @@
 import React, { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import { approveListing, rejectListing } from "@/app/admin/actions";
-import type { PricingModel, ListingStatus } from "@/types/db";
+import type { PricingModel, ListingStatus, BigIntId } from "@/types/db";
 
 export interface QueueScreenshot {
-  id: string;
+  id: BigIntId;
   url: string;
   position: number;
 }
 
 export interface QueueCategory {
-  id: string;
+  id: BigIntId;
   slug: string;
   name: string;
 }
 
 export interface PendingQueueItem {
-  id: string;
+  id: BigIntId;
+  reference_code?: string;
   slug: string;
   name: string;
   tagline: string;
@@ -26,7 +27,7 @@ export interface PendingQueueItem {
   description_long: string;
   website_url: string;
   logo_url: string;
-  category_id: string;
+  category_id: BigIntId;
   pricing_model: PricingModel;
   status: ListingStatus;
   submitted_by_email: string;
@@ -66,22 +67,22 @@ export function AdminQueueClient({ initialListings }: AdminQueueClientProps) {
     type: "success" | "error";
     text: string;
   } | null>(null);
-  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [pendingActionId, setPendingActionId] = useState<BigIntId | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Optimistic state: removes the item immediately from the queue when Approve/Reject is clicked
   const [optimisticListings, removeOptimisticListing] = useOptimistic(
     listings,
-    (currentListings: PendingQueueItem[], removedId: string) =>
-      currentListings.filter((item) => item.id !== removedId)
+    (currentListings: PendingQueueItem[], removedId: BigIntId) =>
+      currentListings.filter((item) => String(item.id) !== String(removedId))
   );
 
   function resolveCategoryLabel(item: PendingQueueItem): string {
-    if (!item.categories) return item.category_id;
+    if (!item.categories) return String(item.category_id);
     if (Array.isArray(item.categories)) {
-      return item.categories[0]?.name || item.category_id;
+      return item.categories[0]?.name || String(item.category_id);
     }
-    return item.categories.name || item.category_id;
+    return item.categories.name || String(item.category_id);
   }
 
   function handleModeration(item: PendingQueueItem, decision: "approve" | "reject") {
@@ -231,6 +232,11 @@ export function AdminQueueClient({ initialListings }: AdminQueueClientProps) {
                             <div className="font-bold text-white text-base break-words">
                               {item.name}
                             </div>
+                            {item.reference_code && (
+                              <div className="inline-flex items-center px-2 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-mono font-semibold">
+                                Ref: {item.reference_code}
+                              </div>
+                            )}
                             <div className="text-xs text-zinc-400 font-mono break-all">
                               slug: {item.slug}
                             </div>
@@ -242,7 +248,11 @@ export function AdminQueueClient({ initialListings }: AdminQueueClientProps) {
 
                         <div className="pt-1 text-xs">
                           <span className="text-zinc-500 block mb-0.5">Website URL:</span>
-                          {safeWebsite ? (
+                          {!item.website_url ? (
+                            <span className="text-zinc-500 italic">
+                              No website URL provided (Other category)
+                            </span>
+                          ) : safeWebsite ? (
                             <a
                               href={safeWebsite}
                               target="_blank"

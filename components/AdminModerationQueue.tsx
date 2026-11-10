@@ -21,22 +21,23 @@ import {
 } from "lucide-react";
 import { Button } from "./Button";
 import { approveListing, rejectListing } from "@/app/admin/actions";
-import type { PricingModel, ListingStatus } from "@/types/db";
+import type { PricingModel, ListingStatus, BigIntId } from "@/types/db";
 
 interface AdminScreenshotItem {
-  id: string;
+  id: BigIntId;
   url: string;
   position: number;
 }
 
 interface AdminCategoryInfo {
-  id: string;
+  id: BigIntId;
   slug: string;
   name: string;
 }
 
 export interface AdminListingItem {
-  id: string;
+  id: BigIntId;
+  reference_code?: string;
   slug: string;
   name: string;
   tagline: string;
@@ -44,7 +45,7 @@ export interface AdminListingItem {
   description_long: string;
   website_url: string;
   logo_url: string;
-  category_id: string;
+  category_id: BigIntId;
   pricing_model: PricingModel;
   status: ListingStatus;
   submitted_by_email: string;
@@ -63,7 +64,7 @@ export const AdminModerationQueue: React.FC = () => {
   const [listings, setListings] = useState<AdminListingItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<BigIntId | null>(null);
   const [toastMessage, setToastMessage] = useState<{
     text: string;
     eventName?: string;
@@ -97,7 +98,7 @@ export const AdminModerationQueue: React.FC = () => {
   }, [filterStatus, fetchQueue]);
 
   const handleModeration = async (
-    listingId: string,
+    listingId: BigIntId,
     action: "approve" | "reject"
   ) => {
     setActionLoadingId(listingId);
@@ -147,11 +148,11 @@ export const AdminModerationQueue: React.FC = () => {
   };
 
   const resolveCategoryName = (item: AdminListingItem): string => {
-    if (!item.categories) return item.category_id;
+    if (!item.categories) return String(item.category_id);
     if (Array.isArray(item.categories)) {
-      return item.categories[0]?.name || item.category_id;
+      return item.categories[0]?.name || String(item.category_id);
     }
-    return item.categories.name || item.category_id;
+    return item.categories.name || String(item.category_id);
   };
 
   return (

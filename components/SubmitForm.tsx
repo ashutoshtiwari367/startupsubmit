@@ -34,11 +34,12 @@ import {
 import type { CategoryRow, PricingModel, ListingStatus } from "@/types/db";
 
 interface SubmittedListingResponse {
-  id: string;
+  id: number | string;
+  reference_code: string;
   name: string;
   slug: string;
   status: ListingStatus;
-  category_id: string;
+  category_id: number | string;
   pricing_model: PricingModel;
   website_url: string;
   logo_url: string;
@@ -111,22 +112,28 @@ export const SubmitForm: React.FC = () => {
     mode: "onChange",
     defaultValues: {
       name: "",
+      category_id: "",
+      custom_category: "",
+      pricing_model: "freemium",
+      website_url: "",
       tagline: "",
       description_short: "",
       description_long: "",
-      website_url: "",
-      category_id: "",
-      pricing_model: "freemium",
       submitted_by_email: "",
       company_website_hp: "",
     },
   });
 
   // Auto-select first category once loaded from /api/categories
-  const watchedCategoryId = watch("category_id");
+  const watchedCategoryId = watch("category_id") || "";
+  const watchedCustomCategory = watch("custom_category") || "";
+  const isOtherCategory = watchedCategoryId.trim().toLowerCase() === "other";
+
   useEffect(() => {
     if (!watchedCategoryId && categories.length > 0) {
-      setValue("category_id", categories[0].id, { shouldValidate: true });
+      setValue("category_id", String(categories[0].id), {
+        shouldValidate: true,
+      });
     }
   }, [categories, watchedCategoryId, setValue]);
 
@@ -236,8 +243,11 @@ export const SubmitForm: React.FC = () => {
       formData.append("tagline", values.tagline.trim());
       formData.append("description_short", values.description_short.trim());
       formData.append("description_long", values.description_long.trim());
-      formData.append("website_url", values.website_url.trim());
+      formData.append("website_url", (values.website_url || "").trim());
       formData.append("category_id", values.category_id.trim());
+      if (values.custom_category) {
+        formData.append("custom_category", values.custom_category.trim());
+      }
       formData.append("pricing_model", values.pricing_model);
       formData.append("submitted_by_email", values.submitted_by_email.trim());
       formData.append("form_started_at", String(formStartedAtRef.current));
@@ -265,12 +275,13 @@ export const SubmitForm: React.FC = () => {
         if (data.errors && typeof data.errors === "object") {
           const schemaFields: (keyof SubmitListingFormValues)[] = [
             "name",
+            "category_id",
+            "custom_category",
+            "pricing_model",
+            "website_url",
             "tagline",
             "description_short",
             "description_long",
-            "website_url",
-            "category_id",
-            "pricing_model",
             "submitted_by_email",
           ];
 
@@ -313,12 +324,13 @@ export const SubmitForm: React.FC = () => {
   const handleReset = () => {
     reset({
       name: "",
+      category_id: categories[0]?.id ? String(categories[0].id) : "",
+      custom_category: "",
+      pricing_model: "freemium",
+      website_url: "",
       tagline: "",
       description_short: "",
       description_long: "",
-      website_url: "",
-      category_id: categories[0]?.id || "",
-      pricing_model: "freemium",
       submitted_by_email: "",
     });
     setLogoFile(null);
@@ -332,8 +344,10 @@ export const SubmitForm: React.FC = () => {
     formStartedAtRef.current = Date.now();
   };
 
-  const selectedCategoryName =
-    categories.find((c) => c.id === watchedCategoryId)?.name || "Category";
+  const selectedCategoryName = isOtherCategory
+    ? watchedCustomCategory.trim() || "Other"
+    : categories.find((c) => String(c.id) === String(watchedCategoryId))
+        ?.name || "Category";
 
   const selectedPricingLabel =
     PRICING_OPTIONS.find((p) => p.value === watchedPricing)?.label ||
@@ -448,7 +462,7 @@ export const SubmitForm: React.FC = () => {
                   />
                 </div>
 
-                {/* Name */}
+                {/* 1. Name */}
                 <div>
                   <label
                     htmlFor="field-name"
@@ -474,153 +488,7 @@ export const SubmitForm: React.FC = () => {
                   )}
                 </div>
 
-                {/* Tagline (60 chars limit) */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label
-                      htmlFor="field-tagline"
-                      className="text-xs font-bold text-[#0F0F10]"
-                    >
-                      Tagline <span className="text-[#DC2626]">*</span>
-                    </label>
-                    <span
-                      className={`text-xs font-mono font-semibold ${
-                        watchedTagline.length > SUBMIT_LIMITS.TAGLINE_MAX
-                          ? "text-[#DC2626]"
-                          : watchedTagline.length > 50
-                          ? "text-[#EA580C]"
-                          : "text-[#8E8E93]"
-                      }`}
-                    >
-                      {watchedTagline.length}/{SUBMIT_LIMITS.TAGLINE_MAX}
-                    </span>
-                  </div>
-                  <input
-                    id="field-tagline"
-                    type="text"
-                    placeholder="Short headline (max 60 characters)"
-                    {...register("tagline")}
-                    className={`w-full h-10 rounded-[10px] border bg-white px-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
-                      errors.tagline
-                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
-                    }`}
-                  />
-                  {errors.tagline && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                      {errors.tagline.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Website URL (HTTPS only) */}
-                <div>
-                  <label
-                    htmlFor="field-website-url"
-                    className="block text-xs font-bold text-[#0F0F10] mb-1.5"
-                  >
-                    Website URL (HTTPS Only) <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <div className="relative">
-                    <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
-                    <input
-                      id="field-website-url"
-                      type="url"
-                      placeholder="https://writepro.ai"
-                      {...register("website_url")}
-                      className={`w-full h-10 rounded-[10px] border bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
-                        errors.website_url
-                          ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                          : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
-                      }`}
-                    />
-                  </div>
-                  {errors.website_url && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                      {errors.website_url.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Short Description (250 chars limit) */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label
-                      htmlFor="field-description-short"
-                      className="text-xs font-bold text-[#0F0F10]"
-                    >
-                      Short Description <span className="text-[#DC2626]">*</span>
-                    </label>
-                    <span
-                      className={`text-xs font-mono font-semibold ${
-                        watchedShortDesc.length > SUBMIT_LIMITS.SHORT_DESC_MAX
-                          ? "text-[#DC2626]"
-                          : watchedShortDesc.length > 220
-                          ? "text-[#EA580C]"
-                          : "text-[#8E8E93]"
-                      }`}
-                    >
-                      {watchedShortDesc.length}/{SUBMIT_LIMITS.SHORT_DESC_MAX}
-                    </span>
-                  </div>
-                  <textarea
-                    id="field-description-short"
-                    rows={2}
-                    placeholder="Brief introduction (max 250 characters)..."
-                    {...register("description_short")}
-                    className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
-                      errors.description_short
-                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
-                    }`}
-                  />
-                  {errors.description_short && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                      {errors.description_short.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Long Description (2000 chars limit) */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label
-                      htmlFor="field-description-long"
-                      className="text-xs font-bold text-[#0F0F10]"
-                    >
-                      Long Description <span className="text-[#DC2626]">*</span>
-                    </label>
-                    <span
-                      className={`text-xs font-mono font-semibold ${
-                        watchedLongDesc.length > SUBMIT_LIMITS.LONG_DESC_MAX
-                          ? "text-[#DC2626]"
-                          : watchedLongDesc.length > 1800
-                          ? "text-[#EA580C]"
-                          : "text-[#8E8E93]"
-                      }`}
-                    >
-                      {watchedLongDesc.length}/{SUBMIT_LIMITS.LONG_DESC_MAX}
-                    </span>
-                  </div>
-                  <textarea
-                    id="field-description-long"
-                    rows={5}
-                    placeholder="Complete tool details, features, and use cases (max 2,000 characters)..."
-                    {...register("description_long")}
-                    className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
-                      errors.description_long
-                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
-                    }`}
-                  />
-                  {errors.description_long && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                      {errors.description_long.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* Category (<select> populated from GET /api/categories) & Pricing Model */}
+                {/* 2. Category (Moved BEFORE Website URL, includes 'Other' option) & Pricing Model */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label
@@ -642,14 +510,17 @@ export const SubmitForm: React.FC = () => {
                       >
                         {loadingCategories ? (
                           <option value="">Loading categories...</option>
-                        ) : categories.length === 0 ? (
-                          <option value="">No categories available</option>
                         ) : (
-                          categories.map((cat) => (
-                            <option key={cat.id} value={cat.id}>
-                              {cat.name}
+                          <>
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={String(cat.id)}>
+                                {cat.name}
+                              </option>
+                            ))}
+                            <option value="other">
+                              Other (Specify custom category)
                             </option>
-                          ))
+                          </>
                         )}
                       </select>
                       <Tag className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
@@ -697,6 +568,187 @@ export const SubmitForm: React.FC = () => {
                       </p>
                     )}
                   </div>
+                </div>
+
+                {/* Conditional Custom Category Field when "Other" is selected */}
+                {isOtherCategory && (
+                  <div className="rounded-[12px] border border-[#D5D8FC] bg-[#EEF0FE]/40 p-4 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label
+                        htmlFor="field-custom-category"
+                        className="block text-xs font-bold text-[#0F0F10]"
+                      >
+                        Specify Other Category <span className="text-[#DC2626]">*</span>
+                      </label>
+                      <span className="text-xs font-mono font-semibold text-[#66666B]">
+                        {watchedCustomCategory.length}/{SUBMIT_LIMITS.CUSTOM_CATEGORY_MAX}
+                      </span>
+                    </div>
+                    <input
+                      id="field-custom-category"
+                      type="text"
+                      placeholder="e.g. Cybersecurity, LegalTech, HR Tech"
+                      {...register("custom_category")}
+                      className={`w-full h-10 rounded-[10px] border bg-white px-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                        errors.custom_category
+                          ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                          : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                      }`}
+                    />
+                    {errors.custom_category && (
+                      <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                        {errors.custom_category.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Website URL (Required for standard categories; not required when 'Other' is selected) */}
+                {!isOtherCategory && (
+                  <div>
+                    <label
+                      htmlFor="field-website-url"
+                      className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                    >
+                      Website URL (HTTPS Only) <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <div className="relative">
+                      <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
+                      <input
+                        id="field-website-url"
+                        type="url"
+                        placeholder="https://writepro.ai"
+                        {...register("website_url")}
+                        className={`w-full h-10 rounded-[10px] border bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                          errors.website_url
+                            ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                            : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                        }`}
+                      />
+                    </div>
+                    {errors.website_url && (
+                      <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                        {errors.website_url.message}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. Tagline (60 chars limit) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="field-tagline"
+                      className="text-xs font-bold text-[#0F0F10]"
+                    >
+                      Tagline <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <span
+                      className={`text-xs font-mono font-semibold ${
+                        watchedTagline.length > SUBMIT_LIMITS.TAGLINE_MAX
+                          ? "text-[#DC2626]"
+                          : watchedTagline.length > 50
+                          ? "text-[#EA580C]"
+                          : "text-[#8E8E93]"
+                      }`}
+                    >
+                      {watchedTagline.length}/{SUBMIT_LIMITS.TAGLINE_MAX}
+                    </span>
+                  </div>
+                  <input
+                    id="field-tagline"
+                    type="text"
+                    placeholder="Short headline (max 60 characters)"
+                    {...register("tagline")}
+                    className={`w-full h-10 rounded-[10px] border bg-white px-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                      errors.tagline
+                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                    }`}
+                  />
+                  {errors.tagline && (
+                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                      {errors.tagline.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* 5. Short Description (250 chars limit) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="field-description-short"
+                      className="text-xs font-bold text-[#0F0F10]"
+                    >
+                      Short Description <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <span
+                      className={`text-xs font-mono font-semibold ${
+                        watchedShortDesc.length > SUBMIT_LIMITS.SHORT_DESC_MAX
+                          ? "text-[#DC2626]"
+                          : watchedShortDesc.length > 220
+                          ? "text-[#EA580C]"
+                          : "text-[#8E8E93]"
+                      }`}
+                    >
+                      {watchedShortDesc.length}/{SUBMIT_LIMITS.SHORT_DESC_MAX}
+                    </span>
+                  </div>
+                  <textarea
+                    id="field-description-short"
+                    rows={2}
+                    placeholder="Brief introduction (max 250 characters)..."
+                    {...register("description_short")}
+                    className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                      errors.description_short
+                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                    }`}
+                  />
+                  {errors.description_short && (
+                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                      {errors.description_short.message}
+                    </p>
+                  )}
+                </div>
+
+                {/* 6. Long Description (2000 chars limit) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="field-description-long"
+                      className="text-xs font-bold text-[#0F0F10]"
+                    >
+                      Long Description <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <span
+                      className={`text-xs font-mono font-semibold ${
+                        watchedLongDesc.length > SUBMIT_LIMITS.LONG_DESC_MAX
+                          ? "text-[#DC2626]"
+                          : watchedLongDesc.length > 1800
+                          ? "text-[#EA580C]"
+                          : "text-[#8E8E93]"
+                      }`}
+                    >
+                      {watchedLongDesc.length}/{SUBMIT_LIMITS.LONG_DESC_MAX}
+                    </span>
+                  </div>
+                  <textarea
+                    id="field-description-long"
+                    rows={5}
+                    placeholder="Complete tool details, features, and use cases (max 2,000 characters)..."
+                    {...register("description_long")}
+                    className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                      errors.description_long
+                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                    }`}
+                  />
+                  {errors.description_long && (
+                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                      {errors.description_long.message}
+                    </p>
+                  )}
                 </div>
 
                 {/* Submitter Email */}
@@ -1011,15 +1063,15 @@ export const SubmitForm: React.FC = () => {
 
             <div className="rounded-[14px] bg-[#FAFAF7] border border-[#E8E8E3] p-4 text-left space-y-2.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Listing UUID:</span>
-                <span className="font-mono font-bold text-[#0F0F10]">
-                  {submittedResult.id}
+                <span className="text-[#8E8E93]">Reference Code:</span>
+                <span className="font-mono font-bold text-[#0F0F10] bg-[#EEF0FE] px-2 py-0.5 rounded border border-[#D5D8FC]">
+                  {submittedResult.reference_code}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Unique Slug:</span>
+                <span className="text-[#8E8E93]">Public URL Slug:</span>
                 <span className="font-mono font-bold text-[#5B5BF0]">
-                  {submittedResult.slug}
+                  /product/{submittedResult.slug}
                 </span>
               </div>
               <div className="flex justify-between">

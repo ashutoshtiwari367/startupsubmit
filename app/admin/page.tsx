@@ -24,6 +24,7 @@ export default async function AdminPage() {
     .select(
       `
       id,
+      reference_code,
       slug,
       name,
       tagline,

@@ -57,28 +57,47 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set([
 ]);
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
-const serverListingFieldsSchema = z.object({
-  name: z.string().trim().min(1, "Tool name is required."),
-  tagline: z
-    .string()
-    .trim()
-    .min(1, "Tagline is required.")
-    .max(60, "Tagline cannot exceed 60 characters."),
-  description_short: z
-    .string()
-    .trim()
-    .min(1, "Short description is required.")
-    .max(250, "Short description cannot exceed 250 characters."),
-  description_long: z
-    .string()
-    .trim()
-    .min(1, "Long description is required.")
-    .max(2000, "Long description cannot exceed 2000 characters."),
-  website_url: z
-    .string()
-    .trim()
-    .min(1, "Website URL is required.")
-    .refine((val) => {
+const serverListingFieldsSchema = z
+  .object({
+    name: z.string().trim().min(1, "Tool name is required."),
+    tagline: z
+      .string()
+      .trim()
+      .min(1, "Tagline is required.")
+      .max(60, "Tagline cannot exceed 60 characters."),
+    description_short: z
+      .string()
+      .trim()
+      .min(1, "Short description is required.")
+      .max(250, "Short description cannot exceed 250 characters."),
+    description_long: z
+      .string()
+      .trim()
+      .min(1, "Long description is required.")
+      .max(2000, "Long description cannot exceed 2000 characters."),
+    website_url: z.string().trim().optional().default(""),
+    category_id: z.string().trim().min(1, "Category is required."),
+    custom_category: z
+      .string()
+      .trim()
+      .max(50, "Custom category cannot exceed 50 characters.")
+      .optional()
+      .default(""),
+    pricing_model: z.enum(VALID_PRICING_MODELS, {
+      message: `Invalid pricing_model. Must be one of: ${VALID_PRICING_MODELS.join(", ")}.`,
+    }),
+    submitted_by_email: z
+      .string()
+      .trim()
+      .min(1, "Submitter email is required.")
+      .email("Please provide a valid email address."),
+  })
+  .superRefine((data, ctx) => {
+    const isOther = data.category_id.trim().toLowerCase() === "other";
+    const customCat = (data.custom_category || "").trim();
+    const website = (data.website_url || "").trim();
+
+    function isValidHttps(val) {
       try {
         const parsed = new URL(val);
         if (parsed.protocol !== "https:") return false;
@@ -88,17 +107,39 @@ const serverListingFieldsSchema = z.object({
       } catch {
         return false;
       }
-    }, "Website URL must use HTTPS (https://) and have a valid domain."),
-  category_id: z.string().trim().min(1, "Category is required."),
-  pricing_model: z.enum(VALID_PRICING_MODELS, {
-    message: `Invalid pricing_model. Must be one of: ${VALID_PRICING_MODELS.join(", ")}.`,
-  }),
-  submitted_by_email: z
-    .string()
-    .trim()
-    .min(1, "Submitter email is required.")
-    .email("Please provide a valid email address."),
-});
+    }
+
+    if (isOther) {
+      if (customCat.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["custom_category"],
+          message: "Please specify your custom category (at least 2 characters).",
+        });
+      }
+      if (website.length > 0 && !isValidHttps(website)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["website_url"],
+          message: "Website URL must use HTTPS (https://) and have a valid domain.",
+        });
+      }
+    } else {
+      if (!website) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["website_url"],
+          message: "Website URL is required.",
+        });
+      } else if (!isValidHttps(website)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["website_url"],
+          message: "Website URL must use HTTPS (https://) and have a valid domain.",
+        });
+      }
+    }
+  });
 
 function verifyImageMagicBytes(bytes) {
   if (!bytes || bytes.length < 4) return false;
@@ -188,6 +229,10 @@ function validateSubmissionServer(input) {
     category_id:
       typeof (input.category_id ?? input.category) === "string"
         ? String(input.category_id ?? input.category)
+        : "",
+    custom_category:
+      typeof (input.custom_category ?? input.other_category) === "string"
+        ? String(input.custom_category ?? input.other_category)
         : "",
     pricing_model:
       typeof input.pricing_model === "string"
@@ -826,6 +871,154 @@ describe("Authoritative Server Validation & Adversarial Cases (lib/validation.ts
     });
     assert.equal(legitimateTimedRes.valid, true);
     assert.equal(Boolean(legitimateTimedRes.isHoneypotTriggered), false);
+  });
+
+  it("enforces BIGINT GENERATED ALWAYS AS IDENTITY PKs, UUID only on customers, and unambiguous human-readable reference_code (L-7K2M9Q with no 0/O/1/I)", () => {
+    // 1. Verify SQL migration schema strategy
+    const sqlSource = fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "migrations", "0001_init.sql"),
+      "utf8"
+    );
+
+    assert.ok(
+      sqlSource.includes("BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"),
+      "0001_init.sql must use BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
+    );
+    assert.ok(
+      sqlSource.includes("reference_code TEXT NOT NULL UNIQUE"),
+      "listings table must define reference_code TEXT NOT NULL UNIQUE"
+    );
+    assert.ok(
+      sqlSource.includes("^L-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$"),
+      "listings.reference_code must enforce 6-char unambiguous alphabet check"
+    );
+    assert.ok(
+      sqlSource.includes(
+        "CREATE TABLE public.customers (\n  id UUID PRIMARY KEY REFERENCES auth.users(id)"
+      ) ||
+        sqlSource.includes("id UUID PRIMARY KEY REFERENCES auth.users(id)"),
+      "customers must be the only table keeping a UUID PK referencing auth.users(id)"
+    );
+
+    // Ensure categories, listings, listing_screenshots, events do NOT use UUID PRIMARY KEY
+    const nonCustomerTables = sqlSource.split("CREATE TABLE public.customers")[0];
+    assert.ok(
+      !nonCustomerTables.includes("UUID PRIMARY KEY"),
+      "categories, listings, and listing_screenshots must NOT use UUID PRIMARY KEY"
+    );
+
+    // 2. Test Reference Code Generator (L-XXXXXX, no 0/O/1/I confusion)
+    const REFERENCE_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const REFERENCE_CODE_REGEX = /^L-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$/;
+
+    function generateReferenceCode(prefix = "L", length = 6) {
+      const bytes = new Uint8Array(length);
+      globalThis.crypto.getRandomValues(bytes);
+      let body = "";
+      for (let i = 0; i < length; i++) {
+        body += REFERENCE_CODE_ALPHABET[bytes[i] % REFERENCE_CODE_ALPHABET.length];
+      }
+      return `${prefix}-${body}`;
+    }
+
+    function isValidReferenceCode(code) {
+      return typeof code === "string" && REFERENCE_CODE_REGEX.test(code.trim());
+    }
+
+    function resolveUniqueReferenceCode(existingCodes, generator) {
+      const set = new Set(Array.from(existingCodes, (c) => c.toUpperCase()));
+      for (let i = 0; i < 50; i++) {
+        const candidate = generator().toUpperCase();
+        if (!set.has(candidate)) return candidate;
+      }
+      throw new Error("Collision retry exhausted");
+    }
+
+    // Generate 2,000 codes and verify format & absence of 0, O, 1, I
+    for (let i = 0; i < 2000; i++) {
+      const code = generateReferenceCode();
+      assert.equal(code.length, 8, `Expected L-XXXXXX (8 chars), got ${code}`);
+      assert.ok(
+        isValidReferenceCode(code),
+        `Generated code ${code} did not match regex`
+      );
+      assert.ok(!code.includes("0"), "Reference code must never contain '0'");
+      assert.ok(!code.includes("O"), "Reference code must never contain 'O'");
+      assert.ok(!code.includes("1"), "Reference code must never contain '1'");
+      assert.ok(!code.includes("I"), "Reference code must never contain 'I'");
+    }
+
+    // Verify ambiguous codes are rejected
+    assert.equal(isValidReferenceCode("L-7K2M9Q"), true);
+    assert.equal(isValidReferenceCode("L-0K2M9Q"), false); // contains 0
+    assert.equal(isValidReferenceCode("L-OK2M9Q"), false); // contains O
+    assert.equal(isValidReferenceCode("L-1K2M9Q"), false); // contains 1
+    assert.equal(isValidReferenceCode("L-IK2M9Q"), false); // contains I
+    assert.equal(isValidReferenceCode("L-7K2M9"), false); // too short
+
+    // Verify collision resolution
+    const sequence = ["L-7K2M9Q", "L-7K2M9Q", "L-8P4N6R"];
+    let idx = 0;
+    const resolved = resolveUniqueReferenceCode(
+      ["L-7K2M9Q"],
+      () => sequence[idx++]
+    );
+    assert.equal(resolved, "L-8P4N6R");
+  });
+
+  it("supports 'Other' category option with custom_category input, optional website_url, and Category positioned before Website URL", () => {
+    // 1. Verify Category field is positioned BEFORE Website URL in SubmitForm.tsx
+    const submitFormSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "SubmitForm.tsx"),
+      "utf8"
+    );
+    const categoryIdx = submitFormSource.indexOf('id="field-category"');
+    const websiteIdx = submitFormSource.indexOf('id="field-website-url"');
+    assert.ok(categoryIdx > 0, "SubmitForm.tsx must have field-category");
+    assert.ok(websiteIdx > 0, "SubmitForm.tsx must have field-website-url");
+    assert.ok(
+      categoryIdx < websiteIdx,
+      "Category select must appear BEFORE Website URL in SubmitForm.tsx"
+    );
+    assert.ok(
+      submitFormSource.includes('value="other"') &&
+        submitFormSource.includes('id="field-custom-category"'),
+      "SubmitForm.tsx must include 'other' option and custom_category input"
+    );
+
+    // 2. Standard category WITHOUT website_url is rejected
+    const standardNoUrl = validateSubmissionServer({
+      ...validPayload,
+      category_id: "1",
+      website_url: "",
+    });
+    assert.equal(standardNoUrl.valid, false);
+    assert.ok(standardNoUrl.errors.website_url);
+
+    // 3. 'other' category WITHOUT custom_category is rejected
+    const otherNoCustom = validateSubmissionServer({
+      ...validPayload,
+      category_id: "other",
+      custom_category: "",
+      website_url: "",
+    });
+    assert.equal(otherNoCustom.valid, false);
+    assert.ok(otherNoCustom.errors.custom_category);
+
+    // 4. 'other' category WITH custom_category and WITHOUT website_url passes!
+    const otherValidNoUrl = validateSubmissionServer({
+      ...validPayload,
+      category_id: "other",
+      custom_category: "Cybersecurity & Compliance",
+      website_url: "",
+    });
+    assert.equal(otherValidNoUrl.valid, true);
+    assert.deepEqual(otherValidNoUrl.errors, {});
+    assert.equal(
+      otherValidNoUrl.data.custom_category,
+      "Cybersecurity & Compliance"
+    );
+    assert.equal(otherValidNoUrl.data.website_url, "");
   });
 });
 
