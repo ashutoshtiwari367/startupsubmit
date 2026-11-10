@@ -42,7 +42,6 @@ export interface Database {
       listings: {
         Row: {
           id: number;
-          reference_code: string;
           slug: string;
           name: string;
           tagline: string;
@@ -60,13 +59,12 @@ export interface Database {
         };
         Insert: {
           id?: never;
-          reference_code?: string;
           slug: string;
           name: string;
           tagline: string;
           description_short: string;
           description_long: string;
-          website_url: string;
+          website_url?: string;
           logo_url: string;
           category_id: number;
           pricing_model: PricingModel;
@@ -78,7 +76,6 @@ export interface Database {
         };
         Update: {
           id?: never;
-          reference_code?: string;
           slug?: string;
           name?: string;
           tagline?: string;
@@ -133,21 +130,33 @@ export interface Database {
           }
         ];
       };
-      customers: {
+      profiles: {
         Row: {
           id: string;
-          email: string;
+          cust_id_ext: number;
+          email: string | null;
+          full_name: string | null;
+          avatar_url: string | null;
           created_at: string;
+          updated_at: string;
         };
         Insert: {
           id: string;
-          email: string;
+          cust_id_ext?: never;
+          email?: string | null;
+          full_name?: string | null;
+          avatar_url?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Update: {
           id?: string;
-          email?: string;
+          cust_id_ext?: never;
+          email?: string | null;
+          full_name?: string | null;
+          avatar_url?: string | null;
           created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };
@@ -183,6 +192,139 @@ export interface Database {
           }
         ];
       };
+      plans: {
+        Row: {
+          id: PricingModel;
+          name: string;
+          description: string | null;
+          price: number;
+          price_minor: number;
+          currency: string;
+          is_active: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id: PricingModel;
+          name: string;
+          description?: string | null;
+          price: number;
+          price_minor: number;
+          currency?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: PricingModel;
+          name?: string;
+          description?: string | null;
+          price?: number;
+          price_minor?: number;
+          currency?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      payments: {
+        Row: {
+          id: number;
+          user_id: string | null;
+          plan_id: PricingModel | null;
+          listing_id: number | null;
+          razorpay_order_id: string;
+          razorpay_payment_id: string | null;
+          amount: number;
+          currency: string;
+          status: "created" | "paid" | "failed";
+          payer_email: string | null;
+          paid_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          user_id?: string | null;
+          plan_id?: PricingModel | null;
+          listing_id?: number | null;
+          razorpay_order_id: string;
+          razorpay_payment_id?: string | null;
+          amount: number;
+          currency?: string;
+          status?: "created" | "paid" | "failed";
+          payer_email?: string | null;
+          paid_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
+          user_id?: string | null;
+          plan_id?: PricingModel | null;
+          listing_id?: number | null;
+          razorpay_order_id?: string;
+          razorpay_payment_id?: string | null;
+          amount?: number;
+          currency?: string;
+          status?: "created" | "paid" | "failed";
+          payer_email?: string | null;
+          paid_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payments_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "plans";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      payment_gateway_events: {
+        Row: {
+          id: number;
+          razorpay_event_id: string | null;
+          event_type: string;
+          razorpay_order_id: string | null;
+          razorpay_payment_id: string | null;
+          payment_id: number | null;
+          signature_valid: boolean;
+          payload: Json;
+          processing_result: string | null;
+          received_at: string;
+        };
+        Insert: {
+          id?: never;
+          razorpay_event_id?: string | null;
+          event_type: string;
+          razorpay_order_id?: string | null;
+          razorpay_payment_id?: string | null;
+          payment_id?: number | null;
+          signature_valid: boolean;
+          payload: Json;
+          processing_result?: string | null;
+          received_at?: string;
+        };
+        Update: {
+          id?: never;
+          razorpay_event_id?: string | null;
+          event_type?: string;
+          razorpay_order_id?: string | null;
+          razorpay_payment_id?: string | null;
+          payment_id?: number | null;
+          signature_valid?: boolean;
+          payload?: Json;
+          processing_result?: string | null;
+          received_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payment_events_payment_id_fkey";
+            columns: ["payment_id"];
+            isOneToOne: false;
+            referencedRelation: "payments";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -210,4 +352,8 @@ export type ListingUpdate = Database["public"]["Tables"]["listings"]["Update"];
 export type ListingScreenshotRow = Database["public"]["Tables"]["listing_screenshots"]["Row"];
 export type ListingScreenshotInsert = Database["public"]["Tables"]["listing_screenshots"]["Insert"];
 
-export type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
+export type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+export type PlanRow = Database["public"]["Tables"]["plans"]["Row"];
+export type PaymentRow = Database["public"]["Tables"]["payments"]["Row"];
+export type PaymentGatewayEventRow =
+  Database["public"]["Tables"]["payment_gateway_events"]["Row"];

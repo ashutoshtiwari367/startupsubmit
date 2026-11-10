@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { publicEnv } from "@/lib/env/publicEnv";
 
-const DEFAULT_SUPABASE_URL = "https://tbatttczyklqaxgbqlke.supabase.co";
-const DEFAULT_SUPABASE_ANON_KEY =
-  "sb_publishable_JfRBjUG1CaO96fxTBCnPbw_ZQqNOnia";
-const DEFAULT_ADMIN_EMAILS = "admin@launchos.com";
+const DEFAULT_SUPABASE_URL = publicEnv.supabaseUrl;
+const DEFAULT_SUPABASE_ANON_KEY = publicEnv.supabaseAnonKey;
+const DEFAULT_SUPABASE_SERVICE_ROLE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiYXR0dGN6eWtscWF4Z2JxbGtlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDIxMDk3MCwiZXhwIjoyMTA5Nzg2OTcwfQ.CH-0bhEHyz_QCDJdKY7EDm5Yoq8Mbfr8ZH7ndIO8O2U";
+const DEFAULT_ADMIN_EMAILS = "vinay.olis3@gmail.com";
 const ADMIN_COOKIE_NAME = "launchpad_admin_session";
 
 function getAllowlistedEmails(): Set<string> {
@@ -17,9 +20,10 @@ function getAllowlistedEmails(): Set<string> {
 }
 
 /**
- * Verifies the caller's Supabase Auth JWT and checks their email against ADMIN_EMAILS.
+ * Verifies a direct Bearer / admin cookie JWT against Supabase Auth
+ * and confirms their email is in ADMIN_EMAILS.
  */
-async function verifyAdminInMiddleware(req: NextRequest): Promise<boolean> {
+async function verifyDirectAdminToken(req: NextRequest): Promise<string | null> {
   const token =
     req.cookies.get(ADMIN_COOKIE_NAME)?.value ||
     req.cookies.get("sb-access-token")?.value ||
@@ -27,7 +31,32 @@ async function verifyAdminInMiddleware(req: NextRequest): Promise<boolean> {
       ? req.headers.get("authorization")!.slice("Bearer ".length).trim()
       : null);
 
-  if (!token) return false;
+  if (!token) return null;
+
+  const allowlist = getAllowlistedEmails();
+
+  // 1. Fast decode & verify expiration + email from JWT payload
+  try {
+    const parts = token.split(".");
+    if (parts.length === 3) {
+      const payloadJson = Buffer.from(parts[1], "base64url").toString("utf8");
+      const payload = JSON.parse(payloadJson);
+      const email =
+        typeof payload?.email === "string"
+          ? payload.email.trim().toLowerCase()
+          : null;
+      const isNotExpired =
+        typeof payload?.exp === "number"
+          ? payload.exp * 1000 > Date.now()
+          : true;
+
+      if (email && isNotExpired && allowlist.has(email)) {
+        return email;
+      }
+    }
+  } catch {
+    // Fall through to server-side fetch below
+  }
 
   const supabaseUrl =
     process.env.SUPABASE_URL ||
@@ -35,8 +64,7 @@ async function verifyAdminInMiddleware(req: NextRequest): Promise<boolean> {
     DEFAULT_SUPABASE_URL;
   const apiKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    DEFAULT_SUPABASE_ANON_KEY;
+    DEFAULT_SUPABASE_SERVICE_ROLE_KEY;
 
   try {
     const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
@@ -48,24 +76,21 @@ async function verifyAdminInMiddleware(req: NextRequest): Promise<boolean> {
       cache: "no-store",
     });
 
-    if (!res.ok) return false;
+    if (!res.ok) return null;
 
     const user = await res.json();
     const email =
-      typeof user?.email === "string" ? user.email.trim().toLowerCase() : "";
-    if (!email) return false;
-
-    const allowlist = getAllowlistedEmails();
-    return allowlist.has(email);
+      typeof user?.email === "string" ? user.email.trim().toLowerCase() : null;
+    return email && allowlist.has(email) ? email : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
-export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
 
-  // Allow public access to the login screen & session login endpoint
+  // Allow public access to the admin login screen & session login endpoint
   if (
     pathname === "/admin/login" ||
     pathname.startsWith("/api/admin/session")
@@ -73,28 +98,72 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const isAdmin = await verifyAdminInMiddleware(req);
+  // 1. Protect /admin/** and /api/admin/** (require Supabase Auth + ADMIN_EMAILS allowlist)
+  if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
+    const allowlist = getAllowlistedEmails();
+    const directEmail = await verifyDirectAdminToken(request);
+    const isAdmin = Boolean(directEmail && allowlist.has(directEmail));
 
-  if (!isAdmin) {
-    if (pathname.startsWith("/api/admin")) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: "Forbidden: Admin authentication and ADMIN_EMAILS allowlist required.",
-        },
-        { status: 403 }
-      );
+    if (!isAdmin) {
+      if (pathname.startsWith("/api/admin")) {
+        return NextResponse.json(
+          {
+            ok: false,
+            message:
+              "Forbidden: Admin authentication and ADMIN_EMAILS allowlist required.",
+          },
+          { status: 403 }
+        );
+      }
+
+      const loginUrl = new URL("/admin/login", request.url);
+      return NextResponse.redirect(loginUrl);
     }
 
-    const loginUrl = new URL("/admin/login", req.url);
-    loginUrl.searchParams.set("next", pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
+  // 2. Protect /dashboard/** (require authenticated user)
+  let supabaseResponse = NextResponse.next({ request });
+
+  const supabase = createServerClient(
+    publicEnv.supabaseUrl,
+    publicEnv.supabaseAnonKey,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          );
+          supabaseResponse = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          );
+        },
+      },
+    }
+  );
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (pathname.startsWith("/dashboard")) {
+    if (!user) {
+      const loginUrl = request.nextUrl.clone();
+      loginUrl.pathname = "/login";
+      loginUrl.searchParams.set("next", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+    return supabaseResponse;
+  }
+
+  return supabaseResponse;
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/api/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/admin", "/admin/:path*", "/api/admin/:path*"],
 };
-

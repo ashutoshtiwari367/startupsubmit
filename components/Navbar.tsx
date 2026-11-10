@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Button } from "./Button";
 import { AuthModal } from "./AuthModal";
+import { UserProfileDropdown } from "./UserProfileDropdown";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
@@ -81,15 +82,6 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop Action CTAs & Controls */}
           <div className="hidden sm:flex items-center gap-2.5">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowAuthModal(true)}
-              className="text-xs font-semibold"
-            >
-              Sign In
-            </Button>
-
             <Link href="/submit">
               <Button
                 variant="primary"
@@ -100,6 +92,8 @@ export const Navbar: React.FC = () => {
                 Submit Product
               </Button>
             </Link>
+
+            <UserProfileDropdown onSignInClick={() => setShowAuthModal(true)} />
           </div>
 
           {/* Mobile Menu Button */}
@@ -137,17 +131,15 @@ export const Navbar: React.FC = () => {
             </div>
 
             <div className="pt-2 border-t border-[#E8E8E3] flex flex-col gap-2">
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  setShowAuthModal(true);
-                }}
-                className="w-full text-xs font-semibold justify-center"
-              >
-                Sign In
-              </Button>
+              <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  className="w-full text-xs font-semibold justify-center"
+                >
+                  Sign In
+                </Button>
+              </Link>
 
               <Link href="/submit" onClick={() => setMobileMenuOpen(false)}>
                 <Button

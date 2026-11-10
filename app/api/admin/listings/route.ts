@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     let query = db
       .from("listings")
       .select(
-        "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
+        "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
       )
       .order("created_at", { ascending: false });
 

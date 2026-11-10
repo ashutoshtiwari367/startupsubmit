@@ -25,6 +25,7 @@ import { FAQSection } from "@/components/FAQSection";
 import { FinalCTA } from "@/components/FinalCTA";
 import { Footer } from "@/components/Footer";
 import { AuthModal } from "@/components/AuthModal";
+import { UserProfileDropdown } from "@/components/UserProfileDropdown";
 import { MOCK_CATEGORIES, MOCK_PRODUCTS, LaunchProduct } from "@/lib/mock-data";
 import {
   Sparkles,
@@ -176,40 +177,10 @@ export default function DesignFoundationPreview() {
             >
               Pricing
             </Link>
-            <button
-              onClick={() => setActiveTab("components")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                activeTab === "components"
-                  ? "bg-[#5B5BF0] text-white shadow-[0_2px_8px_rgba(91,91,240,0.25)]"
-                  : "text-[#66666B] hover:text-[#0F0F10]"
-              }`}
-            >
-              <Layers className="h-3.5 w-3.5" />
-              Matrix
-            </button>
-            <button
-              onClick={() => setActiveTab("tokens")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                activeTab === "tokens"
-                  ? "bg-[#5B5BF0] text-white shadow-[0_2px_8px_rgba(91,91,240,0.25)]"
-                  : "text-[#66666B] hover:text-[#0F0F10]"
-              }`}
-            >
-              <Palette className="h-3.5 w-3.5" />
-              Tokens
-            </button>
           </nav>
 
           {/* Action CTAs */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setShowAuthModal(true)}
-              className="text-xs font-semibold"
-            >
-              Sign In
-            </Button>
+          <div className="flex items-center gap-2.5">
             <Link href="/submit">
               <Button
                 variant="primary"
@@ -220,6 +191,7 @@ export default function DesignFoundationPreview() {
                 Submit Product
               </Button>
             </Link>
+            <UserProfileDropdown onSignInClick={() => setShowAuthModal(true)} />
           </div>
         </div>
       </header>
@@ -834,122 +806,6 @@ export default function DesignFoundationPreview() {
                 <FAQSection />
               </CardContent>
             </Card>
-          </section>
-        )}
-
-        {/* TAB 3: DESIGN TOKEN SPECS */}
-        {activeTab === "tokens" && (
-          <section className="space-y-8 animate-in fade-in duration-200">
-            <SectionHeader
-              badge={<Badge variant="accent" size="sm" icon={<Palette className="h-3 w-3" />}>DESIGN TOKENS</Badge>}
-              title="Design System Token Specifications"
-              description="Click any swatch to copy its hex value or Tailwind class."
-            />
-
-            {/* Color Swatches Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {[
-                { name: "Warm Canvas", hex: "#FAFAF7", tw: "bg-[#FAFAF7]", desc: "Main Background" },
-                { name: "Card White", hex: "#FFFFFF", tw: "bg-white", desc: "Surface Elevation" },
-                { name: "Near-Black Ink", hex: "#0F0F10", tw: "text-[#0F0F10]", desc: "Primary Text" },
-                { name: "Electric Indigo", hex: "#5B5BF0", tw: "bg-[#5B5BF0]", desc: "Single Bold Accent" },
-                { name: "Soft Border", hex: "#E8E8E3", tw: "border-[#E8E8E3]", desc: "Borders & Dividers" },
-                { name: "Gold Rank", hex: "#B45309", tw: "text-[#B45309]", desc: "#1 Leaderboard" },
-                { name: "Silver Rank", hex: "#475569", tw: "text-[#475569]", desc: "#2 Leaderboard" },
-                { name: "Bronze Rank", hex: "#9A3412", tw: "text-[#9A3412]", desc: "#3 Leaderboard" },
-                { name: "Live Emerald", hex: "#10B981", tw: "bg-[#10B981]", desc: "Live Indicator" },
-                { name: "Muted Text", hex: "#66666B", tw: "text-[#66666B]", desc: "Subheadings" },
-                { name: "Subtle Text", hex: "#8E8E93", tw: "text-[#8E8E93]", desc: "Metadata & Timestamps" },
-                { name: "Border Hover", hex: "#D5D5CE", tw: "border-[#D5D5CE]", desc: "Interactive Hover" },
-              ].map((token) => (
-                <div
-                  key={token.hex + token.name}
-                  onClick={() => copyToken(token.hex)}
-                  className="group cursor-pointer rounded-[14px] border border-[#E8E8E3] bg-white p-3.5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05)]"
-                >
-                  <div
-                    className="h-14 w-full rounded-[10px] border flex items-center justify-center transition-transform group-hover:scale-[1.02]"
-                    style={{
-                      backgroundColor: token.hex,
-                      borderColor: token.hex === "#FFFFFF" || token.hex === "#FAFAF7" ? "#E8E8E3" : token.hex,
-                      color: token.hex === "#FFFFFF" || token.hex === "#FAFAF7" ? "#0F0F10" : "#FFFFFF",
-                    }}
-                  >
-                    {copiedHex === token.hex ? (
-                      <span className="flex items-center gap-1 text-[11px] font-bold">
-                        <Check className="h-3 w-3" /> Copied!
-                      </span>
-                    ) : (
-                      <Copy className="h-3.5 w-3.5 opacity-0 group-hover:opacity-75 transition-opacity" />
-                    )}
-                  </div>
-                  <div className="mt-2.5">
-                    <span className="font-heading font-semibold text-xs text-[#0F0F10] truncate block">
-                      {token.name}
-                    </span>
-                    <div className="flex items-center justify-between mt-0.5 font-mono text-[11px] text-[#66666B]">
-                      <span>{token.hex}</span>
-                      <span className="text-[10px] text-[#8E8E93]">{token.desc}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Typography & Radii Specs Table */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card variant="default">
-                <CardHeader>
-                  <CardTitle>Typography Specimen</CardTitle>
-                  <CardDescription>Plus Jakarta Sans (Headings) & Inter (Body)</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="border-b border-[#E8E8E3] pb-3">
-                    <span className="text-xs font-mono text-[#8E8E93]">H1 DISPLAY (36px–64px / -0.035em):</span>
-                    <h1 className="font-heading text-3xl sm:text-4xl font-extrabold text-[#0F0F10] tracking-[-0.035em]">
-                      Launch your product. Get seen. Get backlinks.
-                    </h1>
-                  </div>
-                  <div className="border-b border-[#E8E8E3] pb-3">
-                    <span className="text-xs font-mono text-[#8E8E93]">H2 SECTION (24px–30px / -0.03em):</span>
-                    <h2 className="font-heading text-xl font-bold text-[#0F0F10] tracking-[-0.03em]">
-                      Curated Daily Product Directory
-                    </h2>
-                  </div>
-                  <div>
-                    <span className="text-xs font-mono text-[#8E8E93]">BODY INTER (14px–16px / Relaxed):</span>
-                    <p className="text-sm text-[#66666B] leading-relaxed">
-                      Every founder deserves a fair, transparent launchpad. Community upvotes dictate rank, verified with fraud-resistant telemetry.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card variant="default">
-                <CardHeader>
-                  <CardTitle>Radii & Elevation System</CardTitle>
-                  <CardDescription>Organic curvature and very soft, layered shadows</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4 text-xs font-mono">
-                  <div className="flex items-center justify-between p-3 rounded-[10px] border border-[#E8E8E3] bg-[#FAFAF7]">
-                    <span className="text-[#0F0F10] font-semibold">14px Radius (Cards)</span>
-                    <span className="text-[#66666B]">rounded-[14px]</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-[10px] border border-[#E8E8E3] bg-[#FAFAF7]">
-                    <span className="text-[#0F0F10] font-semibold">10px Radius (Buttons & Inputs)</span>
-                    <span className="text-[#66666B]">rounded-[10px]</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-[10px] border border-[#E8E8E3] bg-[#FAFAF7]">
-                    <span className="text-[#0F0F10] font-semibold">Full Round (Pills & Badges)</span>
-                    <span className="text-[#66666B]">rounded-full</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-[10px] border border-[#E8E8E3] bg-[#FAFAF7]">
-                    <span className="text-[#0F0F10] font-semibold">Layered Shadow</span>
-                    <span className="text-[#66666B]">0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05)</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
           </section>
         )}
 

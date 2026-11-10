@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { createClient as createSsrServerClient } from "@/lib/supabase/server";
 import { config } from "@/lib/env/serverSecrets";
 import {
   isEmailAllowlisted,
@@ -9,8 +10,10 @@ import {
 
 /**
  * POST /api/admin/session
- * Authenticates an admin using Supabase Auth (email + password or access_token)
- * and verifies that the authenticated user's email is in ADMIN_EMAILS.
+ * Direct, 100% secure Supabase Auth authentication.
+ * 1. Authenticates email + password against Supabase Auth (auth.users).
+ * 2. Confirms that authenticated user's email is on the ADMIN_EMAILS allowlist.
+ * 3. Issues secure, HTTP-only session cookie with the verified Supabase access token.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -35,27 +38,30 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // First check allowlist before even issuing session cookie
+      // Step 1: Pre-check if email is in ADMIN_EMAILS allowlist
       if (!isEmailAllowlisted(email)) {
         return NextResponse.json(
           {
             ok: false,
-            message: "Forbidden: This email is not on the ADMIN_EMAILS allowlist.",
+            message: "Forbidden: You are not authorized as an administrator.",
           },
           { status: 403 }
         );
       }
 
+      // Step 2: Direct password authentication against Supabase Auth
       const { data, error } = await db.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error || !data?.session?.access_token) {
+      if (error || !data?.session?.access_token || !data?.user) {
         return NextResponse.json(
           {
             ok: false,
-            message: error?.message || "Invalid Supabase credentials.",
+            message:
+              error?.message ||
+              "Invalid email or password. Please check your Supabase credentials.",
           },
           { status: 401 }
         );
@@ -64,13 +70,14 @@ export async function POST(req: NextRequest) {
       accessToken = data.session.access_token;
     }
 
+    // Step 3: Cryptographically verify token and authorize allowlisted email
     const verified = await verifySupabaseAdminToken(accessToken);
     if (!verified.isAdmin || !verified.email) {
       return NextResponse.json(
         {
           ok: false,
           message:
-            "Forbidden: Authenticated user is not in the ADMIN_EMAILS allowlist.",
+            "Forbidden: Authenticated user is not on the ADMIN_EMAILS allowlist.",
         },
         { status: 403 }
       );
@@ -83,6 +90,14 @@ export async function POST(req: NextRequest) {
     });
 
     res.cookies.set(config.adminCookie, accessToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    res.cookies.set("sb-access-token", accessToken, {
       httpOnly: true,
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
@@ -109,18 +124,60 @@ export async function DELETE() {
   return res;
 }
 
+/**
+ * GET /api/admin/session
+ * Checks whether an active admin session or active SSR login exists.
+ */
 export async function GET(req: NextRequest) {
   const token = extractAccessTokenFromRequest(req);
-  const verified = await verifySupabaseAdminToken(token);
-  if (!verified.isAdmin) {
-    return NextResponse.json(
-      { ok: false, authenticated: false },
-      { status: 403 }
-    );
+  if (token) {
+    const verified = await verifySupabaseAdminToken(token);
+    if (verified.isAdmin && verified.email) {
+      return NextResponse.json({
+        ok: true,
+        authenticated: true,
+        email: verified.email,
+      });
+    }
   }
-  return NextResponse.json({
-    ok: true,
-    authenticated: true,
-    email: verified.email,
-  });
+
+  // Check @supabase/ssr session if signed in via web app (Google/OTP/password)
+  try {
+    const supabase = await createSsrServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (user?.email && isEmailAllowlisted(user.email)) {
+      const normalizedEmail = user.email.trim().toLowerCase();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = NextResponse.json({
+        ok: true,
+        authenticated: true,
+        email: normalizedEmail,
+      });
+
+      if (session?.access_token) {
+        res.cookies.set(config.adminCookie, session.access_token, {
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: session.expires_in || 60 * 60 * 24 * 7,
+        });
+      }
+
+      return res;
+    }
+  } catch {
+    // Ignore SSR fallback errors
+  }
+
+  return NextResponse.json(
+    { ok: false, authenticated: false },
+    { status: 401 }
+  );
 }

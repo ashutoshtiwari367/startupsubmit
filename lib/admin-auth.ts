@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { createClient as createSsrServerClient } from "@/lib/supabase/server";
 import { serverSecrets, config } from "@/lib/env/serverSecrets";
 
 export interface AuthenticatedAdmin {
@@ -44,6 +45,34 @@ export async function verifySupabaseAdminToken(
 ): Promise<AuthenticatedAdmin> {
   if (!accessToken || typeof accessToken !== "string") {
     return { isAdmin: false, email: null, userId: null };
+  }
+
+  // 1. Inspect cryptographically structured Supabase Auth JWT payload
+  try {
+    const parts = accessToken.split(".");
+    if (parts.length === 3) {
+      const payload = JSON.parse(
+        Buffer.from(parts[1], "base64url").toString("utf8")
+      );
+      const email =
+        typeof payload?.email === "string"
+          ? payload.email.trim().toLowerCase()
+          : null;
+      const isNotExpired =
+        typeof payload?.exp === "number"
+          ? payload.exp * 1000 > Date.now()
+          : true;
+
+      if (email && isNotExpired && isEmailAllowlisted(email)) {
+        return {
+          isAdmin: true,
+          email,
+          userId: typeof payload?.sub === "string" ? payload.sub : `admin_${email}`,
+        };
+      }
+    }
+  } catch {
+    // Fallback to db.auth.getUser
   }
 
   try {
@@ -97,6 +126,27 @@ export async function isAdminRequest(req: NextRequest): Promise<boolean> {
  * Verifies whether the current Server Component / Server Action caller is an allowlisted admin.
  */
 export async function getAdminServerSession(): Promise<AuthenticatedAdmin> {
+  // 1. Check @supabase/ssr session first (set via /login or /auth/callback)
+  try {
+    const supabase = await createSsrServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user?.email) {
+      const normalized = user.email.trim().toLowerCase();
+      if (isEmailAllowlisted(normalized)) {
+        return {
+          isAdmin: true,
+          email: normalized,
+          userId: user.id,
+        };
+      }
+    }
+  } catch {
+    // Fallback to direct cookie token check below
+  }
+
+  // 2. Fallback: check launchpad_admin_session or sb-access-token cookie
   const cookieStore = await cookies();
   const token =
     cookieStore.get(config.adminCookie)?.value ||

@@ -502,12 +502,12 @@ describe("Authoritative Server Validation & Adversarial Cases (lib/validation.ts
     );
 
     const sitemapSource = fs.readFileSync(
-      path.join(__dirname, "..", "app", "sitemap.ts"),
+      path.join(__dirname, "..", "lib", "seo", "config.ts"),
       "utf8"
     );
     assert.ok(
       sitemapSource.includes('.eq("status", "approved")'),
-      "sitemap.ts must strictly filter for status = 'approved'"
+      "lib/seo/config.ts must strictly filter for status = 'approved'"
     );
 
     const moderationRouteSource = fs.readFileSync(
@@ -873,97 +873,57 @@ describe("Authoritative Server Validation & Adversarial Cases (lib/validation.ts
     assert.equal(Boolean(legitimateTimedRes.isHoneypotTriggered), false);
   });
 
-  it("enforces BIGINT GENERATED ALWAYS AS IDENTITY PKs, UUID only on customers, and unambiguous human-readable reference_code (L-7K2M9Q with no 0/O/1/I)", () => {
-    // 1. Verify SQL migration schema strategy
+  it("enforces BIGINT GENERATED ALWAYS AS IDENTITY (START WITH 50000000), profiles table with cust_id_ext, and Supabase SSR auth flow", () => {
     const sqlSource = fs.readFileSync(
       path.join(__dirname, "..", "supabase", "migrations", "0001_init.sql"),
       "utf8"
     );
 
     assert.ok(
-      sqlSource.includes("BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"),
-      "0001_init.sql must use BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
-    );
-    assert.ok(
-      sqlSource.includes("reference_code TEXT NOT NULL UNIQUE"),
-      "listings table must define reference_code TEXT NOT NULL UNIQUE"
-    );
-    assert.ok(
-      sqlSource.includes("^L-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$"),
-      "listings.reference_code must enforce 6-char unambiguous alphabet check"
+      sqlSource.includes(
+        "id BIGINT GENERATED ALWAYS AS IDENTITY (START WITH 50000000 INCREMENT BY 1) PRIMARY KEY"
+      ),
+      "listings.id must start at 50000000 using BIGINT GENERATED ALWAYS AS IDENTITY"
     );
     assert.ok(
       sqlSource.includes(
-        "CREATE TABLE public.customers (\n  id UUID PRIMARY KEY REFERENCES auth.users(id)"
-      ) ||
-        sqlSource.includes("id UUID PRIMARY KEY REFERENCES auth.users(id)"),
-      "customers must be the only table keeping a UUID PK referencing auth.users(id)"
+        "cust_id_ext BIGINT GENERATED ALWAYS AS IDENTITY (START WITH 50000000 INCREMENT BY 1) UNIQUE NOT NULL"
+      ),
+      "profiles.cust_id_ext must start at 50000000 using BIGINT GENERATED ALWAYS AS IDENTITY"
     );
-
-    // Ensure categories, listings, listing_screenshots, events do NOT use UUID PRIMARY KEY
-    const nonCustomerTables = sqlSource.split("CREATE TABLE public.customers")[0];
     assert.ok(
-      !nonCustomerTables.includes("UUID PRIMARY KEY"),
-      "categories, listings, and listing_screenshots must NOT use UUID PRIMARY KEY"
+      sqlSource.includes("CREATE TABLE IF NOT EXISTS public.profiles") &&
+        sqlSource.includes("id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE"),
+      "profiles table must link 1:1 with auth.users(id)"
+    );
+    assert.ok(
+      sqlSource.includes("CREATE OR REPLACE FUNCTION public.handle_new_user()") &&
+        sqlSource.includes("CREATE TRIGGER on_auth_user_created"),
+      "0001_init.sql must define handle_new_user() trigger on auth.users"
     );
 
-    // 2. Test Reference Code Generator (L-XXXXXX, no 0/O/1/I confusion)
-    const REFERENCE_CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
-    const REFERENCE_CODE_REGEX = /^L-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$/;
-
-    function generateReferenceCode(prefix = "L", length = 6) {
-      const bytes = new Uint8Array(length);
-      globalThis.crypto.getRandomValues(bytes);
-      let body = "";
-      for (let i = 0; i < length; i++) {
-        body += REFERENCE_CODE_ALPHABET[bytes[i] % REFERENCE_CODE_ALPHABET.length];
-      }
-      return `${prefix}-${body}`;
-    }
-
-    function isValidReferenceCode(code) {
-      return typeof code === "string" && REFERENCE_CODE_REGEX.test(code.trim());
-    }
-
-    function resolveUniqueReferenceCode(existingCodes, generator) {
-      const set = new Set(Array.from(existingCodes, (c) => c.toUpperCase()));
-      for (let i = 0; i < 50; i++) {
-        const candidate = generator().toUpperCase();
-        if (!set.has(candidate)) return candidate;
-      }
-      throw new Error("Collision retry exhausted");
-    }
-
-    // Generate 2,000 codes and verify format & absence of 0, O, 1, I
-    for (let i = 0; i < 2000; i++) {
-      const code = generateReferenceCode();
-      assert.equal(code.length, 8, `Expected L-XXXXXX (8 chars), got ${code}`);
-      assert.ok(
-        isValidReferenceCode(code),
-        `Generated code ${code} did not match regex`
-      );
-      assert.ok(!code.includes("0"), "Reference code must never contain '0'");
-      assert.ok(!code.includes("O"), "Reference code must never contain 'O'");
-      assert.ok(!code.includes("1"), "Reference code must never contain '1'");
-      assert.ok(!code.includes("I"), "Reference code must never contain 'I'");
-    }
-
-    // Verify ambiguous codes are rejected
-    assert.equal(isValidReferenceCode("L-7K2M9Q"), true);
-    assert.equal(isValidReferenceCode("L-0K2M9Q"), false); // contains 0
-    assert.equal(isValidReferenceCode("L-OK2M9Q"), false); // contains O
-    assert.equal(isValidReferenceCode("L-1K2M9Q"), false); // contains 1
-    assert.equal(isValidReferenceCode("L-IK2M9Q"), false); // contains I
-    assert.equal(isValidReferenceCode("L-7K2M9"), false); // too short
-
-    // Verify collision resolution
-    const sequence = ["L-7K2M9Q", "L-7K2M9Q", "L-8P4N6R"];
-    let idx = 0;
-    const resolved = resolveUniqueReferenceCode(
-      ["L-7K2M9Q"],
-      () => sequence[idx++]
+    // Verify Supabase SSR auth files exist and export expected actions/routes
+    const authActionsSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "auth", "actions.ts"),
+      "utf8"
     );
-    assert.equal(resolved, "L-8P4N6R");
+    assert.ok(
+      authActionsSource.includes("export async function signIn") &&
+        authActionsSource.includes("export async function signUp") &&
+        authActionsSource.includes("export async function signOut"),
+      "app/auth/actions.ts must export signIn, signUp, and signOut"
+    );
+
+    const callbackRouteSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "auth", "callback", "route.ts"),
+      "utf8"
+    );
+    assert.ok(
+      callbackRouteSource.includes("exchangeCodeForSession") &&
+        callbackRouteSource.includes("verifyOtp") &&
+        callbackRouteSource.includes("sanitizeNextUrl"),
+      "app/auth/callback/route.ts must handle PKCE code exchange and OTP verification safely"
+    );
   });
 
   it("supports 'Other' category option with custom_category input, optional website_url, and Category positioned before Website URL", () => {
@@ -1019,6 +979,363 @@ describe("Authoritative Server Validation & Adversarial Cases (lib/validation.ts
       "Cybersecurity & Compliance"
     );
     assert.equal(otherValidNoUrl.data.website_url, "");
+  });
+
+  it("supports unified Auth UI with Sign In / Create Account tabs, Google OAuth, Email OTP, Magic Link, Password, and removes X/Twitter", () => {
+    const authModalSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "AuthModal.tsx"),
+      "utf8"
+    );
+    const authActionsSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "auth", "actions.ts"),
+      "utf8"
+    );
+    const loginPageSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "login", "page.tsx"),
+      "utf8"
+    );
+    const signupPageSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "signup", "page.tsx"),
+      "utf8"
+    );
+
+    // 1. X / Twitter button must be completely removed
+    assert.equal(
+      authModalSource.includes("X / Twitter"),
+      false,
+      "X / Twitter option must be removed from AuthModal.tsx"
+    );
+
+    // 2. Sign In / Create Account tabs + Google OAuth + Email OTP + Magic Link + Password
+    assert.ok(
+      authModalSource.includes("Sign In") &&
+        authModalSource.includes("Create Account") &&
+        authModalSource.includes("Continue with Google") &&
+        authModalSource.includes("Email OTP") &&
+        authModalSource.includes("Magic Link") &&
+        authModalSource.includes("Password") &&
+        authModalSource.includes("Verify OTP & Continue"),
+      "AuthModal.tsx must support Sign In / Create Account, Google OAuth, Email OTP, Magic Link, and Password"
+    );
+
+    // 3. Server actions for OTP, Magic Link, and Password must exist
+    assert.ok(
+      authActionsSource.includes("sendOtpOrMagicLinkAction") &&
+        authActionsSource.includes("verifyEmailOtpAction") &&
+        authActionsSource.includes("signInWithPasswordAction") &&
+        authActionsSource.includes("signUpWithPasswordAction"),
+      "app/auth/actions.ts must export OTP, Magic Link, and Password actions"
+    );
+
+    // 4. Both /login and /signup use the unified AuthCard and Create Account always uses password
+    assert.ok(
+      loginPageSource.includes("AuthCard") &&
+        signupPageSource.includes("AuthCard") &&
+        authModalSource.includes('defaultMethod = "password"') &&
+        authModalSource.includes('const effectiveMethod = mode === "signup" ? "password" : authMethod;'),
+      "/login and /signup pages must use unified AuthCard with password default and password-only signup"
+    );
+
+    // 5. UserProfileDropdown renders circular avatar after sign-in and opens dropdown on click
+    const dropdownSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "UserProfileDropdown.tsx"),
+      "utf8"
+    );
+    const homePageSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "page.tsx"),
+      "utf8"
+    );
+    const navbarSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "Navbar.tsx"),
+      "utf8"
+    );
+    assert.ok(
+      dropdownSource.includes("rounded-full") &&
+        dropdownSource.includes("setIsOpen((prev) => !prev)") &&
+        homePageSource.includes("UserProfileDropdown") &&
+        navbarSource.includes("UserProfileDropdown"),
+      "UserProfileDropdown must be integrated into app/page.tsx and components/Navbar.tsx and open on click"
+    );
+  });
+
+  it("validates Customer Identity UI Cleanup & Identity Architecture (cust_id_ext vs internal UUID)", () => {
+    const dashboardSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "dashboard", "page.tsx"),
+      "utf8"
+    );
+    const dropdownSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "UserProfileDropdown.tsx"),
+      "utf8"
+    );
+    const sqlSource = fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "migrations", "0001_init.sql"),
+      "utf8"
+    );
+
+    // 1 & 2. Existing and new customers receive cust_id_ext (>= 50000000) as Customer ID
+    assert.ok(
+      dashboardSource.includes("Customer ID: #{profile?.cust_id_ext}") &&
+        dashboardSource.includes('.select("cust_id_ext, email, full_name, avatar_url, created_at")') &&
+        dashboardSource.includes('.upsert('),
+      "Dashboard must display cust_id_ext as Customer ID and auto-sync profile row for existing pre-trigger customers"
+    );
+
+    // 3 & 4. Customer email is visible and welcome name is dynamically resolved
+    assert.ok(
+      dashboardSource.includes("export function resolveCustomerDisplayName") &&
+        dashboardSource.includes("Welcome, {customerName}!") &&
+        dashboardSource.includes("{customerEmail}"),
+      "Dashboard must dynamically resolve customer name in welcome heading and display customer email"
+    );
+
+    // 5. UUID is completely removed from customer-facing UI (no UUID label, icon, or truncated user.id.slice)
+    assert.equal(
+      dashboardSource.includes("UUID:"),
+      false,
+      "Dashboard UI must not contain UUID: label"
+    );
+    assert.equal(
+      dashboardSource.includes("user.id.slice"),
+      false,
+      "Dashboard UI must not render truncated UUID (user.id.slice)"
+    );
+    assert.equal(
+      dropdownSource.includes("UUID"),
+      false,
+      "UserProfileDropdown UI must not expose UUID"
+    );
+
+    // 6 & 7. Internal UUID relationships & authorization strictly use server-verified auth.getUser() and RLS
+    assert.ok(
+      sqlSource.includes("id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE") &&
+        sqlSource.includes("USING (auth.uid() = id)") &&
+        dashboardSource.includes("await supabase.auth.getUser()") &&
+        dashboardSource.includes('.eq("id", user.id)') &&
+        !dashboardSource.includes("searchParams"),
+      "Internal UUID relationship, RLS policy (auth.uid() = id), and server-side user.id lookup must be enforced without trusting client-supplied IDs"
+    );
+
+    // 8 & 9. Account submission history and responsive layout classes are preserved
+    assert.ok(
+      dashboardSource.includes("Your Submitted Tools") &&
+        dashboardSource.includes("flex-col sm:flex-row") &&
+        dashboardSource.includes("px-4 sm:px-6"),
+      "Account submission history and mobile/desktop responsive classes must remain intact"
+    );
+  });
+
+  it("enforces LaunchOS Razorpay security, changeable config/site.ts plans ('free','freemium','paid','one_time'), and append-only payment_gateway_events audit logging", async () => {
+    const crypto = await import("node:crypto");
+
+    const siteConfigSource = fs.readFileSync(
+      path.join(__dirname, "..", "config", "site.ts"),
+      "utf8"
+    );
+    const razorpayLibSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "razorpay.ts"),
+      "utf8"
+    );
+    const createOrderSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "api", "payments", "create-order", "route.ts"),
+      "utf8"
+    );
+    const verifyOrderSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "api", "payments", "verify", "route.ts"),
+      "utf8"
+    );
+    const sqlSource = fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "migrations", "0001_init.sql"),
+      "utf8"
+    );
+
+    // 1. Verify config/site.ts defines the 4 LaunchOS tiers ('free', 'freemium', 'paid', 'one_time')
+    for (const tier of ["free", "freemium", "paid", "one_time"]) {
+      assert.ok(
+        siteConfigSource.includes(`id: "${tier}"`),
+        `config/site.ts must define plan '${tier}'`
+      );
+    }
+    assert.ok(
+      siteConfigSource.includes("Math.round(plan.price * 100)") &&
+        siteConfigSource.includes("export function getPlanById"),
+      "config/site.ts must compute price_minor from changeable price"
+    );
+
+    // 2. Verify lib/razorpay.ts uses HMAC-SHA256 + crypto.timingSafeEqual
+    assert.ok(
+      razorpayLibSource.includes('createHmac("sha256"') &&
+        razorpayLibSource.includes("crypto.timingSafeEqual"),
+      "lib/razorpay.ts must verify signatures using HMAC-SHA256 and timingSafeEqual"
+    );
+
+    // Test signature verification algorithm directly against valid and tampered inputs
+    const testSecret = "rzp_test_secret_launchos_2026";
+    const orderId = "order_LaunchOS123";
+    const paymentId = "pay_LaunchOS456";
+    const validSig = crypto
+      .createHmac("sha256", testSecret)
+      .update(`${orderId}|${paymentId}`)
+      .digest("hex");
+
+    const verifyFn = (oId, pId, sig, sec) => {
+      if (!sec || !oId || !pId || !sig) return false;
+      const gen = crypto
+        .createHmac("sha256", sec)
+        .update(`${oId}|${pId}`)
+        .digest("hex");
+      const a = Buffer.from(gen, "utf8");
+      const b = Buffer.from(String(sig).trim(), "utf8");
+      if (a.length !== b.length) return false;
+      return crypto.timingSafeEqual(a, b);
+    };
+
+    assert.equal(verifyFn(orderId, paymentId, validSig, testSecret), true);
+    assert.equal(verifyFn(orderId, "pay_TAMPERED", validSig, testSecret), false);
+    assert.equal(verifyFn(orderId, paymentId, "deadbeef", testSecret), false);
+
+    // 3. Verify 0001_init.sql defines plans, payments (BIGINT PK), payment_gateway_events, and append-only trigger
+    assert.ok(
+      sqlSource.includes("CREATE TABLE IF NOT EXISTS public.plans") &&
+        sqlSource.includes("CREATE TABLE IF NOT EXISTS public.payments") &&
+        sqlSource.includes("CREATE TABLE IF NOT EXISTS public.payment_gateway_events") &&
+        sqlSource.includes("CREATE TRIGGER trg_payment_gateway_events_append_only") &&
+        sqlSource.includes("payment_gateway_events_append_only()"),
+      "0001_init.sql must define plans, payments, payment_gateway_events, and append-only trigger"
+    );
+
+    // 4. Verify API routes authenticate user, sync config/site.ts plans, and log into payment_gateway_events
+    assert.ok(
+      createOrderSource.includes("supabase.auth.getUser()") &&
+        createOrderSource.includes("getPlanById(planId)") &&
+        createOrderSource.includes('from("payment_gateway_events").insert') &&
+        verifyOrderSource.includes("verifyRazorpaySignature") &&
+        verifyOrderSource.includes('from("payment_gateway_events").insert'),
+      "create-order and verify routes must enforce auth, verify signature, and append to payment_gateway_events"
+    );
+
+    // 5. Verify SubmitForm.tsx gates paid plans (selectedPlan.price > 0) with Razorpay Checkout before /api/listings
+    const submitFormSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "SubmitForm.tsx"),
+      "utf8"
+    );
+    assert.ok(
+      submitFormSource.includes("selectedPlan.price > 0") &&
+        submitFormSource.includes('fetch("/api/payments/create-order"') &&
+        submitFormSource.includes('fetch("/api/payments/verify"') &&
+        submitFormSource.includes("checkout.razorpay.com/v1/checkout.js"),
+      "SubmitForm.tsx must open Razorpay Checkout and verify payment before submitting paid plans"
+    );
+  });
+
+  it("enforces modular SEO architecture: robots.txt, sitemap chunking (0.xml, 1.xml), and /llms.txt AI endpoint", () => {
+    // 1. Verify lib/seo core modules exist
+    const robotsLibSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "seo", "robots.ts"),
+      "utf8"
+    );
+    const llmsLibSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "seo", "llms.ts"),
+      "utf8"
+    );
+    const sitemapLibSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "seo", "sitemap.ts"),
+      "utf8"
+    );
+    const seoConfigSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "seo", "config.ts"),
+      "utf8"
+    );
+
+    // 2. Test robots generation logic
+    assert.ok(
+      robotsLibSource.includes("export function buildRobots") &&
+        robotsLibSource.includes("sitemap: `${baseUrl}/sitemap.xml`"),
+      "lib/seo/robots.ts must export buildRobots linking to /sitemap.xml"
+    );
+    assert.ok(
+      seoConfigSource.includes('"/admin"') &&
+        seoConfigSource.includes('"/dashboard"') &&
+        seoConfigSource.includes('"/auth/callback"'),
+      "lib/seo/config.ts must disallow admin, dashboard, and auth routes"
+    );
+
+    // 3. Test llms.txt generation logic
+    assert.ok(
+      llmsLibSource.includes("export function buildLlmsTxt") &&
+        seoConfigSource.includes("LaunchOS Pricing Plans"),
+      "lib/seo/llms.ts must export buildLlmsTxt with LaunchOS pricing & core navigation"
+    );
+
+    // 4. Test sitemap chunking logic (0 = static + categories, 1..N = listings chunks)
+    assert.ok(
+      sitemapLibSource.includes("sitemapChunkIds") &&
+        sitemapLibSource.includes("buildSitemapChunk") &&
+        sitemapLibSource.includes("buildFullSitemap"),
+      "lib/seo/sitemap.ts must provide sitemapChunkIds, buildSitemapChunk, and buildFullSitemap"
+    );
+    for (const route of ["/", "/categories", "/winners", "/pricing", "/submit", "/login", "/signup"]) {
+      assert.ok(
+        seoConfigSource.includes(`path: "${route}"`),
+        `lib/seo/config.ts staticRoutes must include '${route}'`
+      );
+    }
+
+    // 5. Verify Next.js App Router endpoints exist
+    const appRobotsSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "robots.ts"),
+      "utf8"
+    );
+    const appLlmsSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "llms.txt", "route.ts"),
+      "utf8"
+    );
+    const appSitemapSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "api", "sitemap", "index", "route.ts"),
+      "utf8"
+    );
+    const chunkRouteSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "api", "sitemap", "[id]", "route.ts"),
+      "utf8"
+    );
+    const nextConfigSource = fs.readFileSync(
+      path.join(__dirname, "..", "next.config.ts"),
+      "utf8"
+    );
+
+    assert.ok(
+      appRobotsSource.includes("buildRobots") &&
+        appRobotsSource.includes("getSeoConfig"),
+      "app/robots.ts must return buildRobots(config)"
+    );
+    assert.ok(
+      appLlmsSource.includes("buildLlmsTxt") &&
+        appLlmsSource.includes("text/plain"),
+      "app/llms.txt/route.ts must return buildLlmsTxt with text/plain content type"
+    );
+    assert.ok(
+      appSitemapSource.includes("sitemapIndexToXml") &&
+        appSitemapSource.includes("sitemapChunkIds"),
+      "app/api/sitemap/index/route.ts must return <sitemapindex> pointing to chunked sitemaps"
+    );
+    assert.ok(
+      chunkRouteSource.includes("buildSitemapChunk") &&
+        chunkRouteSource.includes("sitemapToXml"),
+      "app/api/sitemap/[id]/route.ts must serve chunked <urlset> sitemaps"
+    );
+    assert.ok(
+      nextConfigSource.includes('source: "/sitemap.xml"') &&
+        nextConfigSource.includes('destination: "/api/sitemap/index"') &&
+        nextConfigSource.includes('source: "/sitemap/:id.xml"') &&
+        nextConfigSource.includes('destination: "/api/sitemap/:id"'),
+      "next.config.ts must rewrite /sitemap.xml and /sitemap/:id.xml to clean API handlers"
+    );
+
+    assert.ok(
+      sitemapLibSource.includes("sitemapToXml") &&
+        sitemapLibSource.includes("sitemapIndexToXml") &&
+        sitemapLibSource.includes("toSafeDate"),
+      "lib/seo/sitemap.ts must provide toSafeDate, sitemapToXml, and sitemapIndexToXml"
+    );
   });
 });
 

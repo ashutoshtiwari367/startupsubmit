@@ -6,10 +6,6 @@ import {
   verifyImageMagicBytes,
 } from "@/lib/validation";
 import { generateUniqueSlug, toBaseSlug } from "@/lib/slug";
-import {
-  generateReferenceCode,
-  generateUniqueReferenceCode,
-} from "@/lib/reference-code";
 import { emitListingSubmitted } from "@/lib/events";
 import { checkListingSubmissionRateLimit } from "@/lib/ratelimit";
 
@@ -108,7 +104,7 @@ export async function GET(req: NextRequest) {
       const { data, error } = await db
         .from("listings")
         .select(
-          "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
+          "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
         )
         .eq("slug", slug)
         .eq("status", "approved")
@@ -134,7 +130,7 @@ export async function GET(req: NextRequest) {
     let query = db
       .from("listings")
       .select(
-        "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
+        "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
       )
       .eq("status", "approved")
       .order("created_at", { ascending: false });
@@ -199,6 +195,7 @@ export async function POST(req: NextRequest) {
           formData.get("website_hp"),
         form_started_at:
           formData.get("form_started_at") ?? formData.get("started_at"),
+        payment_record_id: formData.get("payment_record_id"),
       };
 
       const logoEntry = formData.get("logo");
@@ -228,13 +225,11 @@ export async function POST(req: NextRequest) {
     // Silently drop bot submissions (201 benign response without touching Storage, DB, or events)
     const botTrap = checkHoneypotAndMinSubmitTime(rawFields);
     if (botTrap.triggered) {
-      const fakeRef = generateReferenceCode("L", 6);
       return NextResponse.json(
         {
           ok: true,
           dropped: true,
-          reference_code: fakeRef,
-          id: fakeRef,
+          id: 50000000,
           message: "Tool submitted successfully and is pending admin review.",
         },
         { status: 201 }
@@ -273,13 +268,11 @@ export async function POST(req: NextRequest) {
     });
 
     if (validation.isHoneypotTriggered) {
-      const fakeRef = generateReferenceCode("L", 6);
       return NextResponse.json(
         {
           ok: true,
           dropped: true,
-          reference_code: fakeRef,
-          id: fakeRef,
+          id: 50000000,
           message: "Tool submitted successfully and is pending admin review.",
         },
         { status: 201 }
@@ -419,20 +412,17 @@ export async function POST(req: NextRequest) {
       screenshotUrls.push(ssPublicData.publicUrl);
     }
 
-    // 4. Generate Unique Slug + Human-Readable Reference Code (e.g. L-7K2M9Q) & Insert Listing
+    // 4. Generate Unique Slug & Insert Listing (ID starts at 50000000 automatically)
     const takenInRetry: string[] = [];
-    const takenRefCodes: string[] = [];
     let insertedListing = null;
     let lastDbError: { code?: string; message?: string } | null = null;
 
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidateSlug = await generateUniqueSlug(validData.name, takenInRetry);
-      const candidateRefCode = await generateUniqueReferenceCode(takenRefCodes);
 
       const { data, error } = await db
         .from("listings")
         .insert({
-          reference_code: candidateRefCode,
           name: validData.name,
           slug: candidateSlug,
           tagline: validData.tagline,
@@ -446,7 +436,7 @@ export async function POST(req: NextRequest) {
           submitted_by_email: validData.submitted_by_email,
         })
         .select(
-          "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
+          "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
         )
         .single();
 
@@ -458,7 +448,6 @@ export async function POST(req: NextRequest) {
       lastDbError = error;
       if (error?.code === "23505") {
         takenInRetry.push(candidateSlug);
-        takenRefCodes.push(candidateRefCode);
         continue;
       } else {
         break;
@@ -474,6 +463,22 @@ export async function POST(req: NextRequest) {
         },
         { status: 500 }
       );
+    }
+
+    // 4.5. Link Verified Payment Record to Listing (if paid tier submission)
+    const rawPaymentRecordId = rawFields.payment_record_id;
+    if (
+      rawPaymentRecordId !== undefined &&
+      rawPaymentRecordId !== null &&
+      String(rawPaymentRecordId).trim() !== ""
+    ) {
+      const numericPaymentId = Number(rawPaymentRecordId);
+      if (Number.isInteger(numericPaymentId) && numericPaymentId > 0) {
+        await db
+          .from("payments")
+          .update({ listing_id: insertedListing.id })
+          .eq("id", numericPaymentId);
+      }
     }
 
     // 5. Insert Screenshot Rows into listing_screenshots
@@ -502,7 +507,6 @@ export async function POST(req: NextRequest) {
     // 6. Emit Event: listing_submitted (server-side after successful submission)
     const eventResult = await emitListingSubmitted({
       listing_id: insertedListing.id,
-      reference_code: insertedListing.reference_code,
       name: insertedListing.name,
       slug: insertedListing.slug,
       submitted_by_email: insertedListing.submitted_by_email,
@@ -517,7 +521,6 @@ export async function POST(req: NextRequest) {
       {
         ok: true,
         id: insertedListing.id,
-        reference_code: insertedListing.reference_code,
         message: "Tool submitted successfully and is pending admin review.",
         listing: {
           ...insertedListing,

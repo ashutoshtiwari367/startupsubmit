@@ -15,11 +15,16 @@ export const db: SupabaseClient<Database> = createClient<Database>(
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
   }
 );
 
 export function getDb(): SupabaseClient<Database> {
+  return db;
+}
+
+export function getAdminDb(): SupabaseClient<Database> {
   return db;
 }
 

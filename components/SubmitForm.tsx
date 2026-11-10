@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -26,16 +27,17 @@ import {
 import { Button } from "./Button";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
+import { AuthModal } from "./AuthModal";
 import {
   submitListingSchema,
   SubmitListingFormValues,
   SUBMIT_LIMITS,
 } from "@/lib/schemas/submitListing";
+import { getAllPlans, getPlanById, SITE_CONFIG } from "@/config/site";
 import type { CategoryRow, PricingModel, ListingStatus } from "@/types/db";
 
 interface SubmittedListingResponse {
   id: number | string;
-  reference_code: string;
   name: string;
   slug: string;
   status: ListingStatus;
@@ -47,12 +49,12 @@ interface SubmittedListingResponse {
   created_at: string;
 }
 
-const PRICING_OPTIONS: { value: PricingModel; label: string }[] = [
-  { value: "free", label: "Free" },
-  { value: "freemium", label: "Freemium" },
-  { value: "paid", label: "Paid" },
-  { value: "one_time", label: "One-Time Payment" },
-];
+const PRICING_OPTIONS: { value: PricingModel; label: string }[] = getAllPlans().map(
+  (plan) => ({
+    value: plan.id,
+    label: `${plan.name} (${plan.formattedPrice})`,
+  })
+);
 
 /**
  * Custom hook to fetch categories exclusively from our own GET /api/categories endpoint.
@@ -158,10 +160,26 @@ export const SubmitForm: React.FC = () => {
   const formStartedAtRef = useRef<number>(Date.now());
 
   const [serverBannerError, setServerBannerError] = useState<string | null>(null);
+  const [isPaymentProcessing, setIsPaymentProcessing] = useState<boolean>(false);
+  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [submittedResult, setSubmittedResult] =
     useState<SubmittedListingResponse | null>(null);
   const [emittedEventName, setEmittedEventName] =
     useState<string>("listing_submitted");
+
+  // Pre-select plan from URL ?plan= query parameter if provided
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const planParam = params.get("plan") as PricingModel | null;
+      if (
+        planParam &&
+        ["free", "freemium", "paid", "one_time"].includes(planParam)
+      ) {
+        setValue("pricing_model", planParam, { shouldValidate: true });
+      }
+    }
+  }, [setValue]);
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -220,23 +238,10 @@ export const SubmitForm: React.FC = () => {
     setScreenshotsError(null);
   };
 
-  const onSubmit = async (values: SubmitListingFormValues) => {
-    setServerBannerError(null);
-
-    // Client-side file validation
-    let hasFileError = false;
-    if (!logoFile) {
-      setLogoError("Tool logo image is required.");
-      hasFileError = true;
-    }
-    if (screenshotFiles.length > SUBMIT_LIMITS.MAX_SCREENSHOTS) {
-      setScreenshotsError(
-        `You can upload a maximum of ${SUBMIT_LIMITS.MAX_SCREENSHOTS} screenshots.`
-      );
-      hasFileError = true;
-    }
-    if (hasFileError) return;
-
+  const submitListingToApi = async (
+    values: SubmitListingFormValues,
+    verifiedPaymentRecordId: number | string | null = null
+  ) => {
     try {
       const formData = new FormData();
       formData.append("name", values.name.trim());
@@ -253,6 +258,9 @@ export const SubmitForm: React.FC = () => {
       formData.append("form_started_at", String(formStartedAtRef.current));
       if (values.company_website_hp) {
         formData.append("company_website_hp", values.company_website_hp);
+      }
+      if (verifiedPaymentRecordId) {
+        formData.append("payment_record_id", String(verifiedPaymentRecordId));
       }
 
       if (logoFile) {
@@ -321,6 +329,134 @@ export const SubmitForm: React.FC = () => {
     }
   };
 
+  const onSubmit = async (values: SubmitListingFormValues) => {
+    setServerBannerError(null);
+
+    // Client-side file validation
+    let hasFileError = false;
+    if (!logoFile) {
+      setLogoError("Tool logo image is required.");
+      hasFileError = true;
+    }
+    if (screenshotFiles.length > SUBMIT_LIMITS.MAX_SCREENSHOTS) {
+      setScreenshotsError(
+        `You can upload a maximum of ${SUBMIT_LIMITS.MAX_SCREENSHOTS} screenshots.`
+      );
+      hasFileError = true;
+    }
+    if (hasFileError) return;
+
+    const selectedPlan = getPlanById(values.pricing_model);
+
+    // If user selected a paid launch tier ('freemium', 'paid', 'one_time'), trigger Razorpay payment first
+    if (selectedPlan && selectedPlan.price > 0) {
+      setIsPaymentProcessing(true);
+      try {
+        const orderRes = await fetch("/api/payments/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planId: selectedPlan.id }),
+        });
+
+        const orderData = await orderRes.json();
+
+        if (!orderRes.ok) {
+          setIsPaymentProcessing(false);
+          if (orderRes.status === 401) {
+            setShowAuthModal(true);
+            setServerBannerError(
+              `Please sign in first to complete your ${selectedPlan.formattedPrice} ${selectedPlan.name} payment.`
+            );
+            return;
+          }
+          setServerBannerError(
+            orderData.error || "Could not initiate payment for this launch tier."
+          );
+          return;
+        }
+
+        if (!window.Razorpay) {
+          setIsPaymentProcessing(false);
+          setServerBannerError(
+            "Razorpay Checkout SDK is loading. Please try again in a moment."
+          );
+          return;
+        }
+
+        const rzpOptions = {
+          key: orderData.keyId,
+          amount: orderData.amount,
+          currency: orderData.currency,
+          name: SITE_CONFIG.name,
+          description: `${selectedPlan.name} — ${values.name.trim()}`,
+          order_id: orderData.orderId,
+          prefill: {
+            email: values.submitted_by_email.trim() || orderData.userEmail || "",
+          },
+          theme: { color: "#5B5BF0" },
+          handler: async function (response: {
+            razorpay_order_id: string;
+            razorpay_payment_id: string;
+            razorpay_signature: string;
+          }) {
+            try {
+              const verifyRes = await fetch("/api/payments/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  orderId: response.razorpay_order_id,
+                  paymentId: response.razorpay_payment_id,
+                  signature: response.razorpay_signature,
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+              if (!verifyRes.ok || !verifyData.success) {
+                setServerBannerError(
+                  verifyData.error || "Payment verification failed."
+                );
+                setIsPaymentProcessing(false);
+                return;
+              }
+
+              // Payment verified -> Now submit listing to POST /api/listings!
+              await submitListingToApi(values, verifyData.paymentRecordId ?? null);
+            } catch {
+              setServerBannerError("Error verifying payment with server.");
+            } finally {
+              setIsPaymentProcessing(false);
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setIsPaymentProcessing(false);
+            },
+          },
+        };
+
+        const rzp = new window.Razorpay(rzpOptions);
+        rzp.on("payment.failed", (resp: { error?: { description?: string } }) => {
+          setServerBannerError(
+            resp.error?.description || "Payment failed. Please try again."
+          );
+          setIsPaymentProcessing(false);
+        });
+        rzp.open();
+      } catch (err: unknown) {
+        setIsPaymentProcessing(false);
+        setServerBannerError(
+          err instanceof Error
+            ? err.message
+            : "Network error while starting payment."
+        );
+      }
+      return;
+    }
+
+    // Free plan ('free') -> Submit directly without payment
+    await submitListingToApi(values, null);
+  };
+
   const handleReset = () => {
     reset({
       name: "",
@@ -353,6 +489,8 @@ export const SubmitForm: React.FC = () => {
     PRICING_OPTIONS.find((p) => p.value === watchedPricing)?.label ||
     watchedPricing;
 
+  const selectedPlan = getPlanById(watchedPricing);
+
   const previewSlug =
     submittedResult?.slug ||
     watchedName
@@ -364,6 +502,10 @@ export const SubmitForm: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAF7] text-[#0F0F10] selection:bg-[#5B5BF0]/15 selection:text-[#5B5BF0]">
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="lazyOnload"
+      />
       <Navbar />
 
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
@@ -935,9 +1077,9 @@ export const SubmitForm: React.FC = () => {
                     type="submit"
                     variant="primary"
                     size="md"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isPaymentProcessing}
                     rightIcon={
-                      isSubmitting ? (
+                      isSubmitting || isPaymentProcessing ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <Send className="h-4 w-4" />
@@ -945,7 +1087,13 @@ export const SubmitForm: React.FC = () => {
                     }
                     className="font-bold shadow-[0_2px_10px_rgba(91,91,240,0.25)]"
                   >
-                    {isSubmitting ? "Submitting..." : "Submit Tool"}
+                    {isPaymentProcessing
+                      ? "Processing Payment..."
+                      : isSubmitting
+                        ? "Submitting..."
+                        : selectedPlan && selectedPlan.price > 0
+                          ? `Pay ${selectedPlan.formattedPrice} & Submit Tool`
+                          : "Submit Tool for Free"}
                   </Button>
                 </div>
               </div>
@@ -1063,9 +1211,9 @@ export const SubmitForm: React.FC = () => {
 
             <div className="rounded-[14px] bg-[#FAFAF7] border border-[#E8E8E3] p-4 text-left space-y-2.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Reference Code:</span>
+                <span className="text-[#8E8E93]">Listing ID:</span>
                 <span className="font-mono font-bold text-[#0F0F10] bg-[#EEF0FE] px-2 py-0.5 rounded border border-[#D5D8FC]">
-                  {submittedResult.reference_code}
+                  {submittedResult.id}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -1114,6 +1262,11 @@ export const SubmitForm: React.FC = () => {
           </div>
         )}
       </div>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
 
       <Footer />
     </div>

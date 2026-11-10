@@ -26,7 +26,6 @@ export default async function AdminQueuePage() {
     .select(
       `
       id,
-      reference_code,
       slug,
       name,
       tagline,

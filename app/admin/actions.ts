@@ -31,7 +31,7 @@ export async function approveListing(id: number | string) {
     })
     .eq("id", listingId)
     .select(
-      "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
+      "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
     )
     .single();
 
@@ -41,7 +41,6 @@ export async function approveListing(id: number | string) {
 
   const eventResult = await emitListingApproved({
     listing_id: updatedListing.id,
-    reference_code: updatedListing.reference_code,
     name: updatedListing.name,
     slug: updatedListing.slug,
     submitted_by_email: updatedListing.submitted_by_email,
@@ -90,7 +89,7 @@ export async function rejectListing(id: number | string) {
     })
     .eq("id", listingId)
     .select(
-      "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
+      "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
     )
     .single();
 
@@ -100,7 +99,6 @@ export async function rejectListing(id: number | string) {
 
   const eventResult = await emitListingRejected({
     listing_id: updatedListing.id,
-    reference_code: updatedListing.reference_code,
     name: updatedListing.name,
     slug: updatedListing.slug,
     submitted_by_email: updatedListing.submitted_by_email,

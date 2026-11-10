@@ -5,17 +5,36 @@ const DEFAULT_SUPABASE_URL = "https://tbatttczyklqaxgbqlke.supabase.co";
 const DEFAULT_SUPABASE_SERVICE_ROLE_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiYXR0dGN6eWtscWF4Z2JxbGtlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDIxMDk3MCwiZXhwIjoyMTA5Nzg2OTcwfQ.CH-0bhEHyz_QCDJdKY7EDm5Yoq8Mbfr8ZH7ndIO8O2U";
 
-const DEFAULT_ADMIN_SECRET = "launchpad_admin_secret_2026";
-const DEFAULT_ADMIN_EMAILS = "admin@launchos.com";
+const DEFAULT_ADMIN_EMAILS = "vinay.olis3@gmail.com";
+
+/**
+ * Resolves the authoritative Supabase Service Role Key.
+ * Rejects any anon/publishable key to guarantee server-side mutations
+ * authoritatively bypass Row Level Security (RLS).
+ */
+function resolveServiceRoleKey(): string {
+  const candidate = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  if (candidate && !candidate.startsWith("sb_publishable_")) {
+    try {
+      const parts = candidate.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
+        if (payload.role === "service_role") {
+          return candidate;
+        }
+      }
+    } catch {
+      // Fall through to DEFAULT_SUPABASE_SERVICE_ROLE_KEY
+    }
+  }
+  return DEFAULT_SUPABASE_SERVICE_ROLE_KEY;
+}
 
 export const serverSecrets = {
   supabaseUrl:
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL,
-  supabaseServiceKey:
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_KEY ||
-    DEFAULT_SUPABASE_SERVICE_ROLE_KEY,
-  adminSecret: process.env.ADMIN_SECRET || DEFAULT_ADMIN_SECRET,
+  supabaseServiceKey: resolveServiceRoleKey(),
+  adminSecret: process.env.ADMIN_SECRET || "",
   adminEmailsRaw: process.env.ADMIN_EMAILS || DEFAULT_ADMIN_EMAILS,
   adminEmails: (process.env.ADMIN_EMAILS || DEFAULT_ADMIN_EMAILS)
     .split(",")
@@ -29,8 +48,8 @@ export const serverSecrets = {
   blogSyncSecret: process.env.BLOG_SYNC_SECRET || "",
   turnstileSecret:
     process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY || process.env.TURNSTILE_SECRET_KEY || "",
-  razorpayKeyId: process.env.RAZORPAY_KEY_ID || "",
-  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || "",
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID || "rzp_test_Tw3O9g3MvCpZUp",
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || "bxuTG2kUdqsL6qdWCaNAnx68",
   razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET || "",
   r2Endpoint: process.env.R2_ENDPOINT || "",
   r2AccessKeyId: process.env.R2_ACCESS_KEY_ID || "",

@@ -55,7 +55,7 @@ export async function PATCH(
       .update(updatePayload)
       .eq("id", Number(id))
       .select(
-        "id, reference_code, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
+        "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
       )
       .single();
 
@@ -74,7 +74,6 @@ export async function PATCH(
       action === "approve"
         ? await emitListingApproved({
             listing_id: updatedListing.id,
-            reference_code: updatedListing.reference_code,
             name: updatedListing.name,
             slug: updatedListing.slug,
             submitted_by_email: updatedListing.submitted_by_email,
@@ -85,7 +84,6 @@ export async function PATCH(
           })
         : await emitListingRejected({
             listing_id: updatedListing.id,
-            reference_code: updatedListing.reference_code,
             name: updatedListing.name,
             slug: updatedListing.slug,
             submitted_by_email: updatedListing.submitted_by_email,
