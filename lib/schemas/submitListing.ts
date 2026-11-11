@@ -4,9 +4,23 @@ import type { PricingModel } from "@/types/db";
 export const PRICING_MODELS: readonly [PricingModel, ...PricingModel[]] = [
   "free",
   "freemium",
+  "premium",
   "paid",
   "one_time",
 ];
+
+export const BILLING_PERIODS = ["monthly", "yearly", "one_time"] as const;
+export type BillingPeriod = (typeof BILLING_PERIODS)[number];
+
+export const LISTING_PLANS = [
+  "free",
+  "premium",
+  "featured",
+  "freemium",
+  "paid",
+  "one_time",
+] as const;
+export type ListingPlan = (typeof LISTING_PLANS)[number];
 
 export const SUBMIT_LIMITS = {
   TAGLINE_MAX: 60,
@@ -42,8 +56,13 @@ export const submitListingSchema = z
       )
       .optional(),
     pricing_model: z.enum(PRICING_MODELS, {
-      message: "Please select a valid pricing model.",
+      message: "Please select a valid software pricing model.",
     }),
+    starting_price: z.coerce.number().optional().nullable(),
+    currency: z.string().optional(),
+    billing_period: z.enum(BILLING_PERIODS).optional().nullable(),
+    listing_plan: z.enum(LISTING_PLANS).optional(),
+    listing_plan_price: z.coerce.number().optional().nullable(),
     website_url: z.string().trim().optional(),
     tagline: z
       .string()
@@ -113,6 +132,35 @@ export const submitListingSchema = z
           path: ["website_url"],
           message:
             "Website URL must be a valid HTTPS URL (e.g. https://example.com).",
+        });
+      }
+    }
+
+    // Conditional Software Pricing Model Validation
+    const normPricing = (data.pricing_model || "").toLowerCase();
+    if (normPricing === "freemium" || normPricing === "premium") {
+      const priceVal = data.starting_price;
+      if (
+        priceVal === undefined ||
+        priceVal === null ||
+        isNaN(Number(priceVal)) ||
+        Number(priceVal) <= 0
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["starting_price"],
+          message:
+            normPricing === "freemium"
+              ? "Starting paid-plan price in USD ($) is required for freemium software."
+              : "Software price in USD ($) is required for premium software.",
+        });
+      }
+      if (!data.billing_period || !BILLING_PERIODS.includes(data.billing_period)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["billing_period"],
+          message:
+            "Please select a valid billing period (Monthly, Yearly, or One-time).",
         });
       }
     }

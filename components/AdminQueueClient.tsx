@@ -55,6 +55,11 @@ export interface PendingQueueItem {
   logo_url: string;
   category_id: BigIntId;
   pricing_model: PricingModel;
+  starting_price?: number | null;
+  currency?: string;
+  billing_period?: string | null;
+  listing_plan?: string;
+  listing_plan_price?: number;
   status: ListingStatus;
   submitted_by_email: string;
   created_at: string;
@@ -680,6 +685,24 @@ export function AdminQueueClient({
                               }`}
                             >
                               {item.pricing_model}
+                              {item.starting_price
+                                ? ` • $${item.starting_price}/${
+                                    item.billing_period === "one_time"
+                                      ? "once"
+                                      : item.billing_period === "yearly"
+                                      ? "yr"
+                                      : "mo"
+                                  }`
+                                : ""}
+                            </span>
+
+                            {/* Directory Listing Plan Badge */}
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase bg-[#5B5BF0]/15 text-[#818CF8] border border-[#5B5BF0]/30">
+                              {item.listing_plan === "featured"
+                                ? "Featured ($49)"
+                                : item.listing_plan === "premium"
+                                ? "Premium ($29)"
+                                : "Free Listing ($0)"}
                             </span>
                           </div>
 

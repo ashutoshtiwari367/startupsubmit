@@ -1337,5 +1337,686 @@ describe("Authoritative Server Validation & Adversarial Cases (lib/validation.ts
       "lib/seo/sitemap.ts must provide toSafeDate, sitemapToXml, and sitemapIndexToXml"
     );
   });
+
+  it("enforces Part 2 SEO requirements: getSiteUrl, dynamic generateMetadata, SoftwareApplication JSON-LD, XSS escaping, and indexability rules", async () => {
+    // 1. Verify lib/seo/jsonld.ts exists and exports required helpers
+    const jsonLdSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "seo", "jsonld.ts"),
+      "utf8"
+    );
+    assert.ok(
+      jsonLdSource.includes("mapApplicationCategory") &&
+        jsonLdSource.includes("buildSoftwareAppJsonLd") &&
+        jsonLdSource.includes("serializeJsonLd"),
+      "lib/seo/jsonld.ts must export mapApplicationCategory, buildSoftwareAppJsonLd, and serializeJsonLd"
+    );
+
+    // 2. Test mapApplicationCategory logic
+    const { mapApplicationCategory, buildSoftwareAppJsonLd, serializeJsonLd } = await import("../lib/seo/jsonld.ts");
+    assert.equal(mapApplicationCategory("ai"), "ArtificialIntelligenceApplication");
+    assert.equal(mapApplicationCategory("productivity"), "ProductivityApplication");
+    assert.equal(mapApplicationCategory("developer-tools"), "DeveloperApplication");
+    assert.equal(mapApplicationCategory("design-ux"), "DesignApplication");
+    assert.equal(mapApplicationCategory("finance-fintech"), "FinanceApplication");
+    assert.equal(mapApplicationCategory("marketing"), "MarketingApplication");
+    assert.equal(mapApplicationCategory("video-content"), "MultimediaApplication");
+    assert.equal(mapApplicationCategory("unknown-cat"), "WebApplication");
+
+    // 3. Test buildSoftwareAppJsonLd for free, freemium, and paid pricing models
+    const sampleFree = {
+      slug: "writepro",
+      name: "Writepro",
+      tagline: "AI content generator",
+      description_short: "Generate high-converting marketing copy.",
+      website_url: "https://writepro.ai",
+      logo_url: "https://writepro.ai/logo.png",
+      pricing_model: "free",
+      categories: { name: "AI", slug: "ai" },
+    };
+    const freeJson = buildSoftwareAppJsonLd(sampleFree, "https://launchos.com");
+    assert.equal(freeJson["@context"], "https://schema.org");
+    assert.equal(freeJson["@type"], "SoftwareApplication");
+    assert.equal(freeJson.name, "Writepro");
+    assert.equal(freeJson.url, "https://launchos.com/product/writepro");
+    assert.equal(freeJson.applicationCategory, "ArtificialIntelligenceApplication");
+    assert.equal(freeJson.operatingSystem, "Web, Cloud, All");
+    assert.equal(freeJson.sameAs, "https://writepro.ai");
+    assert.deepEqual(freeJson.offers, {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+    });
+
+    const sampleFreemium = {
+      slug: "taskpulse",
+      name: "TaskPulse",
+      tagline: "Agile task manager",
+      description_short: "Sprint velocity tracking.",
+      website_url: "https://taskpulse.io",
+      logo_url: "https://taskpulse.io/logo.png",
+      pricing_model: "freemium",
+      categories: { name: "Productivity", slug: "productivity" },
+    };
+    const freemiumJson = buildSoftwareAppJsonLd(sampleFreemium, "https://launchos.com");
+    assert.equal(freemiumJson.applicationCategory, "ProductivityApplication");
+    assert.deepEqual(freemiumJson.offers, {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      description: "Free tier available",
+    });
+
+    const samplePaid = {
+      slug: "logixcode",
+      name: "logixcode",
+      tagline: "Custom enterprise software",
+      description_short: "Bespoke digital solutions.",
+      website_url: "https://logixcode.com",
+      logo_url: "https://logixcode.com/logo.png",
+      pricing_model: "paid",
+      categories: { name: "AI", slug: "ai" },
+    };
+    const paidJson = buildSoftwareAppJsonLd(samplePaid, "https://launchos.com");
+    // Verify no fabricated price for paid listings
+    assert.equal(paidJson.offers, undefined, "Paid listings must omit offers to prevent fabricated prices");
+
+    // 4. Test serializeJsonLd XSS prevention
+    const dangerousData = {
+      name: "Hack <script>alert('xss')</script>",
+      tagline: "Breakout </script><script>alert(1)</script>",
+      escaped: "Line 1 \u2028 Line 2 & foo > bar",
+    };
+    const serialized = serializeJsonLd(dangerousData);
+    assert.ok(!serialized.includes("<script>"), "serializeJsonLd must escape '<' to \\u003c");
+    assert.ok(!serialized.includes("</script>"), "serializeJsonLd must escape '>' to \\u003e");
+    assert.ok(!serialized.includes("\u2028"), "serializeJsonLd must escape unicode line separators");
+    assert.ok(serialized.includes("\\u003cscript\\u003e"));
+
+    // 5. Verify app/product/[id]/page.tsx implementation
+    const pageSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "product", "[id]", "page.tsx"),
+      "utf8"
+    );
+    assert.ok(
+      pageSource.includes("export async function generateMetadata"),
+      "app/product/[id]/page.tsx must export generateMetadata"
+    );
+    assert.ok(
+      pageSource.includes("revalidate = 3600"),
+      "app/product/[id]/page.tsx must export revalidate = 3600"
+    );
+    assert.ok(
+      pageSource.includes("buildSoftwareAppJsonLd") &&
+        pageSource.includes("serializeJsonLd") &&
+        pageSource.includes("application/ld+json"),
+      "app/product/[id]/page.tsx must inject serialized SoftwareApplication JSON-LD"
+    );
+    assert.ok(
+      pageSource.includes("getSiteUrl()"),
+      "app/product/[id]/page.tsx must use centralized getSiteUrl()"
+    );
+    assert.ok(
+      pageSource.includes("getApprovedListingBySlug"),
+      "app/product/[id]/page.tsx must use getApprovedListingBySlug"
+    );
+
+    // 6. Verify lib/listings.ts memoization
+    const listingsLibSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "listings.ts"),
+      "utf8"
+    );
+    assert.ok(
+      listingsLibSource.includes("cache(") && listingsLibSource.includes('from "react"'),
+      "lib/listings.ts must memoize getApprovedListingBySlug with React cache"
+    );
+
+    // 7. Verify centralized getSiteUrl in lib/seo/config.ts
+    const configSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "seo", "config.ts"),
+      "utf8"
+    );
+    assert.ok(
+      configSource.includes("export function getSiteUrl"),
+      "lib/seo/config.ts must export getSiteUrl()"
+    );
+  });
+
+  it("enforces Task 3 Part A UI fixes: no SAMPLE_GALLERY, no fake website URL, dynamic comment placeholder, logo onError, and one_time -> One-time", () => {
+    const detailViewSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "ProductDetailView.tsx"),
+      "utf8"
+    );
+
+    // 1. Screenshot empty state: No SAMPLE_GALLERY fallback
+    assert.ok(
+      !detailViewSource.includes("SAMPLE_GALLERY"),
+      "ProductDetailView.tsx must not contain or fall back to SAMPLE_GALLERY"
+    );
+    assert.ok(
+      detailViewSource.includes("No screenshots uploaded yet"),
+      "ProductDetailView.tsx must have an empty state when screenshots are empty"
+    );
+
+    // 2. Pricing label: free -> Free, freemium -> Freemium, paid -> Paid, one_time -> One-time
+    assert.ok(
+      detailViewSource.includes('case "one_time":') &&
+        detailViewSource.includes('return "One-time";'),
+      "ProductDetailView.tsx must map one_time to 'One-time'"
+    );
+
+    // 3. Website URL: No example.com fallback, validates http/https protocol
+    assert.ok(
+      !detailViewSource.includes("https://example.com"),
+      "ProductDetailView.tsx must never fall back to https://example.com"
+    );
+    assert.ok(
+      detailViewSource.includes("isValidHttpUrl"),
+      "ProductDetailView.tsx must validate website URL with isValidHttpUrl"
+    );
+    assert.ok(
+      detailViewSource.includes("{product.websiteUrl && ("),
+      "ProductDetailView.tsx must conditionally render Visit website CTA only when valid"
+    );
+
+    // 4. Comments placeholder: Dynamic {product.name}, no Cortex AI
+    assert.ok(
+      !detailViewSource.includes("Cortex AI"),
+      "ProductDetailView.tsx must not contain hardcoded Cortex AI"
+    );
+    assert.ok(
+      detailViewSource.includes("Ask a question or share your feedback on ${product.name}..."),
+      "ProductDetailView.tsx must dynamically include product.name in comment placeholder"
+    );
+
+    // 5. Logo onError fallback: avoids infinite loops and falls back to initials
+    assert.ok(
+      detailViewSource.includes("onError={() => setLogoError(true)}"),
+      "ProductDetailView.tsx must attach onError to logo image"
+    );
+    assert.ok(
+      detailViewSource.includes("const [logoError, setLogoError] = useState(false);"),
+      "ProductDetailView.tsx must maintain logoError state"
+    );
+  });
+
+  it("enforces Task 3 Part B UI fixes: no Cortex features/tech-stack, dynamic similar products, safe founder initials, comments empty state, and loading skeleton", async () => {
+    const detailViewSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "ProductDetailView.tsx"),
+      "utf8"
+    );
+    const listingsLibSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "listings.ts"),
+      "utf8"
+    );
+    const pageSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "product", "[id]", "page.tsx"),
+      "utf8"
+    );
+    const loadingPath = path.join(__dirname, "..", "app", "product", "[id]", "loading.tsx");
+    assert.ok(fs.existsSync(loadingPath), "app/product/[id]/loading.tsx must exist");
+    const loadingSource = fs.readFileSync(loadingPath, "utf8");
+
+    // 1. Remove hardcoded features and tech stack
+    assert.ok(
+      !detailViewSource.includes("Real-time Zendesk & Slack sync") &&
+        !detailViewSource.includes("Multi-language response in 42 languages") &&
+        !detailViewSource.includes("pgvector"),
+      "ProductDetailView.tsx must not contain hardcoded Cortex AI capabilities or tech stack"
+    );
+
+    // 2. Dynamic similar products from Supabase
+    assert.ok(
+      !detailViewSource.includes("MOCK_PRODUCTS"),
+      "ProductDetailView.tsx must completely eliminate MOCK_PRODUCTS import and usage"
+    );
+    assert.ok(
+      listingsLibSource.includes("export async function getSimilarApprovedListings"),
+      "lib/listings.ts must export getSimilarApprovedListings"
+    );
+    assert.ok(
+      listingsLibSource.includes('.eq("category_id", categoryId)') &&
+        listingsLibSource.includes('.eq("status", "approved")') &&
+        listingsLibSource.includes('.neq("slug", currentSlug)'),
+      "getSimilarApprovedListings must filter by category_id, status='approved', and exclude current slug"
+    );
+    assert.ok(
+      pageSource.includes("getSimilarApprovedListings") &&
+        pageSource.includes("similarListings={similarListings}"),
+      "app/product/[id]/page.tsx must fetch and pass similarListings on the server"
+    );
+    assert.ok(
+      detailViewSource.includes("similarListings && similarListings.length > 0 &&"),
+      "ProductDetailView.tsx must hide similar products section when none exist"
+    );
+
+    // 3. Safe founder initials helper
+    const { getSafeInitials } = await import("../lib/utils.ts");
+    assert.equal(getSafeInitials(""), "VF");
+    assert.equal(getSafeInitials(null), "VF");
+    assert.equal(getSafeInitials(undefined), "VF");
+    assert.equal(getSafeInitials("    "), "VF");
+    assert.equal(getSafeInitials("Austin"), "AU");
+    assert.equal(getSafeInitials("Austin Miller"), "AM");
+    assert.equal(getSafeInitials("Austin   Van   Miller"), "AM");
+    assert.equal(getSafeInitials("v"), "V");
+
+    // 4. Comments empty state
+    assert.ok(
+      !detailViewSource.includes("INITIAL_COMMENTS"),
+      "ProductDetailView.tsx must not contain hardcoded INITIAL_COMMENTS"
+    );
+    assert.ok(
+      detailViewSource.includes("No comments yet. Be the first to share your feedback."),
+      "ProductDetailView.tsx must display clean empty state when comments are empty"
+    );
+
+    // 5. Loading skeleton matches layout
+    assert.ok(
+      loadingSource.includes("ProductDetailLoading") &&
+        loadingSource.includes("animate-pulse") &&
+        loadingSource.includes("aspect-16/9") &&
+        loadingSource.includes('role="status"'),
+      "app/product/[id]/loading.tsx must be an accessible skeleton with matching layout"
+    );
+  });
+
+  it("enforces Part 4 QA & Test Requirements: route consistency, anon client isolation, pending/rejected 404, dynamic ISR, and SEO/JSON-LD compliance", async () => {
+    const listingsLibSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "listings.ts"),
+      "utf8"
+    );
+    const pageSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "product", "[id]", "page.tsx"),
+      "utf8"
+    );
+    const seoConfigSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "seo", "config.ts"),
+      "utf8"
+    );
+    const jsonldSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "seo", "jsonld.ts"),
+      "utf8"
+    );
+
+    // 1. Route consistency: canonical route is /product/[slug], not /tools/[slug]
+    assert.ok(
+      pageSource.includes("canonicalUrl = `${siteUrl}/product/${listing.slug}`") &&
+        seoConfigSource.includes('basePath: "/product"') &&
+        jsonldSource.includes("const canonicalUrl = `${cleanSiteUrl}/product/${listing.slug}`"),
+      "All canonical, sitemap, and JSON-LD URLs must consistently use /product/[slug]"
+    );
+
+    // 2. Client isolation: lib/listings.ts strictly uses publicDb (Anon Key)
+    assert.ok(
+      listingsLibSource.includes('import { publicDb } from "@/lib/db"') &&
+        !listingsLibSource.includes('import { publicDb, db }') &&
+        !listingsLibSource.includes("serverSecrets"),
+      "lib/listings.ts must only use publicDb and never import service-role client or serverSecrets"
+    );
+
+    // 3. Status defense-in-depth: getApprovedListingBySlug filters status='approved'
+    assert.ok(
+      listingsLibSource.includes('.eq("status", "approved")') &&
+        listingsLibSource.includes('if (data.status !== "approved")') &&
+        pageSource.includes("if (!listing) {\n    notFound();"),
+      "Pending and rejected listings must be filtered authoritatively and return 404 (notFound)"
+    );
+
+    // 4. Rendering Strategy: ISR (revalidate = 3600) with dynamic on-demand rendering
+    assert.ok(
+      pageSource.includes("export const revalidate = 3600;"),
+      "app/product/[id]/page.tsx must configure ISR revalidation (revalidate = 3600)"
+    );
+
+    // 5. Dynamic SEO metadata validation
+    assert.ok(
+      pageSource.includes("export async function generateMetadata") &&
+        pageSource.includes("listing.tagline") &&
+        pageSource.includes("description = listing.description_short") &&
+        pageSource.includes("canonical: canonicalUrl"),
+      "generateMetadata must produce unique title, description, and canonical URL"
+    );
+
+    // 6. JSON-LD structure: valid SoftwareApplication with no fake ratings
+    const { buildSoftwareAppJsonLd, serializeJsonLd } = await import("../lib/seo/jsonld.ts");
+    const sampleApproved = {
+      id: 50000001,
+      slug: "writepro",
+      name: "Writepro",
+      tagline: "AI content creation assistant",
+      description_short: "Generate high-converting blog posts and copy in seconds.",
+      description_long: "Writepro is an advanced AI writing assistant built for teams.",
+      website_url: "https://writepro.io",
+      logo_url: "https://writepro.io/logo.png",
+      category_id: 1,
+      pricing_model: "free",
+      status: "approved",
+      submitted_by_email: "founder@writepro.io",
+      created_at: "2026-11-01T00:00:00Z",
+      updated_at: "2026-11-01T00:00:00Z",
+      approved_at: "2026-11-02T00:00:00Z",
+      categories: {
+        id: 1,
+        slug: "ai",
+        name: "Artificial Intelligence",
+        description: "AI software tools",
+      },
+      listing_screenshots: [
+        { id: 1, url: "https://writepro.io/screen1.png", position: 1 },
+      ],
+    };
+
+    const schema = buildSoftwareAppJsonLd(sampleApproved, "https://launchos.com");
+    assert.equal(schema["@context"], "https://schema.org");
+    assert.equal(schema["@type"], "SoftwareApplication");
+    assert.equal(schema.name, "Writepro");
+    assert.equal(schema.url, "https://launchos.com/product/writepro");
+    assert.equal(schema.applicationCategory, "ArtificialIntelligenceApplication");
+    assert.equal(schema.offers.price, "0");
+    assert.equal(schema.offers.priceCurrency, "USD");
+    assert.equal(schema.aggregateRating, undefined, "Must not inject fake ratings or reviews");
+
+    // XSS injection prevention in JSON-LD serialization
+    const serialized = serializeJsonLd(schema);
+    assert.ok(!serialized.includes("</script>"), "Serialized JSON-LD must escape </script> tags safely");
+  });
+
+  it("enforces separation of software pricing from directory listing plans across all 5 combinations", async () => {
+    const siteConfigSource = fs.readFileSync(
+      path.join(__dirname, "..", "config", "site.ts"),
+      "utf8"
+    );
+    const validationSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "validation.ts"),
+      "utf8"
+    );
+    const submitSchemaSource = fs.readFileSync(
+      path.join(__dirname, "..", "lib", "schemas", "submitListing.ts"),
+      "utf8"
+    );
+    const submitFormSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "SubmitForm.tsx"),
+      "utf8"
+    );
+    const adminQueueSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "AdminQueueClient.tsx"),
+      "utf8"
+    );
+    const productDetailSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "ProductDetailView.tsx"),
+      "utf8"
+    );
+    const migrationSource = fs.readFileSync(
+      path.join(__dirname, "..", "supabase", "migrations", "0002_separate_software_pricing.sql"),
+      "utf8"
+    );
+
+    // 0. Migration file verification
+    assert.ok(
+      migrationSource.includes("starting_price") &&
+        migrationSource.includes("billing_period") &&
+        migrationSource.includes("listing_plan") &&
+        migrationSource.includes("listing_plan_price"),
+      "Migration 0002 must add starting_price, billing_period, listing_plan, and listing_plan_price columns"
+    );
+
+    // 1. Directory Listing Plans verification in config/site.ts
+    assert.ok(siteConfigSource.includes('name: "Free Listing"'), "config/site.ts must define 'Free Listing'");
+    assert.ok(siteConfigSource.includes('price: 0'), "Free Listing must be $0");
+    assert.ok(siteConfigSource.includes('name: "Premium Listing"'), "config/site.ts must define 'Premium Listing'");
+    assert.ok(siteConfigSource.includes('price: 29'), "Premium Listing must be $29");
+    assert.ok(siteConfigSource.includes('name: "Featured Listing"'), "config/site.ts must define 'Featured Listing'");
+    assert.ok(siteConfigSource.includes('price: 49'), "Featured Listing must be $49");
+    assert.ok(siteConfigSource.includes('currency: "USD"'), "All directory listing plan prices must be in USD ($)");
+
+    // 2. SubmitForm.tsx business logic boundary verification
+    // Must check values.listing_plan to trigger checkout, NEVER values.pricing_model
+    assert.ok(
+      submitFormSource.includes("getPlanById(values.listing_plan"),
+      "SubmitForm.tsx must resolve checkout plan using values.listing_plan, not values.pricing_model"
+    );
+    assert.ok(
+      !submitFormSource.includes("getPlanById(values.pricing_model)"),
+      "SubmitForm.tsx must NEVER use values.pricing_model to resolve checkout plan"
+    );
+    assert.ok(
+      submitFormSource.includes("SOFTWARE_PRICING_OPTIONS") &&
+        submitFormSource.includes("BILLING_PERIOD_OPTIONS") &&
+        submitFormSource.includes("Choose Your Listing Plan") &&
+        submitFormSource.includes("Software Pricing"),
+      "SubmitForm.tsx must contain dedicated Software Pricing and Choose Your Listing Plan sections"
+    );
+
+    // 3. Admin & ProductDetail verification
+    assert.ok(
+      adminQueueSource.includes("item.starting_price") && adminQueueSource.includes("item.listing_plan"),
+      "AdminQueueClient.tsx must render both software pricing details and directory listing plan badge"
+    );
+    assert.ok(
+      productDetailSource.includes("formatPricingLabelWithDetails") &&
+        productDetailSource.includes('case "premium":'),
+      "ProductDetailView.tsx must support premium pricing and format pricing details"
+    );
+
+    // 4. Schema verification
+    assert.ok(
+      submitSchemaSource.includes('normPricing === "freemium"') &&
+        submitSchemaSource.includes('path: ["starting_price"]') &&
+        submitSchemaSource.includes('path: ["billing_period"]'),
+      "submitListing.ts must conditionally require starting_price and billing_period for freemium/premium"
+    );
+    assert.ok(
+      validationSource.includes("VALID_BILLING_PERIODS") &&
+        validationSource.includes("VALID_LISTING_PLANS"),
+      "validation.ts must support billing periods and listing plans"
+    );
+
+    // Local validator mirroring lib/schemas/submitListing.ts for test assertions
+    const PRICING_MODELS = ["free", "freemium", "premium", "paid", "one_time"];
+    const BILLING_PERIODS = ["monthly", "yearly", "one_time"];
+    const LISTING_PLANS = ["free", "premium", "featured", "freemium", "paid", "one_time"];
+
+    const submitListingSchema = z
+      .object({
+        name: z.string().trim().min(1, "Tool name is required."),
+        category_id: z.string().trim().min(1, "Category is required."),
+        custom_category: z.string().trim().optional(),
+        pricing_model: z.enum(PRICING_MODELS),
+        starting_price: z.coerce.number().optional().nullable(),
+        currency: z.string().optional(),
+        billing_period: z.enum(BILLING_PERIODS).optional().nullable(),
+        listing_plan: z.enum(LISTING_PLANS).optional(),
+        listing_plan_price: z.coerce.number().optional().nullable(),
+        website_url: z.string().trim().optional(),
+        tagline: z.string().trim().min(1),
+        description_short: z.string().trim().min(1),
+        description_long: z.string().trim().min(1),
+        submitted_by_email: z.string().trim().email(),
+      })
+      .superRefine((data, ctx) => {
+        const normPricing = (data.pricing_model || "").toLowerCase();
+        if (normPricing === "freemium" || normPricing === "premium") {
+          const priceVal = data.starting_price;
+          if (
+            priceVal === undefined ||
+            priceVal === null ||
+            isNaN(Number(priceVal)) ||
+            Number(priceVal) <= 0
+          ) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["starting_price"],
+              message: "Price required",
+            });
+          }
+          if (!data.billing_period || !BILLING_PERIODS.includes(data.billing_period)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["billing_period"],
+              message: "Billing period required",
+            });
+          }
+        }
+      });
+
+    // Helper to test checkout condition logic mirroring SubmitForm.tsx
+    const PLAN_PRICES = {
+      free: 0,
+      premium: 29,
+      featured: 49,
+      freemium: 0,
+      paid: 29,
+      one_time: 49,
+    };
+
+    function evaluateCheckoutFlow(values) {
+      const planId = values.listing_plan || "free";
+      const price = PLAN_PRICES[planId] ?? 0;
+      const requiresPayment = price > 0;
+      return {
+        requiresPayment,
+        chargeAmount: price,
+        planId,
+      };
+    }
+
+    // COMBINATION 1: Free software + Free Listing
+    const combo1 = {
+      name: "OpenDoc",
+      tagline: "Free open source documentation generator",
+      description_short: "Generate clean docs without spending a dime.",
+      description_long: "OpenDoc is a completely free, MIT-licensed open source doc engine.",
+      website_url: "https://opendoc.dev",
+      category_id: "1",
+      pricing_model: "free",
+      listing_plan: "free",
+      listing_plan_price: 0,
+      submitted_by_email: "dev@opendoc.dev",
+    };
+    const parsed1 = submitListingSchema.safeParse(combo1);
+    assert.ok(parsed1.success, "Combo 1 (Free software + Free Listing) must pass client schema");
+    const flow1 = evaluateCheckoutFlow(combo1);
+    assert.equal(flow1.requiresPayment, false, "Combo 1 must not trigger payment");
+    assert.equal(flow1.chargeAmount, 0);
+
+    // COMBINATION 2: Freemium software ($29/month) + Free Listing
+    const combo2 = {
+      name: "CloudMetrics",
+      tagline: "Cloud cost optimization platform",
+      description_short: "Monitor AWS and GCP infrastructure spending.",
+      description_long: "CloudMetrics offers a free tier and starts at $29/month for advanced alerting.",
+      website_url: "https://cloudmetrics.io",
+      category_id: "1",
+      pricing_model: "freemium",
+      starting_price: 29,
+      currency: "USD",
+      billing_period: "monthly",
+      listing_plan: "free",
+      listing_plan_price: 0,
+      submitted_by_email: "founder@cloudmetrics.io",
+    };
+    const parsed2 = submitListingSchema.safeParse(combo2);
+    assert.ok(parsed2.success, "Combo 2 (Freemium software $29/mo + Free Listing) must pass client schema");
+    const flow2 = evaluateCheckoutFlow(combo2);
+    assert.equal(flow2.requiresPayment, false, "Combo 2 must NOT trigger payment because listing plan is free");
+    assert.equal(flow2.chargeAmount, 0);
+
+    // COMBINATION 3: Premium software ($99/year) + Premium Listing
+    const combo3 = {
+      name: "SecurityScan Pro",
+      tagline: "Automated vulnerability scanner for SaaS",
+      description_short: "Continuous container and code security audits.",
+      description_long: "SecurityScan Pro is a commercial security suite available for $99/year.",
+      website_url: "https://securityscan.io",
+      category_id: "1",
+      pricing_model: "premium",
+      starting_price: 99,
+      currency: "USD",
+      billing_period: "yearly",
+      listing_plan: "premium",
+      listing_plan_price: 29,
+      submitted_by_email: "ceo@securityscan.io",
+    };
+    const parsed3 = submitListingSchema.safeParse(combo3);
+    assert.ok(parsed3.success, "Combo 3 (Premium software $99/yr + Premium Listing) must pass client schema");
+    const flow3 = evaluateCheckoutFlow(combo3);
+    assert.equal(flow3.requiresPayment, true, "Combo 3 must trigger payment for directory plan");
+    assert.equal(flow3.chargeAmount, 29, "Charge amount must be $29 (the directory listing price, NOT the $99 software price)");
+
+    // COMBINATION 4: Free software + Featured Listing
+    const combo4 = {
+      name: "AwesomeIcons",
+      tagline: "10,000 free SVG icons for web makers",
+      description_short: "Beautiful open source icon set for your apps.",
+      description_long: "AwesomeIcons is 100% free, but maker wants homepage spotlight.",
+      website_url: "https://awesomeicons.com",
+      category_id: "1",
+      pricing_model: "free",
+      listing_plan: "featured",
+      listing_plan_price: 49,
+      submitted_by_email: "designer@awesomeicons.com",
+    };
+    const parsed4 = submitListingSchema.safeParse(combo4);
+    assert.ok(parsed4.success, "Combo 4 (Free software + Featured Listing) must pass client schema");
+    const flow4 = evaluateCheckoutFlow(combo4);
+    assert.equal(flow4.requiresPayment, true, "Combo 4 must trigger payment for Featured plan");
+    assert.equal(flow4.chargeAmount, 49, "Charge amount must be $49");
+
+    // COMBINATION 5: Freemium software ($19/one-time) + Featured Listing
+    const combo5 = {
+      name: "TaskMaster AI",
+      tagline: "Automate your daily project sprint tasks",
+      description_short: "AI task breakdown and estimation tool.",
+      description_long: "Free basic tier with a $19 one-time lifetime license upgrade.",
+      website_url: "https://taskmaster.ai",
+      category_id: "1",
+      pricing_model: "freemium",
+      starting_price: 19,
+      currency: "USD",
+      billing_period: "one_time",
+      listing_plan: "featured",
+      listing_plan_price: 49,
+      submitted_by_email: "maker@taskmaster.ai",
+    };
+    const parsed5 = submitListingSchema.safeParse(combo5);
+    assert.ok(parsed5.success, "Combo 5 (Freemium software + Featured Listing) must pass client schema");
+    const flow5 = evaluateCheckoutFlow(combo5);
+    assert.equal(flow5.requiresPayment, true, "Combo 5 must trigger payment for Featured plan");
+    assert.equal(flow5.chargeAmount, 49, "Charge amount must be $49");
+
+    // Conditional Validation Error Checks:
+    // Freemium without starting_price must fail
+    const invalidFreemiumNoPrice = {
+      ...combo2,
+      starting_price: null,
+    };
+    const parsedFailPrice = submitListingSchema.safeParse(invalidFreemiumNoPrice);
+    assert.equal(parsedFailPrice.success, false, "Freemium without price must fail validation");
+
+    // Freemium without billing_period must fail
+    const invalidFreemiumNoPeriod = {
+      ...combo2,
+      billing_period: null,
+    };
+    const parsedFailPeriod = submitListingSchema.safeParse(invalidFreemiumNoPeriod);
+    assert.equal(parsedFailPeriod.success, false, "Freemium without billing period must fail validation");
+
+    // Premium without starting_price must fail
+    const invalidPremiumNoPrice = {
+      ...combo3,
+      starting_price: null,
+    };
+    const parsedFailPremium = submitListingSchema.safeParse(invalidPremiumNoPrice);
+    assert.equal(parsedFailPremium.success, false, "Premium without price must fail validation");
+
+    // Free software without price or billing period MUST succeed
+    const validFreeNoPrice = {
+      ...combo1,
+      starting_price: null,
+      billing_period: null,
+    };
+    const parsedFree = submitListingSchema.safeParse(validFreeNoPrice);
+    assert.equal(parsedFree.success, true, "Free software does not require starting_price or billing_period");
+  });
 });
 

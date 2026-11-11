@@ -14,7 +14,13 @@ export interface ListingEventPayload {
   slug: string;
   submitted_by_email: string;
   category_id: BigIntId;
+  custom_category?: string | null;
   pricing_model: PricingModel;
+  starting_price?: number | null;
+  currency?: string;
+  billing_period?: string | null;
+  listing_plan?: string;
+  listing_plan_price?: number;
   website_url: string;
   status: ListingStatus;
   approved_at?: string | null;

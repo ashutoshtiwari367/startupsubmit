@@ -119,11 +119,11 @@ export async function POST(req: NextRequest) {
       processing_result: "paid",
     });
 
-    // 5. LaunchOS Specific Action: If payment is linked to a listing, upgrade its pricing_model
+    // 5. LaunchOS Specific Action: If payment is linked to a listing, upgrade its listing_plan
     if (paymentRow.listing_id && paymentRow.plan_id) {
       await db
         .from("listings")
-        .update({ pricing_model: paymentRow.plan_id })
+        .update({ listing_plan: paymentRow.plan_id })
         .eq("id", paymentRow.listing_id);
     }
 

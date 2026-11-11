@@ -187,6 +187,11 @@ export async function POST(req: NextRequest) {
         custom_category:
           formData.get("custom_category") ?? formData.get("other_category"),
         pricing_model: formData.get("pricing_model"),
+        starting_price: formData.get("starting_price"),
+        currency: formData.get("currency") || "USD",
+        billing_period: formData.get("billing_period"),
+        listing_plan: formData.get("listing_plan") || "free",
+        listing_plan_price: formData.get("listing_plan_price") || 0,
         submitted_by_email:
           formData.get("submitted_by_email") ?? formData.get("submitter_email"),
         company_website_hp:
@@ -420,25 +425,63 @@ export async function POST(req: NextRequest) {
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidateSlug = await generateUniqueSlug(validData.name, takenInRetry);
 
-      const { data, error } = await db
+      const insertPayload: Record<string, unknown> = {
+        name: validData.name,
+        slug: candidateSlug,
+        tagline: validData.tagline,
+        description_short: validData.description_short,
+        description_long: validData.description_long,
+        website_url: validData.website_url,
+        logo_url: logoUrl,
+        category_id: categoryId,
+        pricing_model: validData.pricing_model,
+        starting_price: validData.starting_price ?? null,
+        currency: validData.currency || "USD",
+        billing_period: validData.billing_period ?? null,
+        listing_plan: validData.listing_plan || "free",
+        listing_plan_price: validData.listing_plan_price || 0,
+        status: "pending",
+        submitted_by_email: validData.submitted_by_email,
+      };
+
+      if (validData.custom_category) {
+        insertPayload.custom_category = validData.custom_category;
+      }
+
+      let insertRes = await db
         .from("listings")
-        .insert({
-          name: validData.name,
-          slug: candidateSlug,
-          tagline: validData.tagline,
-          description_short: validData.description_short,
-          description_long: validData.description_long,
-          website_url: validData.website_url,
-          logo_url: logoUrl,
-          category_id: categoryId,
-          pricing_model: validData.pricing_model,
-          status: "pending",
-          submitted_by_email: validData.submitted_by_email,
-        })
+        .insert(insertPayload as any)
         .select(
           "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
         )
         .single();
+
+      // Gracefully retry with core columns if optional new columns do not exist yet in live DB
+      // Catches both native PostgreSQL 42703 and Supabase PostgREST PGRST204 / PGRST200 schema cache error
+      const isMissingColumnError =
+        insertRes.error?.code === "42703" ||
+        insertRes.error?.code === "PGRST204" ||
+        insertRes.error?.code === "PGRST200" ||
+        insertRes.error?.message?.toLowerCase().includes("schema cache") ||
+        insertRes.error?.message?.toLowerCase().includes("column");
+
+      if (isMissingColumnError) {
+        delete insertPayload.custom_category;
+        delete insertPayload.starting_price;
+        delete insertPayload.currency;
+        delete insertPayload.billing_period;
+        delete insertPayload.listing_plan;
+        delete insertPayload.listing_plan_price;
+        insertRes = await db
+          .from("listings")
+          .insert(insertPayload as any)
+          .select(
+            "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
+          )
+          .single();
+      }
+
+      const { data, error } = insertRes;
 
       if (!error && data) {
         insertedListing = data;
@@ -511,7 +554,13 @@ export async function POST(req: NextRequest) {
       slug: insertedListing.slug,
       submitted_by_email: insertedListing.submitted_by_email,
       category_id: insertedListing.category_id,
+      custom_category: validData.custom_category || null,
       pricing_model: insertedListing.pricing_model,
+      starting_price: validData.starting_price ?? null,
+      currency: validData.currency || "USD",
+      billing_period: validData.billing_period ?? null,
+      listing_plan: validData.listing_plan || "free",
+      listing_plan_price: validData.listing_plan_price || 0,
       website_url: insertedListing.website_url,
       status: insertedListing.status,
       submitted_at: insertedListing.created_at,

@@ -1,9 +1,9 @@
-export type PlanId = "free" | "freemium" | "paid" | "one_time";
+export type PlanId = "free" | "premium" | "featured" | "freemium" | "paid" | "one_time";
 
 export interface LaunchPlanConfig {
   id: PlanId;
   name: string;
-  price: number; // Major currency units (e.g. 59 -> ₹59, automatically converted to 5900 paise)
+  price: number; // Major currency units (e.g. 29 -> $29, automatically converted to 2900 cents)
   currency: string;
   currencySymbol: string;
   period: string;
@@ -17,28 +17,29 @@ export interface LaunchPlanConfig {
 }
 
 /**
- * Single Source of Truth for LaunchOS Site & Pricing Configuration.
- * Change any `price` here (e.g., 59 -> 99) and both the Frontend UI
- * and Backend Razorpay Order creation (`price * 100` minor units) update automatically.
+ * Single Source of Truth for LaunchOS Site & Directory Listing Plans.
+ * Change any `price` here (e.g., 29 -> 49) and both the Frontend UI
+ * and Backend Razorpay/Stripe Order creation (`price * 100` minor units) update automatically.
+ * Configured in USD ($) as authoritative directory listing tiers.
  */
 export const SITE_CONFIG = {
   name: "LaunchOS",
   tagline: "Product Launch Directory for AI & SaaS Makers",
-  currency: "INR",
-  currencySymbol: "₹",
+  currency: "USD",
+  currencySymbol: "$",
   plans: [
     {
       id: "free",
-      name: "Free Launch",
+      name: "Free Listing",
       price: 0,
-      currency: "INR",
-      currencySymbol: "₹",
+      currency: "USD",
+      currencySymbol: "$",
       period: "forever",
       badge: "Standard",
       popular: false,
       description:
         "For bootstrapped indie makers testing early product-market traction.",
-      ctaText: "Submit for Free",
+      ctaText: "Submit Free Listing",
       ctaVariant: "secondary",
       reviewSla: "3-5 business days",
       features: [
@@ -49,72 +50,103 @@ export const SITE_CONFIG = {
       ],
     },
     {
-      id: "freemium",
-      name: "Freemium Launch",
-      price: 59,
-      currency: "INR",
-      currencySymbol: "₹",
+      id: "premium",
+      name: "Premium Listing",
+      price: 29,
+      currency: "USD",
+      currencySymbol: "$",
       period: "one-time",
-      badge: "Starter Boost",
-      popular: false,
-      description:
-        "Fast-track editorial review and verified badge for freemium tools.",
-      ctaText: "Get Freemium Launch",
-      ctaVariant: "secondary",
-      reviewSla: "< 48 hours",
-      features: [
-        "Everything in Free, plus:",
-        "Fast-track 48-hour editorial review",
-        "Verified Maker badge on launch cards",
-        "Highlighted in category directory",
-      ],
-    },
-    {
-      id: "paid",
-      name: "Paid Pro Launch",
-      price: 149,
-      currency: "INR",
-      currencySymbol: "₹",
-      period: "one-time",
-      badge: "Most Popular",
+      badge: "Fast Track",
       popular: true,
       description:
-        "Guaranteed launch within 24h and permanent DR 72+ dofollow backlink.",
-      ctaText: "Get Paid Pro Launch",
+        "Fast-track 24h review, verified Maker badge, and permanent DR 72+ dofollow backlink.",
+      ctaText: "Get Premium Listing",
       ctaVariant: "primary",
       reviewSla: "< 24 hours",
       features: [
-        "Everything in Freemium, plus:",
-        "Guaranteed launch date within 24 hours",
-        "Permanent guaranteed dofollow backlink (DR 72+)",
-        "Featured in daily founder newsletter",
-        "Instant Google Indexing API ping",
+        "Everything in Free, plus:",
+        "Guaranteed review & launch within 24 hours",
+        "Permanent guaranteed dofollow backlink",
+        "Verified Maker badge on launch cards",
+        "Priority category directory ranking",
       ],
     },
     {
-      id: "one_time",
-      name: "One-Time Spotlight",
-      price: 299,
-      currency: "INR",
-      currencySymbol: "₹",
+      id: "featured",
+      name: "Featured Listing",
+      price: 49,
+      currency: "USD",
+      currencySymbol: "$",
       period: "one-time",
-      badge: "Maximum Reach",
+      badge: "Maximum Visibility",
       popular: false,
       description:
-        "7-day pinned homepage sponsor placement and priority 1-hour approval.",
-      ctaText: "Reserve Spotlight",
+        "Homepage spotlight for 7 days, newsletter inclusion, and priority audit.",
+      ctaText: "Get Featured Listing",
       ctaVariant: "secondary",
-      reviewSla: "< 1 hour priority",
+      reviewSla: "< 12 hours priority",
       features: [
-        "Everything in Paid Pro, plus:",
-        "7 days pinned homepage sponsor slot",
-        "#1 Leaderboard hero sponsor placement",
-        "Dedicated shoutout on X & newsletter blast",
-        "Priority 1-hour expedited audit",
+        "Everything in Premium, plus:",
+        "7 days pinned homepage spotlight",
+        "Featured in daily founder newsletter",
+        "Top-row hero placement in category",
+        "Instant social shoutout",
       ],
+    },
+    // Legacy tier compatibility (mapped to directory plans)
+    {
+      id: "freemium",
+      name: "Free Listing",
+      price: 0,
+      currency: "USD",
+      currencySymbol: "$",
+      period: "forever",
+      badge: "Standard",
+      popular: false,
+      description: "Legacy alias for Free Listing.",
+      ctaText: "Submit Free Listing",
+      ctaVariant: "secondary",
+      reviewSla: "3-5 business days",
+      features: ["Standard review queue", "Permanent listing"],
+    },
+    {
+      id: "paid",
+      name: "Premium Listing",
+      price: 29,
+      currency: "USD",
+      currencySymbol: "$",
+      period: "one-time",
+      badge: "Fast Track",
+      popular: true,
+      description: "Legacy alias for Premium Listing.",
+      ctaText: "Get Premium Listing",
+      ctaVariant: "primary",
+      reviewSla: "< 24 hours",
+      features: ["Fast-track review", "Verified Maker badge"],
+    },
+    {
+      id: "one_time",
+      name: "Featured Listing",
+      price: 49,
+      currency: "USD",
+      currencySymbol: "$",
+      period: "one-time",
+      badge: "Maximum Visibility",
+      popular: false,
+      description: "Legacy alias for Featured Listing.",
+      ctaText: "Get Featured Listing",
+      ctaVariant: "secondary",
+      reviewSla: "< 12 hours priority",
+      features: ["Homepage spotlight", "Newsletter inclusion"],
     },
   ] satisfies LaunchPlanConfig[],
 } as const;
+
+export const DIRECTORY_LISTING_PLANS: readonly PlanId[] = [
+  "free",
+  "premium",
+  "featured",
+];
 
 export interface ResolvedLaunchPlan extends LaunchPlanConfig {
   price_minor: number;
@@ -122,11 +154,13 @@ export interface ResolvedLaunchPlan extends LaunchPlanConfig {
 }
 
 export function getAllPlans(): ResolvedLaunchPlan[] {
-  return SITE_CONFIG.plans.map((plan) => ({
-    ...plan,
-    price_minor: Math.round(plan.price * 100),
-    formattedPrice: `${plan.currencySymbol}${plan.price}`,
-  }));
+  return SITE_CONFIG.plans
+    .filter((plan) => DIRECTORY_LISTING_PLANS.includes(plan.id))
+    .map((plan) => ({
+      ...plan,
+      price_minor: Math.round(plan.price * 100),
+      formattedPrice: `${plan.currencySymbol}${plan.price}`,
+    }));
 }
 
 export function getPlanById(planId: string): ResolvedLaunchPlan | null {

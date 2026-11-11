@@ -6,14 +6,32 @@ import type { SeoConfig, DynamicEntry } from "@/lib/seo/types";
 export const dynamic = "force-dynamic";
 
 /**
+ * Resolves the centralized absolute site URL.
+ * Honors SITE_URL, NEXT_PUBLIC_SITE_URL, or falls back to localhost in development,
+ * and https://launchos.com in production.
+ * Always returns a clean origin without trailing slashes.
+ * Guarantees never generating undefined or relative canonical URLs.
+ */
+export function getSiteUrl(): string {
+  const envUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (envUrl && envUrl.trim()) {
+    return envUrl.trim().replace(/\/+$/, "");
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    const port = process.env.PORT || "3000";
+    return `http://localhost:${port}`;
+  }
+
+  return (serverSecrets.siteUrl || "https://launchos.com").replace(/\/+$/, "");
+}
+
+/**
  * Returns the centralized, authoritative LaunchOS SEO configuration.
  * Consumed by app/robots.ts, app/sitemap.ts, and app/llms.txt/route.ts.
  */
 export async function getSeoConfig(): Promise<SeoConfig> {
-  const siteUrl = (serverSecrets.siteUrl || "https://launchos.com").replace(
-    /\/+$/,
-    ""
-  );
+  const siteUrl = getSiteUrl();
 
   return {
     siteUrl,

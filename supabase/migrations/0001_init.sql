@@ -40,6 +40,7 @@ CREATE TABLE public.listings (
   website_url TEXT NOT NULL DEFAULT '',
   logo_url TEXT NOT NULL,
   category_id BIGINT NOT NULL REFERENCES public.categories(id),
+  custom_category TEXT,
   pricing_model TEXT NOT NULL CHECK (pricing_model IN ('free', 'freemium', 'paid', 'one_time')),
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
   submitted_by_email TEXT NOT NULL,

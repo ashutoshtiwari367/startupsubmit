@@ -6,7 +6,11 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type PricingModel = "free" | "freemium" | "paid" | "one_time";
+export type PricingModel = "free" | "freemium" | "premium" | "paid" | "one_time";
+
+export type BillingPeriod = "monthly" | "yearly" | "one_time";
+
+export type ListingPlan = "free" | "premium" | "featured" | "freemium" | "paid" | "one_time";
 
 export type ListingStatus = "pending" | "approved" | "rejected";
 
@@ -50,7 +54,13 @@ export interface Database {
           website_url: string;
           logo_url: string;
           category_id: number;
+          custom_category?: string | null;
           pricing_model: PricingModel;
+          starting_price?: number | null;
+          currency?: string;
+          billing_period?: BillingPeriod | null;
+          listing_plan?: ListingPlan;
+          listing_plan_price?: number;
           status: ListingStatus;
           submitted_by_email: string;
           created_at: string;
@@ -67,7 +77,13 @@ export interface Database {
           website_url?: string;
           logo_url: string;
           category_id: number;
+          custom_category?: string | null;
           pricing_model: PricingModel;
+          starting_price?: number | null;
+          currency?: string;
+          billing_period?: BillingPeriod | null;
+          listing_plan?: ListingPlan;
+          listing_plan_price?: number;
           status?: ListingStatus;
           submitted_by_email: string;
           created_at?: string;
@@ -84,7 +100,13 @@ export interface Database {
           website_url?: string;
           logo_url?: string;
           category_id?: number;
+          custom_category?: string | null;
           pricing_model?: PricingModel;
+          starting_price?: number | null;
+          currency?: string;
+          billing_period?: BillingPeriod | null;
+          listing_plan?: ListingPlan;
+          listing_plan_price?: number;
           status?: ListingStatus;
           submitted_by_email?: string;
           created_at?: string;
@@ -194,7 +216,7 @@ export interface Database {
       };
       plans: {
         Row: {
-          id: PricingModel;
+          id: ListingPlan;
           name: string;
           description: string | null;
           price: number;
@@ -204,7 +226,7 @@ export interface Database {
           created_at: string;
         };
         Insert: {
-          id: PricingModel;
+          id: ListingPlan;
           name: string;
           description?: string | null;
           price: number;
@@ -214,7 +236,7 @@ export interface Database {
           created_at?: string;
         };
         Update: {
-          id?: PricingModel;
+          id?: ListingPlan;
           name?: string;
           description?: string | null;
           price?: number;
@@ -229,7 +251,7 @@ export interface Database {
         Row: {
           id: number;
           user_id: string | null;
-          plan_id: PricingModel | null;
+          plan_id: ListingPlan | null;
           listing_id: number | null;
           razorpay_order_id: string;
           razorpay_payment_id: string | null;
@@ -243,7 +265,7 @@ export interface Database {
         Insert: {
           id?: never;
           user_id?: string | null;
-          plan_id?: PricingModel | null;
+          plan_id?: ListingPlan | null;
           listing_id?: number | null;
           razorpay_order_id: string;
           razorpay_payment_id?: string | null;
@@ -257,7 +279,7 @@ export interface Database {
         Update: {
           id?: never;
           user_id?: string | null;
-          plan_id?: PricingModel | null;
+          plan_id?: ListingPlan | null;
           listing_id?: number | null;
           razorpay_order_id?: string;
           razorpay_payment_id?: string | null;

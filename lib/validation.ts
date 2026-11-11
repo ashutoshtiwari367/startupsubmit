@@ -5,9 +5,23 @@ import type { PricingModel } from "@/types/db";
 export const VALID_PRICING_MODELS: readonly [PricingModel, ...PricingModel[]] = [
   "free",
   "freemium",
+  "premium",
   "paid",
   "one_time",
 ] as const;
+
+export const VALID_BILLING_PERIODS = ["monthly", "yearly", "one_time"] as const;
+export type BillingPeriod = (typeof VALID_BILLING_PERIODS)[number];
+
+export const VALID_LISTING_PLANS = [
+  "free",
+  "premium",
+  "featured",
+  "freemium",
+  "paid",
+  "one_time",
+] as const;
+export type ListingPlan = (typeof VALID_LISTING_PLANS)[number];
 
 export const ALLOWED_IMAGE_MIME_TYPES = new Set([
   "image/png",
@@ -138,6 +152,11 @@ export const serverListingFieldsSchema = z
     pricing_model: z.enum(VALID_PRICING_MODELS, {
       message: `Invalid pricing_model. Must be one of: ${VALID_PRICING_MODELS.join(", ")}.`,
     }),
+    starting_price: z.coerce.number().optional().nullable(),
+    currency: z.string().trim().default("USD"),
+    billing_period: z.enum(VALID_BILLING_PERIODS).optional().nullable(),
+    listing_plan: z.enum(VALID_LISTING_PLANS).default("free"),
+    listing_plan_price: z.coerce.number().optional().default(0),
     submitted_by_email: z
       .string({ message: "Submitter email is required." })
       .trim()
@@ -181,6 +200,36 @@ export const serverListingFieldsSchema = z
         });
       }
     }
+
+    // Conditional Software Pricing Model Validation
+    const normPricing = (data.pricing_model || "").toLowerCase();
+    if (normPricing === "freemium" || normPricing === "premium") {
+      const priceVal = data.starting_price;
+      if (
+        priceVal === undefined ||
+        priceVal === null ||
+        isNaN(Number(priceVal)) ||
+        Number(priceVal) <= 0
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["starting_price"],
+          message:
+            normPricing === "freemium"
+              ? "Starting paid-plan price in USD ($) is required for freemium software."
+              : "Software price in USD ($) is required for premium software.",
+        });
+      }
+      const periodVal = (data.billing_period || "").toLowerCase();
+      if (!VALID_BILLING_PERIODS.includes(periodVal as BillingPeriod)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["billing_period"],
+          message:
+            "Please select a valid billing period (Monthly, Yearly, or One-time).",
+        });
+      }
+    }
   });
 
 export interface ValidatedSubmissionFields {
@@ -193,6 +242,11 @@ export interface ValidatedSubmissionFields {
   category_id: string;
   custom_category?: string;
   pricing_model: PricingModel;
+  starting_price?: number | null;
+  currency?: string;
+  billing_period?: BillingPeriod | null;
+  listing_plan?: ListingPlan;
+  listing_plan_price?: number;
   submitted_by_email: string;
 }
 
@@ -271,6 +325,11 @@ export function validateSubmissionServer(input: {
   custom_category?: unknown;
   other_category?: unknown;
   pricing_model?: unknown;
+  starting_price?: unknown;
+  currency?: unknown;
+  billing_period?: unknown;
+  listing_plan?: unknown;
+  listing_plan_price?: unknown;
   submitted_by_email?: unknown;
   submitter_email?: unknown;
   company_website_hp?: unknown;
@@ -322,6 +381,26 @@ export function validateSubmissionServer(input: {
       typeof input.pricing_model === "string"
         ? input.pricing_model.trim().toLowerCase()
         : "",
+    starting_price:
+      input.starting_price !== undefined && input.starting_price !== null && input.starting_price !== ""
+        ? Number(input.starting_price)
+        : null,
+    currency:
+      typeof input.currency === "string" && input.currency.trim().length > 0
+        ? input.currency.trim().toUpperCase()
+        : "USD",
+    billing_period:
+      typeof input.billing_period === "string" && input.billing_period.trim().length > 0
+        ? input.billing_period.trim().toLowerCase()
+        : null,
+    listing_plan:
+      typeof input.listing_plan === "string" && input.listing_plan.trim().length > 0
+        ? input.listing_plan.trim().toLowerCase()
+        : "free",
+    listing_plan_price:
+      input.listing_plan_price !== undefined && input.listing_plan_price !== null && input.listing_plan_price !== ""
+        ? Number(input.listing_plan_price)
+        : 0,
     submitted_by_email:
       typeof (input.submitted_by_email ?? input.submitter_email) === "string"
         ? String(input.submitted_by_email ?? input.submitter_email)

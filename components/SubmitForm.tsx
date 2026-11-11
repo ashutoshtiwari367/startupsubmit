@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Sparkles,
   UploadCloud,
+  Check,
   CheckCircle2,
   AlertCircle,
   Image as ImageIcon,
@@ -43,18 +44,43 @@ interface SubmittedListingResponse {
   status: ListingStatus;
   category_id: number | string;
   pricing_model: PricingModel;
+  starting_price?: number | null;
+  currency?: string;
+  billing_period?: string | null;
+  listing_plan?: string;
+  listing_plan_price?: number;
   website_url: string;
   logo_url: string;
   screenshots: string[];
   created_at: string;
 }
 
-const PRICING_OPTIONS: { value: PricingModel; label: string }[] = getAllPlans().map(
-  (plan) => ({
-    value: plan.id,
-    label: `${plan.name} (${plan.formattedPrice})`,
-  })
-);
+export const SOFTWARE_PRICING_OPTIONS = [
+  {
+    value: "free",
+    label: "Free",
+    badge: "100% Free",
+    description: "Completely free, open source, or free tier only. No paid plans.",
+  },
+  {
+    value: "freemium",
+    label: "Freemium",
+    badge: "Free + Paid Upgrades",
+    description: "Free version with starting paid upgrades or subscription plans.",
+  },
+  {
+    value: "premium",
+    label: "Premium",
+    badge: "Paid Software",
+    description: "Commercial software requiring paid purchase or subscription.",
+  },
+] as const;
+
+export const BILLING_PERIOD_OPTIONS = [
+  { value: "monthly", label: "Monthly (/month)" },
+  { value: "yearly", label: "Yearly (/year)" },
+  { value: "one_time", label: "One-time" },
+] as const;
 
 /**
  * Custom hook to fetch categories exclusively from our own GET /api/categories endpoint.
@@ -110,13 +136,18 @@ export const SubmitForm: React.FC = () => {
     reset,
     formState: { errors, isSubmitting },
   } = useForm<SubmitListingFormValues>({
-    resolver: zodResolver(submitListingSchema),
+    resolver: zodResolver(submitListingSchema) as any,
     mode: "onChange",
     defaultValues: {
       name: "",
       category_id: "",
       custom_category: "",
-      pricing_model: "freemium",
+      pricing_model: "free",
+      starting_price: null,
+      currency: "USD",
+      billing_period: "monthly",
+      listing_plan: "free",
+      listing_plan_price: 0,
       website_url: "",
       tagline: "",
       description_short: "",
@@ -129,7 +160,13 @@ export const SubmitForm: React.FC = () => {
   // Auto-select first category once loaded from /api/categories
   const watchedCategoryId = watch("category_id") || "";
   const watchedCustomCategory = watch("custom_category") || "";
-  const isOtherCategory = watchedCategoryId.trim().toLowerCase() === "other";
+  const selectedCategoryObj = categories.find(
+    (c) => String(c.id) === watchedCategoryId
+  );
+  const isOtherCategory =
+    watchedCategoryId.trim().toLowerCase() === "other" ||
+    selectedCategoryObj?.slug?.toLowerCase() === "other" ||
+    selectedCategoryObj?.name?.trim().toLowerCase() === "other";
 
   useEffect(() => {
     if (!watchedCategoryId && categories.length > 0) {
@@ -144,7 +181,10 @@ export const SubmitForm: React.FC = () => {
   const watchedTagline = watch("tagline") || "";
   const watchedShortDesc = watch("description_short") || "";
   const watchedLongDesc = watch("description_long") || "";
-  const watchedPricing = watch("pricing_model") || "freemium";
+  const watchedPricingModel = watch("pricing_model") || "free";
+  const watchedStartingPrice = watch("starting_price");
+  const watchedBillingPeriod = watch("billing_period") || "monthly";
+  const watchedListingPlan = watch("listing_plan") || "free";
 
   // File upload states (Logo required + Screenshots max 5)
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -167,16 +207,16 @@ export const SubmitForm: React.FC = () => {
   const [emittedEventName, setEmittedEventName] =
     useState<string>("listing_submitted");
 
-  // Pre-select plan from URL ?plan= query parameter if provided
+  // Pre-select listing plan from URL ?plan= query parameter if provided
   useEffect(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
-      const planParam = params.get("plan") as PricingModel | null;
+      const planParam = params.get("plan");
       if (
         planParam &&
-        ["free", "freemium", "paid", "one_time"].includes(planParam)
+        ["free", "premium", "featured", "freemium", "paid", "one_time"].includes(planParam)
       ) {
-        setValue("pricing_model", planParam, { shouldValidate: true });
+        setValue("listing_plan", planParam as any, { shouldValidate: true });
       }
     }
   }, [setValue]);
@@ -254,6 +294,24 @@ export const SubmitForm: React.FC = () => {
         formData.append("custom_category", values.custom_category.trim());
       }
       formData.append("pricing_model", values.pricing_model);
+      if (
+        values.starting_price !== undefined &&
+        values.starting_price !== null &&
+        !isNaN(Number(values.starting_price))
+      ) {
+        formData.append("starting_price", String(values.starting_price));
+      }
+      formData.append("currency", values.currency || "USD");
+      if (values.billing_period) {
+        formData.append("billing_period", values.billing_period);
+      }
+      formData.append("listing_plan", values.listing_plan || "free");
+      if (
+        values.listing_plan_price !== undefined &&
+        values.listing_plan_price !== null
+      ) {
+        formData.append("listing_plan_price", String(values.listing_plan_price));
+      }
       formData.append("submitted_by_email", values.submitted_by_email.trim());
       formData.append("form_started_at", String(formStartedAtRef.current));
       if (values.company_website_hp) {
@@ -286,6 +344,11 @@ export const SubmitForm: React.FC = () => {
             "category_id",
             "custom_category",
             "pricing_model",
+            "starting_price",
+            "currency",
+            "billing_period",
+            "listing_plan",
+            "listing_plan_price",
             "website_url",
             "tagline",
             "description_short",
@@ -346,16 +409,18 @@ export const SubmitForm: React.FC = () => {
     }
     if (hasFileError) return;
 
-    const selectedPlan = getPlanById(values.pricing_model);
+    // CRITICAL: Software pricing (values.pricing_model: free, freemium, premium) is descriptive only and NEVER triggers payment.
+    // Only the directory listing plan (values.listing_plan: free, premium, featured) triggers payment if price > 0.
+    const selectedListingPlan = getPlanById(values.listing_plan || "free");
+    const selectedPlan = selectedListingPlan;
 
-    // If user selected a paid launch tier ('freemium', 'paid', 'one_time'), trigger Razorpay payment first
     if (selectedPlan && selectedPlan.price > 0) {
       setIsPaymentProcessing(true);
       try {
         const orderRes = await fetch("/api/payments/create-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ planId: selectedPlan.id }),
+          body: JSON.stringify({ planId: selectedListingPlan.id }),
         });
 
         const orderData = await orderRes.json();
@@ -365,12 +430,12 @@ export const SubmitForm: React.FC = () => {
           if (orderRes.status === 401) {
             setShowAuthModal(true);
             setServerBannerError(
-              `Please sign in first to complete your ${selectedPlan.formattedPrice} ${selectedPlan.name} payment.`
+              `Please sign in first to complete your ${selectedListingPlan.formattedPrice} ${selectedListingPlan.name} payment.`
             );
             return;
           }
           setServerBannerError(
-            orderData.error || "Could not initiate payment for this launch tier."
+            orderData.error || "Could not initiate payment for this listing plan."
           );
           return;
         }
@@ -388,7 +453,7 @@ export const SubmitForm: React.FC = () => {
           amount: orderData.amount,
           currency: orderData.currency,
           name: SITE_CONFIG.name,
-          description: `${selectedPlan.name} — ${values.name.trim()}`,
+          description: `${selectedListingPlan.name} — ${values.name.trim()}`,
           order_id: orderData.orderId,
           prefill: {
             email: values.submitted_by_email.trim() || orderData.userEmail || "",
@@ -453,7 +518,7 @@ export const SubmitForm: React.FC = () => {
       return;
     }
 
-    // Free plan ('free') -> Submit directly without payment
+    // Free listing plan ('free') -> Submit directly without payment
     await submitListingToApi(values, null);
   };
 
@@ -462,12 +527,18 @@ export const SubmitForm: React.FC = () => {
       name: "",
       category_id: categories[0]?.id ? String(categories[0].id) : "",
       custom_category: "",
-      pricing_model: "freemium",
+      pricing_model: "free",
+      starting_price: null,
+      currency: "USD",
+      billing_period: "monthly",
+      listing_plan: "free",
+      listing_plan_price: 0,
       website_url: "",
       tagline: "",
       description_short: "",
       description_long: "",
       submitted_by_email: "",
+      company_website_hp: "",
     });
     setLogoFile(null);
     setLogoPreview("");
@@ -485,11 +556,35 @@ export const SubmitForm: React.FC = () => {
     : categories.find((c) => String(c.id) === String(watchedCategoryId))
         ?.name || "Category";
 
+  const selectedSoftwarePricing = SOFTWARE_PRICING_OPTIONS.find(
+    (p) => p.value === watchedPricingModel
+  );
   const selectedPricingLabel =
-    PRICING_OPTIONS.find((p) => p.value === watchedPricing)?.label ||
-    watchedPricing;
+    selectedSoftwarePricing?.label || watchedPricingModel;
 
-  const selectedPlan = getPlanById(watchedPricing);
+  const selectedListingPlan = getPlanById(watchedListingPlan || "free");
+  const directoryPlans = getAllPlans();
+
+  const formatSoftwarePricingPreview = () => {
+    if (watchedPricingModel === "free") return "Free";
+    const periodLabel =
+      watchedBillingPeriod === "one_time"
+        ? "once"
+        : watchedBillingPeriod === "yearly"
+        ? "yr"
+        : "mo";
+    if (
+      watchedStartingPrice !== undefined &&
+      watchedStartingPrice !== null &&
+      Number(watchedStartingPrice) > 0
+    ) {
+      if (watchedPricingModel === "freemium") {
+        return `Freemium • From $${watchedStartingPrice}/${periodLabel}`;
+      }
+      return `Premium • $${watchedStartingPrice}/${periodLabel}`;
+    }
+    return watchedPricingModel === "freemium" ? "Freemium" : "Premium";
+  };
 
   const previewSlug =
     submittedResult?.slug ||
@@ -630,91 +725,57 @@ export const SubmitForm: React.FC = () => {
                   )}
                 </div>
 
-                {/* 2. Category (Moved BEFORE Website URL, includes 'Other' option) & Pricing Model */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label
-                      htmlFor="field-category"
-                      className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                {/* 2. Category (Moved BEFORE Website URL, includes 'Other' option) */}
+                <div>
+                  <label
+                    htmlFor="field-category"
+                    className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                  >
+                    Category <span className="text-[#DC2626]">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      id="field-category"
+                      disabled={loadingCategories}
+                      {...register("category_id")}
+                      className={`w-full h-10 appearance-none rounded-[10px] border bg-white px-3.5 text-sm font-medium text-[#0F0F10] focus:outline-none ${
+                        errors.category_id
+                          ? "border-[#DC2626]"
+                          : "border-[#E8E8E3] focus:border-[#5B5BF0]"
+                      }`}
                     >
-                      Category <span className="text-[#DC2626]">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="field-category"
-                        disabled={loadingCategories}
-                        {...register("category_id")}
-                        className={`w-full h-10 appearance-none rounded-[10px] border bg-white px-3.5 text-sm font-medium text-[#0F0F10] focus:outline-none ${
-                          errors.category_id
-                            ? "border-[#DC2626]"
-                            : "border-[#E8E8E3] focus:border-[#5B5BF0]"
-                        }`}
-                      >
-                        {loadingCategories ? (
-                          <option value="">Loading categories...</option>
-                        ) : (
-                          <>
-                            {categories.map((cat) => (
-                              <option key={cat.id} value={String(cat.id)}>
-                                {cat.name}
-                              </option>
-                            ))}
-                            <option value="other">
-                              Other (Specify custom category)
+                      {loadingCategories ? (
+                        <option value="">Loading categories...</option>
+                      ) : (
+                        <>
+                          {categories.map((cat) => (
+                            <option key={cat.id} value={String(cat.id)}>
+                              {cat.name}
                             </option>
-                          </>
-                        )}
-                      </select>
-                      <Tag className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
-                    </div>
-                    {categoriesError && (
-                      <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                        {categoriesError}
-                      </p>
-                    )}
-                    {errors.category_id && (
-                      <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                        {errors.category_id.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="field-pricing"
-                      className="block text-xs font-bold text-[#0F0F10] mb-1.5"
-                    >
-                      Pricing Model <span className="text-[#DC2626]">*</span>
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="field-pricing"
-                        {...register("pricing_model")}
-                        className={`w-full h-10 appearance-none rounded-[10px] border bg-white px-3.5 text-sm font-medium text-[#0F0F10] focus:outline-none ${
-                          errors.pricing_model
-                            ? "border-[#DC2626]"
-                            : "border-[#E8E8E3] focus:border-[#5B5BF0]"
-                        }`}
-                      >
-                        {PRICING_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
+                          ))}
+                          <option value="other">
+                            Other (Specify custom category)
                           </option>
-                        ))}
-                      </select>
-                      <DollarSign className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
-                    </div>
-                    {errors.pricing_model && (
-                      <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                        {errors.pricing_model.message}
-                      </p>
-                    )}
+                        </>
+                      )}
+                    </select>
+                    <Tag className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
                   </div>
+                  {categoriesError && (
+                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                      {categoriesError}
+                    </p>
+                  )}
+                  {errors.category_id && (
+                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                      {errors.category_id.message}
+                    </p>
+                  )}
                 </div>
 
                 {/* Conditional Custom Category Field when "Other" is selected */}
                 {isOtherCategory && (
-                  <div className="rounded-[12px] border border-[#D5D8FC] bg-[#EEF0FE]/40 p-4 space-y-1.5">
+                  <div className="rounded-[12px] border border-[#5B5BF0]/30 bg-[#EEF0FE]/40 p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="field-custom-category"
@@ -729,7 +790,8 @@ export const SubmitForm: React.FC = () => {
                     <input
                       id="field-custom-category"
                       type="text"
-                      placeholder="e.g. Cybersecurity, LegalTech, HR Tech"
+                      autoFocus
+                      placeholder="e.g. Cybersecurity, LegalTech, Web3, HR Tech"
                       {...register("custom_category")}
                       className={`w-full h-10 rounded-[10px] border bg-white px-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
                         errors.custom_category
@@ -745,36 +807,39 @@ export const SubmitForm: React.FC = () => {
                   </div>
                 )}
 
-                {/* 3. Website URL (Required for standard categories; not required when 'Other' is selected) */}
-                {!isOtherCategory && (
-                  <div>
-                    <label
-                      htmlFor="field-website-url"
-                      className="block text-xs font-bold text-[#0F0F10] mb-1.5"
-                    >
-                      Website URL (HTTPS Only) <span className="text-[#DC2626]">*</span>
-                    </label>
-                    <div className="relative">
-                      <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
-                      <input
-                        id="field-website-url"
-                        type="url"
-                        placeholder="https://writepro.ai"
-                        {...register("website_url")}
-                        className={`w-full h-10 rounded-[10px] border bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
-                          errors.website_url
-                            ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                            : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
-                        }`}
-                      />
-                    </div>
-                    {errors.website_url && (
-                      <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                        {errors.website_url.message}
-                      </p>
+                {/* 3. Website URL (Required for standard categories; optional when 'Other' is selected) */}
+                <div>
+                  <label
+                    htmlFor="field-website-url"
+                    className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                  >
+                    Website URL (HTTPS Only){" "}
+                    {isOtherCategory ? (
+                      <span className="text-xs font-normal text-[#66666B]">(Optional)</span>
+                    ) : (
+                      <span className="text-[#DC2626]">*</span>
                     )}
+                  </label>
+                  <div className="relative">
+                    <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
+                    <input
+                      id="field-website-url"
+                      type="url"
+                      placeholder="https://writepro.ai"
+                      {...register("website_url")}
+                      className={`w-full h-10 rounded-[10px] border bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                        errors.website_url
+                          ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                          : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                      }`}
+                    />
                   </div>
-                )}
+                  {errors.website_url && (
+                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                      {errors.website_url.message}
+                    </p>
+                  )}
+                </div>
 
                 {/* 4. Tagline (60 chars limit) */}
                 <div>
@@ -923,11 +988,289 @@ export const SubmitForm: React.FC = () => {
                 </div>
               </div>
 
+              {/* SECTION 2: SOFTWARE PRICING MODEL */}
+              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-5">
+                <div className="border-b border-[#E8E8E3] pb-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
+                      2. Software Pricing
+                    </h2>
+                    <span className="text-[11px] font-mono font-bold text-[#10B981] bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-0.5 rounded-full">
+                      Descriptive Only • No Fee
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#66666B] mt-1">
+                    Describe how your software or AI tool is priced. This does <strong>not</strong> charge you and does not trigger checkout.
+                  </p>
+                </div>
+
+                {/* Software Pricing Model Cards (Free, Freemium, Premium) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {SOFTWARE_PRICING_OPTIONS.map((opt) => {
+                    const isSelected = watchedPricingModel === opt.value;
+                    return (
+                      <div
+                        key={opt.value}
+                        onClick={() => {
+                          setValue("pricing_model", opt.value, {
+                            shouldValidate: true,
+                          });
+                          if (opt.value === "free") {
+                            setValue("starting_price", null, {
+                              shouldValidate: true,
+                            });
+                          }
+                        }}
+                        className={`cursor-pointer rounded-[14px] p-4 border transition-all text-left flex flex-col justify-between ${
+                          isSelected
+                            ? "border-[#5B5BF0] bg-[#EEF0FE]/40 ring-2 ring-[#5B5BF0]/20 shadow-xs"
+                            : "border-[#E8E8E3] bg-white hover:border-[#D5D5CE] hover:bg-[#FAFAF7]"
+                        }`}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-heading font-extrabold text-sm text-[#0F0F10]">
+                              {opt.label}
+                            </span>
+                            <span
+                              className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                                isSelected
+                                  ? "border-[#5B5BF0] bg-[#5B5BF0] text-white"
+                                  : "border-[#D5D5CE] bg-white"
+                              }`}
+                            >
+                              {isSelected && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                            </span>
+                          </div>
+                          <span className="inline-block text-[10px] font-mono font-bold text-[#5B5BF0] uppercase tracking-wider">
+                            {opt.badge}
+                          </span>
+                          <p className="text-xs text-[#66666B] leading-relaxed">
+                            {opt.description}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {errors.pricing_model && (
+                  <p className="text-xs font-medium text-[#DC2626]">
+                    {errors.pricing_model.message}
+                  </p>
+                )}
+
+                {/* Conditional Pricing Fields for Freemium and Premium */}
+                {(watchedPricingModel === "freemium" ||
+                  watchedPricingModel === "premium") && (
+                  <div className="rounded-[12px] border border-[#5B5BF0]/25 bg-[#EEF0FE]/30 p-4 sm:p-5 space-y-4 animate-in fade-in-50 duration-200">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#0F0F10]">
+                      <DollarSign className="h-4 w-4 text-[#5B5BF0]" />
+                      <span>
+                        {watchedPricingModel === "freemium"
+                          ? "Freemium Pricing Details"
+                          : "Premium Software Pricing Details"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Price in USD ($) */}
+                      <div>
+                        <label
+                          htmlFor="field-starting-price"
+                          className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                        >
+                          {watchedPricingModel === "freemium"
+                            ? "Starting Paid-Plan Price (USD $)"
+                            : "Software Price (USD $)"}{" "}
+                          <span className="text-[#DC2626]">*</span>
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[#66666B]">
+                            $
+                          </span>
+                          <input
+                            id="field-starting-price"
+                            type="number"
+                            min="0.01"
+                            step="any"
+                            placeholder="e.g. 29"
+                            {...register("starting_price")}
+                            className={`w-full h-10 rounded-[10px] border bg-white pl-8 pr-3.5 text-sm font-medium text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                              errors.starting_price
+                                ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                                : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                            }`}
+                          />
+                        </div>
+                        {errors.starting_price && (
+                          <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                            {errors.starting_price.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Billing Period */}
+                      <div>
+                        <label
+                          htmlFor="field-billing-period"
+                          className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                        >
+                          Billing Period <span className="text-[#DC2626]">*</span>
+                        </label>
+                        <select
+                          id="field-billing-period"
+                          {...register("billing_period")}
+                          className={`w-full h-10 appearance-none rounded-[10px] border bg-white px-3.5 text-sm font-medium text-[#0F0F10] focus:outline-none ${
+                            errors.billing_period
+                              ? "border-[#DC2626]"
+                              : "border-[#E8E8E3] focus:border-[#5B5BF0]"
+                          }`}
+                        >
+                          {BILLING_PERIOD_OPTIONS.map((b) => (
+                            <option key={b.value} value={b.value}>
+                              {b.label}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.billing_period && (
+                          <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                            {errors.billing_period.message}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Example helper display */}
+                    <div className="rounded-[8px] bg-white border border-[#D5D8FC] px-3.5 py-2 text-xs text-[#5B5BF0] font-mono flex items-center gap-2">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        Example:{" "}
+                        <strong className="text-[#0F0F10]">
+                          {watchedPricingModel === "freemium"
+                            ? `Freemium software – Starting at $${watchedStartingPrice || 29}/${
+                                watchedBillingPeriod === "one_time"
+                                  ? "once"
+                                  : watchedBillingPeriod === "yearly"
+                                  ? "year"
+                                  : "month"
+                              }`
+                            : `Premium software – $${watchedStartingPrice || 49}/${
+                                watchedBillingPeriod === "one_time"
+                                  ? "once"
+                                  : watchedBillingPeriod === "yearly"
+                                  ? "year"
+                                  : "month"
+                              }`}
+                        </strong>
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SECTION 3: CHOOSE YOUR LISTING PLAN (DIRECTORY MONETIZATION) */}
+              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-5">
+                <div className="border-b border-[#E8E8E3] pb-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
+                      3. Choose Your Listing Plan
+                    </h2>
+                    <span className="text-[11px] font-mono font-bold text-[#5B5BF0] bg-[#EEF0FE] border border-[#D5D8FC] px-2.5 py-0.5 rounded-full">
+                      Directory Monetization
+                    </span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-[#66666B] mt-1">
+                    Choose how you want your product launched on LaunchOS. Free Listing is 100% free with no payment required. Paid plans fast-track your launch.
+                  </p>
+                </div>
+
+                {/* Plan cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  {directoryPlans.map((plan) => {
+                    const isSelected = watchedListingPlan === plan.id;
+                    return (
+                      <div
+                        key={plan.id}
+                        onClick={() => {
+                          setValue("listing_plan", plan.id as any, {
+                            shouldValidate: true,
+                          });
+                          setValue("listing_plan_price", plan.price, {
+                            shouldValidate: true,
+                          });
+                        }}
+                        className={`cursor-pointer rounded-[14px] p-4 sm:p-5 border transition-all text-left flex flex-col justify-between relative ${
+                          isSelected
+                            ? "border-[#5B5BF0] bg-[#EEF0FE]/40 ring-2 ring-[#5B5BF0]/20 shadow-xs"
+                            : "border-[#E8E8E3] bg-white hover:border-[#D5D5CE] hover:bg-[#FAFAF7]"
+                        }`}
+                      >
+                        {plan.popular && (
+                          <span className="absolute -top-2.5 right-3 bg-[#5B5BF0] text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full shadow-xs">
+                            POPULAR
+                          </span>
+                        )}
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-heading font-extrabold text-sm text-[#0F0F10]">
+                              {plan.name}
+                            </span>
+                            <span
+                              className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                                isSelected
+                                  ? "border-[#5B5BF0] bg-[#5B5BF0] text-white"
+                                  : "border-[#D5D5CE] bg-white"
+                              }`}
+                            >
+                              {isSelected && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                            </span>
+                          </div>
+
+                          <div className="flex items-baseline gap-1">
+                            <span className="font-heading font-black text-2xl text-[#0F0F10]">
+                              {plan.formattedPrice}
+                            </span>
+                            <span className="text-[11px] font-mono text-[#8E8E93]">
+                              / {plan.period}
+                            </span>
+                          </div>
+
+                          <span className="inline-block rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-mono font-semibold text-[#66666B]">
+                            {plan.reviewSla}
+                          </span>
+
+                          <p className="text-xs text-[#66666B] leading-relaxed line-clamp-2">
+                            {plan.description}
+                          </p>
+
+                          <ul className="pt-2 border-t border-[#E8E8E3]/60 space-y-1.5 text-[11px] text-[#47474F]">
+                            {plan.features.slice(0, 3).map((feat, fIdx) => (
+                              <li key={fIdx} className="flex items-start gap-1.5">
+                                <Check className="h-3 w-3 text-[#10B981] shrink-0 mt-0.5" />
+                                <span className="line-clamp-1">{feat}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="rounded-[10px] bg-[#FAFAF7] border border-[#E8E8E3] p-3 text-xs text-[#66666B] flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-[#10B981] shrink-0" />
+                  <span>
+                    <strong>Business Logic Guarantee:</strong> Software pricing above describes your product to buyers and never triggers a charge. Only choosing <strong>Premium ($29)</strong> or <strong>Featured ($49)</strong> initiates checkout.
+                  </span>
+                </div>
+              </div>
+
               {/* MEDIA SECTION: LOGO + SCREENSHOTS (MAX 5) */}
               <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-6">
                 <div className="border-b border-[#E8E8E3] pb-4">
                   <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
-                    2. Logo & Screenshots
+                    4. Logo & Screenshots
                   </h2>
                   <p className="text-xs sm:text-sm text-[#66666B]">
                     Upload your required tool logo and up to 5 product screenshots.
@@ -1091,8 +1434,8 @@ export const SubmitForm: React.FC = () => {
                       ? "Processing Payment..."
                       : isSubmitting
                         ? "Submitting..."
-                        : selectedPlan && selectedPlan.price > 0
-                          ? `Pay ${selectedPlan.formattedPrice} & Submit Tool`
+                        : selectedListingPlan && selectedListingPlan.price > 0
+                          ? `Pay ${selectedListingPlan.formattedPrice} & Submit Tool`
                           : "Submit Tool for Free"}
                   </Button>
                 </div>
@@ -1175,8 +1518,11 @@ export const SubmitForm: React.FC = () => {
                     <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-semibold text-[#66666B]">
                       {selectedCategoryName}
                     </span>
-                    <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-semibold text-[#66666B]">
-                      {selectedPricingLabel}
+                    <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-semibold text-[#0F0F10]">
+                      {formatSoftwarePricingPreview()}
+                    </span>
+                    <span className="rounded-full bg-[#EEF0FE] border border-[#D5D8FC] px-2 py-0.5 text-[10px] font-semibold text-[#5B5BF0]">
+                      {selectedListingPlan?.name || "Free Listing"}
                     </span>
                   </div>
 
@@ -1229,9 +1575,28 @@ export const SubmitForm: React.FC = () => {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Pricing Model:</span>
+                <span className="text-[#8E8E93]">Software Pricing:</span>
                 <span className="font-mono font-bold text-[#0F0F10]">
                   {submittedResult.pricing_model}
+                  {submittedResult.starting_price
+                    ? ` ($${submittedResult.starting_price}/${
+                        submittedResult.billing_period === "one_time"
+                          ? "once"
+                          : submittedResult.billing_period === "yearly"
+                          ? "yr"
+                          : "mo"
+                      })`
+                    : ""}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8E8E93]">Directory Listing Plan:</span>
+                <span className="font-mono font-bold text-[#5B5BF0] bg-[#EEF0FE] px-2 py-0.5 rounded border border-[#D5D8FC]">
+                  {submittedResult.listing_plan === "featured"
+                    ? "Featured Listing ($49)"
+                    : submittedResult.listing_plan === "premium"
+                    ? "Premium Listing ($29)"
+                    : "Free Listing ($0)"}
                 </span>
               </div>
               <div className="flex justify-between">

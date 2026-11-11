@@ -35,7 +35,10 @@ import { Pill } from "./Pill";
 import { ProductCard } from "./ProductCard";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
-import { MOCK_PRODUCTS, LaunchProduct } from "@/lib/mock-data";
+import type { ApprovedListing } from "@/lib/listings";
+import { getSafeInitials } from "@/lib/utils";
+
+export { getSafeInitials };
 
 export interface CommentItem {
   id: string;
@@ -53,132 +56,149 @@ export interface CommentItem {
   replies?: CommentItem[];
 }
 
-const SAMPLE_GALLERY = [
-  {
-    id: "g1",
-    title: "Autonomous Ticket Resolution Engine",
-    url: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=675&fit=crop&q=80",
-    caption: "Real-time AI resolution of 68% of enterprise support queries with zero human intervention.",
-  },
-  {
-    id: "g2",
-    title: "Knowledge Base Semantic Indexing",
-    url: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&h=675&fit=crop&q=80",
-    caption: "Connects with Notion, Zendesk, Linear, and GitHub in under 5 minutes.",
-  },
-  {
-    id: "g3",
-    title: "Retention & Churn Analytics Dashboard",
-    url: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=1200&h=675&fit=crop&q=80",
-    caption: "Automatic cohort retention signals delivered weekly directly to your executive Slack channel.",
-  },
-];
+function isValidHttpUrl(url?: string | null): boolean {
+  if (!url || typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
-const INITIAL_COMMENTS: CommentItem[] = [
-  {
-    id: "c1",
-    author: {
-      name: "Elena Rostova",
-      handle: "@erostova",
-      avatar: "ER",
-      role: "CTO @ VectorFlow",
-    },
-    text: "Congrats on the launch Austin! We just integrated Cortex with our internal Discord docs channel this morning. The retrieval latency is sub-200ms and the hallucinations are basically zero. What embedding model are you running behind the scenes?",
-    timestamp: "2 hours ago",
-    upvotes: 18,
-    isUpvoted: true,
-    replies: [
-      {
-        id: "c1-r1",
-        author: {
-          name: "Austin Miller",
-          handle: "@austinm",
-          avatar: "AM",
-          isMaker: true,
-          role: "Maker",
-        },
-        text: "Thanks Elena! We're using a fine-tuned hybrid of Claude 3.5 Sonnet for reasoning coupled with an in-memory vector index running on quantized text-embedding-3-large. Sub-200ms was our exact P99 target!",
-        timestamp: "1 hour ago",
-        upvotes: 14,
-        isUpvoted: false,
-      },
-    ],
-  },
-  {
-    id: "c2",
-    author: {
-      name: "Marcus Chen",
-      handle: "@marcus_builds",
-      avatar: "MC",
-      role: "Founder @ SaaSForge",
-    },
-    text: "Massive congratulations on hitting #1 today! Really love how clean the Slack bot UI is. Upvoted and rooting for you all day.",
-    timestamp: "3 hours ago",
-    upvotes: 9,
-    isUpvoted: false,
-    replies: [
-      {
-        id: "c2-r1",
-        author: {
-          name: "Austin Miller",
-          handle: "@austinm",
-          avatar: "AM",
-          isMaker: true,
-          role: "Maker",
-        },
-        text: "Appreciate the love Marcus! Feel free to DM me on X if you want early access to our custom Zapier triggers.",
-        timestamp: "2 hours ago",
-        upvotes: 6,
-        isUpvoted: false,
-      },
-    ],
-  },
-  {
-    id: "c3",
-    author: {
-      name: "Sarah Jenkins",
-      handle: "@sarah_growth",
-      avatar: "SJ",
-      role: "Growth Lead",
-    },
-    text: "Does Cortex support multi-language customer tickets out of the box (e.g. Spanish, German, Japanese)?",
-    timestamp: "4 hours ago",
-    upvotes: 5,
-    isUpvoted: false,
-    replies: [
-      {
-        id: "c3-r1",
-        author: {
-          name: "Austin Miller",
-          handle: "@austinm",
-          avatar: "AM",
-          isMaker: true,
-          role: "Maker",
-        },
-        text: "Yes! 42 languages are supported natively. It automatically detects customer language and responds in their native dialect while filing the internal summary in English.",
-        timestamp: "3 hours ago",
-        upvotes: 7,
-        isUpvoted: false,
-      },
-    ],
-  },
-];
+function formatPricing(model?: string): "Free" | "Freemium" | "Paid" | "One-time" {
+  switch (model?.toLowerCase().trim()) {
+    case "free":
+      return "Free";
+    case "freemium":
+      return "Freemium";
+    case "paid":
+    case "premium":
+      return "Paid";
+    case "one_time":
+      return "One-time";
+    default:
+      return "Freemium";
+  }
+}
+
+export function formatPricingLabelWithDetails(listing?: ApprovedListing): string {
+  if (!listing) return "Freemium";
+  const base = formatPricing(listing.pricing_model);
+  if (base === "Free" || !listing.starting_price) return base;
+  const period =
+    listing.billing_period === "one_time"
+      ? "one-time"
+      : listing.billing_period === "yearly"
+      ? "yr"
+      : "mo";
+  if (base === "Freemium") {
+    return `Freemium (From $${listing.starting_price}/${period})`;
+  }
+  return `Paid ($${listing.starting_price}/${period})`;
+}
+
+function formatLaunchDate(dateStr?: string | null): string {
+  if (!dateStr) return "Nov 9, 2026 (Today)";
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return "Recently Launched";
+  }
+}
 
 export interface ProductDetailViewProps {
   productId?: string;
+  listing?: ApprovedListing;
+  similarListings?: ApprovedListing[];
 }
 
-export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId = "p-1" }) => {
-  const product: LaunchProduct =
-    MOCK_PRODUCTS.find((p) => p.id === productId) || MOCK_PRODUCTS[0];
+export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
+  productId = "p-1",
+  listing,
+  similarListings = [],
+}) => {
+  const emailUser = (listing?.submitted_by_email || "").split("@")[0].trim();
+  const founderName = emailUser
+    ? emailUser.replace(/[._+-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim()
+    : "Maker";
+  const founderHandle = emailUser
+    ? `@${emailUser.replace(/[^a-zA-Z0-9_]/g, "")}`
+    : "@maker";
 
+  const product = listing
+    ? {
+        id: listing.slug,
+        name: listing.name,
+        tagline: listing.tagline,
+        description: listing.description_long || listing.description_short,
+        category: listing.categories?.name || listing.custom_category || "SaaS & Tools",
+        upvotes: 42,
+        isUpvoted: false,
+        rank: 1,
+        commentsCount: 0,
+        pricing: formatPricing(listing.pricing_model),
+        launchDate: formatLaunchDate(listing.approved_at || listing.created_at),
+        websiteUrl: isValidHttpUrl(listing.website_url) ? listing.website_url.trim() : undefined,
+        logoUrl: listing.logo_url || undefined,
+        founder: {
+          name: founderName,
+          handle: founderHandle,
+          role: "Solo Founder",
+        },
+        tags: [
+          listing.categories?.name || listing.custom_category || "SaaS",
+          formatPricing(listing.pricing_model),
+          "DR 72+ Verified",
+        ],
+      }
+    : {
+        id: productId || "tool",
+        name: "Software Tool",
+        tagline: "Explore modern SaaS and AI tools on LaunchOS",
+        description: "Curated software directory and launchpad.",
+        category: "SaaS & Tools",
+        upvotes: 1,
+        isUpvoted: false,
+        rank: 1,
+        commentsCount: 0,
+        pricing: "Freemium" as const,
+        launchDate: "Recently Launched",
+        websiteUrl: undefined as string | undefined,
+        logoUrl: undefined as string | undefined,
+        founder: {
+          name: "Maker",
+          handle: "@maker",
+          role: "Solo Founder",
+        },
+        tags: ["SaaS", "Freemium", "DR 72+ Verified"],
+      };
+
+  const gallery =
+    listing && listing.listing_screenshots && listing.listing_screenshots.length > 0
+      ? listing.listing_screenshots.map((ss, idx) => ({
+          id: String(ss.id),
+          title: `${listing.name} Screenshot ${idx + 1}`,
+          url: ss.url,
+          caption: listing.tagline,
+        }))
+      : [];
+
+  const [logoError, setLogoError] = useState(false);
   const [upvotes, setUpvotes] = useState(product.upvotes);
   const [isUpvoted, setIsUpvoted] = useState(product.isUpvoted || false);
   const [activeTab, setActiveTab] = useState<"about" | "comments" | "alternatives">("about");
   const [activeGalleryIdx, setActiveGalleryIdx] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedBadge, setCopiedBadge] = useState(false);
-  const [shareUrl, setShareUrl] = useState(`https://launchos.com/p/${product.id}`);
+  const [shareUrl, setShareUrl] = useState(`https://launchos.com/product/${product.id}`);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -186,8 +206,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
     }
   }, []);
 
-  // Comments state
-  const [comments, setComments] = useState<CommentItem[]>(INITIAL_COMMENTS);
+  // Comments state - clean empty state when no comments exist
+  const [comments, setComments] = useState<CommentItem[]>([]);
   const [newCommentText, setNewCommentText] = useState("");
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -208,7 +228,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
     }
   };
 
-  const badgeSnippet = `<a href="https://launchos.com/p/${product.id}" target="_blank" rel="noopener noreferrer">
+  const badgeSnippet = `<a href="https://launchos.com/product/${product.id}" target="_blank" rel="noopener noreferrer">
   <img src="https://api.launchos.com/badges/${product.id}-1st.svg" alt="${product.name} on LaunchOS" width="220" height="54" />
 </a>`;
 
@@ -276,8 +296,6 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
     setReplyText("");
   };
 
-  const similarProducts = MOCK_PRODUCTS.filter((p) => p.id !== product.id).slice(0, 3);
-
   return (
     <div className="min-h-screen bg-[#FAFAF7] text-[#0F0F10] selection:bg-[#5B5BF0]/15 selection:text-[#5B5BF0]">
       <Navbar />
@@ -307,8 +325,17 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
             {/* Left: Big Logo & Titles */}
             <div className="flex items-start gap-4 sm:gap-5">
               {/* Big Logo Squircle (72px) */}
-              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-[16px] bg-linear-to-br from-[#EEF0FE] to-[#D5D8FC] border border-[#D5D8FC] shadow-[0_4px_16px_rgba(91,91,240,0.12)] shrink-0 flex items-center justify-center font-heading font-black text-2xl text-[#5B5BF0]">
-                {product.name.slice(0, 2).toUpperCase()}
+              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-[16px] bg-linear-to-br from-[#EEF0FE] to-[#D5D8FC] border border-[#D5D8FC] shadow-[0_4px_16px_rgba(91,91,240,0.12)] shrink-0 flex items-center justify-center font-heading font-black text-2xl text-[#5B5BF0] overflow-hidden">
+                {product.logoUrl && !logoError ? (
+                  <img
+                    src={product.logoUrl}
+                    alt={product.name}
+                    onError={() => setLogoError(true)}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  (product.name || "Tool").slice(0, 2).toUpperCase()
+                )}
               </div>
 
               {/* Title & Tagline */}
@@ -340,7 +367,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
                     {product.category}
                   </span>
                   <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2.5 py-0.5 text-xs font-semibold text-[#66666B]">
-                    {product.pricing}
+                    {listing?.starting_price ? formatPricingLabelWithDetails(listing) : product.pricing}
                   </span>
                   {product.tags.map((tag) => (
                     <span
@@ -374,15 +401,17 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
               </button>
 
               {/* Visit Website CTA */}
-              <a
-                href="https://example.com"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-[12px] border border-[#E8E8E3] bg-white hover:bg-[#FAFAF7] px-5 py-3 text-sm font-bold text-[#0F0F10] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D5D5CE] transition-all"
-              >
-                <span>Visit website</span>
-                <ExternalLink className="h-4 w-4 text-[#8E8E93]" />
-              </a>
+              {product.websiteUrl && (
+                <a
+                  href={product.websiteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 rounded-[12px] border border-[#E8E8E3] bg-white hover:bg-[#FAFAF7] px-5 py-3 text-sm font-bold text-[#0F0F10] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D5D5CE] transition-all"
+                >
+                  <span>Visit website</span>
+                  <ExternalLink className="h-4 w-4 text-[#8E8E93]" />
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -390,62 +419,82 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
         {/* ------------------------------------------------------------------ */}
         {/* SCREENSHOTS CAROUSEL GALLERY                                       */}
         {/* ------------------------------------------------------------------ */}
-        <div className="rounded-[18px] border border-[#E8E8E3] bg-white p-4 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-4">
-          <div className="relative rounded-[12px] overflow-hidden border border-[#E8E8E3] bg-black aspect-16/9 max-h-[500px]">
-            <img
-              src={SAMPLE_GALLERY[activeGalleryIdx].url}
-              alt={SAMPLE_GALLERY[activeGalleryIdx].title}
-              className="w-full h-full object-cover"
-            />
+        {gallery.length > 0 ? (
+          <div className="rounded-[18px] border border-[#E8E8E3] bg-white p-4 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-4">
+            <div className="relative rounded-[12px] overflow-hidden border border-[#E8E8E3] bg-black aspect-16/9 max-h-[500px]">
+              <img
+                src={gallery[activeGalleryIdx]?.url || gallery[0]?.url}
+                alt={gallery[activeGalleryIdx]?.title || product.name}
+                className="w-full h-full object-cover"
+              />
 
-            {/* Next / Prev Controls */}
-            <button
-              onClick={() =>
-                setActiveGalleryIdx((prev) => (prev > 0 ? prev - 1 : SAMPLE_GALLERY.length - 1))
-              }
-              className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition-colors cursor-pointer"
-              aria-label="Previous image"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() =>
-                setActiveGalleryIdx((prev) => (prev < SAMPLE_GALLERY.length - 1 ? prev + 1 : 0))
-              }
-              className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition-colors cursor-pointer"
-              aria-label="Next image"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+              {/* Next / Prev Controls */}
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    onClick={() =>
+                      setActiveGalleryIdx((prev) => (prev > 0 ? prev - 1 : gallery.length - 1))
+                    }
+                    className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition-colors cursor-pointer"
+                    aria-label="Previous image"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setActiveGalleryIdx((prev) => (prev < gallery.length - 1 ? prev + 1 : 0))
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition-colors cursor-pointer"
+                    aria-label="Next image"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              )}
 
-            {/* Caption Overlay */}
-            <div className="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/80 via-black/40 to-transparent p-4 sm:p-5 text-white">
-              <div className="font-heading font-bold text-sm sm:text-base">
-                {SAMPLE_GALLERY[activeGalleryIdx].title}
+              {/* Caption Overlay */}
+              <div className="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/80 via-black/40 to-transparent p-4 sm:p-5 text-white">
+                <div className="font-heading font-bold text-sm sm:text-base">
+                  {gallery[activeGalleryIdx]?.title || product.name}
+                </div>
+                <p className="text-xs text-white/80 line-clamp-1">
+                  {gallery[activeGalleryIdx]?.caption || product.tagline}
+                </p>
               </div>
-              <p className="text-xs text-white/80 line-clamp-1">
-                {SAMPLE_GALLERY[activeGalleryIdx].caption}
-              </p>
             </div>
-          </div>
 
-          {/* Thumbnail Strip */}
-          <div className="grid grid-cols-3 gap-3">
-            {SAMPLE_GALLERY.map((img, idx) => (
-              <button
-                key={img.id}
-                onClick={() => setActiveGalleryIdx(idx)}
-                className={`relative rounded-[8px] overflow-hidden border-2 aspect-16/9 transition-all cursor-pointer ${
-                  activeGalleryIdx === idx
-                    ? "border-[#5B5BF0] ring-2 ring-[#5B5BF0]/20 shadow-xs"
-                    : "border-transparent opacity-60 hover:opacity-100"
-                }`}
-              >
-                <img src={img.url} alt={img.title} className="w-full h-full object-cover" />
-              </button>
-            ))}
+            {/* Thumbnail Strip */}
+            {gallery.length > 1 && (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                {gallery.map((img, idx) => (
+                  <button
+                    key={img.id || idx}
+                    onClick={() => setActiveGalleryIdx(idx)}
+                    className={`relative rounded-[8px] overflow-hidden border-2 aspect-16/9 transition-all cursor-pointer ${
+                      activeGalleryIdx === idx
+                        ? "border-[#5B5BF0] ring-2 ring-[#5B5BF0]/20 shadow-xs"
+                        : "border-transparent opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <img src={img.url} alt={img.title} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="rounded-[18px] border border-dashed border-[#D5D5CE] bg-white/60 p-8 sm:p-10 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF0FE] text-[#5B5BF0] mb-3">
+              <Layers className="h-6 w-6" />
+            </div>
+            <h3 className="text-sm font-heading font-bold text-[#0F0F10]">
+              No screenshots uploaded yet
+            </h3>
+            <p className="text-xs text-[#66666B] mt-1 max-w-sm mx-auto">
+              The maker hasn&apos;t added product preview screenshots for {product.name} yet.
+            </p>
+          </div>
+        )}
 
         {/* ------------------------------------------------------------------ */}
         {/* 2-COLUMN MAIN: TABS (LEFT) + SIDEBAR (RIGHT)                       */}
@@ -497,50 +546,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
                   <h3 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
                     Product Overview
                   </h3>
-                  <p className="text-sm text-[#47474F] leading-relaxed">
-                    {product.description} Built specifically for high-velocity software teams, Cortex eliminates support backlogs by understanding the nuances of modern B2B SaaS architecture.
+                  <p className="text-sm text-[#47474F] leading-relaxed whitespace-pre-line">
+                    {product.description}
                   </p>
-                </div>
-
-                {/* Key Features Checklist */}
-                <div className="space-y-3 border-t border-[#E8E8E3] pt-5">
-                  <h4 className="font-heading font-bold text-sm text-[#0F0F10] uppercase tracking-wider font-mono">
-                    Core Capabilities
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {[
-                      "Real-time Zendesk & Slack sync",
-                      "Sub-200ms semantic knowledge lookup",
-                      "Multi-language response in 42 languages",
-                      "Automated churn risk alerting",
-                      "SOC2 Type II & GDPR compliant",
-                      "No-code 5 minute setup wizard",
-                    ].map((feature, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs sm:text-sm text-[#47474F]">
-                        <CheckCircle2 className="h-4 w-4 text-[#10B981] shrink-0" />
-                        <span>{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tech Stack Pills */}
-                <div className="border-t border-[#E8E8E3] pt-5 space-y-2">
-                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#8E8E93] block">
-                    Built With
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {["Next.js 16", "TypeScript", "Tailwind CSS", "pgvector", "Claude 3.5", "Stripe API"].map(
-                      (tech) => (
-                        <span
-                          key={tech}
-                          className="rounded-[6px] bg-[#FAFAF7] border border-[#E8E8E3] px-2.5 py-1 text-xs font-mono font-medium text-[#0F0F10]"
-                        >
-                          {tech}
-                        </span>
-                      )
-                    )}
-                  </div>
                 </div>
               </div>
             )}
@@ -561,7 +569,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
                 <form onSubmit={handleAddComment} className="space-y-3">
                   <textarea
                     rows={3}
-                    placeholder="Ask a question or share your feedback on Cortex AI..."
+                    placeholder={`Ask a question or share your feedback on ${product.name}...`}
                     value={newCommentText}
                     onChange={(e) => setNewCommentText(e.target.value)}
                     className="w-full rounded-[10px] border border-[#E8E8E3] bg-[#FAFAF7] p-3.5 text-xs sm:text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:bg-white focus:border-[#5B5BF0] focus:outline-none"
@@ -578,139 +586,148 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
                   </div>
                 </form>
 
-                {/* Comments Thread List with Nested Replies */}
-                <div className="space-y-6 pt-2 divide-y divide-[#E8E8E3]">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="pt-5 space-y-3.5 first:pt-0">
-                      {/* Top Comment Item */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="h-9 w-9 rounded-full bg-[#5B5BF0] text-white flex items-center justify-center font-heading font-bold text-xs shrink-0 shadow-xs">
-                            {comment.author.avatar}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-heading font-bold text-sm text-[#0F0F10]">
-                                {comment.author.name}
-                              </span>
-                              {comment.author.isMaker && (
-                                <span className="rounded-full bg-[#EEF0FE] text-[#5B5BF0] px-2 py-0.2 text-[10px] font-bold">
-                                  Maker
+                {/* Comments Thread List or Clean Empty State */}
+                {comments.length > 0 ? (
+                  <div className="space-y-6 pt-2 divide-y divide-[#E8E8E3]">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="pt-5 space-y-3.5 first:pt-0">
+                        {/* Top Comment Item */}
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="h-9 w-9 rounded-full bg-[#5B5BF0] text-white flex items-center justify-center font-heading font-bold text-xs shrink-0 shadow-xs">
+                              {comment.author.avatar}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-heading font-bold text-sm text-[#0F0F10]">
+                                  {comment.author.name}
                                 </span>
-                              )}
-                              <span className="text-xs font-mono text-[#8E8E93]">
-                                {comment.author.handle}
-                              </span>
-                              <span className="text-xs text-[#E8E8E3]">•</span>
-                              <span className="text-xs font-mono text-[#8E8E93]">
-                                {comment.timestamp}
-                              </span>
-                            </div>
-                            <p className="text-xs sm:text-sm text-[#47474F] mt-1 leading-relaxed">
-                              {comment.text}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Comment Upvote Pill */}
-                        <button
-                          type="button"
-                          className="flex items-center gap-1 rounded-full border border-[#E8E8E3] bg-[#FAFAF7] hover:bg-[#EEF0FE] hover:text-[#5B5BF0] px-2.5 py-1 text-xs font-mono font-bold text-[#66666B] transition-colors shrink-0"
-                        >
-                          <ArrowBigUp className="h-3.5 w-3.5" />
-                          <span>{comment.upvotes}</span>
-                        </button>
-                      </div>
-
-                      {/* Reply Button Trigger */}
-                      <div className="pl-12 flex items-center gap-3 text-xs">
-                        <button
-                          onClick={() =>
-                            setReplyingToId(replyingToId === comment.id ? null : comment.id)
-                          }
-                          className="text-[#5B5BF0] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
-                        >
-                          <CornerDownRight className="h-3 w-3" />
-                          Reply
-                        </button>
-                      </div>
-
-                      {/* Nested Reply Input */}
-                      {replyingToId === comment.id && (
-                        <div className="pl-12 space-y-2 pt-1">
-                          <textarea
-                            rows={2}
-                            placeholder={`Reply to ${comment.author.name}...`}
-                            value={replyText}
-                            onChange={(e) => setReplyText(e.target.value)}
-                            className="w-full rounded-[8px] border border-[#E8E8E3] bg-white p-2.5 text-xs text-[#0F0F10] placeholder:text-[#8E8E93] focus:border-[#5B5BF0] focus:outline-none"
-                          />
-                          <div className="flex gap-2 justify-end">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setReplyingToId(null)}
-                            >
-                              Cancel
-                            </Button>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleAddReply(comment.id)}
-                            >
-                              Reply
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Nested Replies Thread */}
-                      {comment.replies && comment.replies.length > 0 && (
-                        <div className="pl-6 sm:pl-10 space-y-3 border-l-2 border-[#E8E8E3] ml-4 pt-1">
-                          {comment.replies.map((reply) => (
-                            <div key={reply.id} className="flex items-start justify-between gap-3">
-                              <div className="flex items-start gap-2.5">
-                                <div className="h-7 w-7 rounded-full bg-[#10B981] text-white flex items-center justify-center font-heading font-bold text-[10px] shrink-0 shadow-xs">
-                                  {reply.author.avatar}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-1.5 flex-wrap">
-                                    <span className="font-heading font-bold text-xs text-[#0F0F10]">
-                                      {reply.author.name}
-                                    </span>
-                                    {reply.author.isMaker && (
-                                      <span className="rounded-full bg-[#EEF0FE] text-[#5B5BF0] px-1.5 py-0.2 text-[9px] font-bold">
-                                        Maker
-                                      </span>
-                                    )}
-                                    <span className="text-[11px] font-mono text-[#8E8E93]">
-                                      {reply.author.handle}
-                                    </span>
-                                    <span className="text-xs text-[#E8E8E3]">•</span>
-                                    <span className="text-[11px] font-mono text-[#8E8E93]">
-                                      {reply.timestamp}
-                                    </span>
-                                  </div>
-                                  <p className="text-xs text-[#47474F] mt-0.5 leading-relaxed">
-                                    {reply.text}
-                                  </p>
-                                </div>
+                                {comment.author.isMaker && (
+                                  <span className="rounded-full bg-[#EEF0FE] text-[#5B5BF0] px-2 py-0.2 text-[10px] font-bold">
+                                    Maker
+                                  </span>
+                                )}
+                                <span className="text-xs font-mono text-[#8E8E93]">
+                                  {comment.author.handle}
+                                </span>
+                                <span className="text-xs text-[#E8E8E3]">•</span>
+                                <span className="text-xs font-mono text-[#8E8E93]">
+                                  {comment.timestamp}
+                                </span>
                               </div>
-
-                              <button
-                                type="button"
-                                className="flex items-center gap-1 rounded-full border border-[#E8E8E3] bg-[#FAFAF7] px-2 py-0.5 text-[11px] font-mono font-bold text-[#66666B]"
-                              >
-                                <ArrowBigUp className="h-3 w-3" />
-                                <span>{reply.upvotes}</span>
-                              </button>
+                              <p className="text-xs sm:text-sm text-[#47474F] mt-1 leading-relaxed">
+                                {comment.text}
+                              </p>
                             </div>
-                          ))}
+                          </div>
+
+                          {/* Comment Upvote Pill */}
+                          <button
+                            type="button"
+                            className="flex items-center gap-1 rounded-full border border-[#E8E8E3] bg-[#FAFAF7] hover:bg-[#EEF0FE] hover:text-[#5B5BF0] px-2.5 py-1 text-xs font-mono font-bold text-[#66666B] transition-colors shrink-0"
+                          >
+                            <ArrowBigUp className="h-3.5 w-3.5" />
+                            <span>{comment.upvotes}</span>
+                          </button>
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+
+                        {/* Reply Button Trigger */}
+                        <div className="pl-12 flex items-center gap-3 text-xs">
+                          <button
+                            onClick={() =>
+                              setReplyingToId(replyingToId === comment.id ? null : comment.id)
+                            }
+                            className="text-[#5B5BF0] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                          >
+                            <CornerDownRight className="h-3 w-3" />
+                            Reply
+                          </button>
+                        </div>
+
+                        {/* Nested Reply Input */}
+                        {replyingToId === comment.id && (
+                          <div className="pl-12 space-y-2 pt-1">
+                            <textarea
+                              rows={2}
+                              placeholder={`Reply to ${comment.author.name}...`}
+                              value={replyText}
+                              onChange={(e) => setReplyText(e.target.value)}
+                              className="w-full rounded-[8px] border border-[#E8E8E3] bg-white p-2.5 text-xs text-[#0F0F10] placeholder:text-[#8E8E93] focus:border-[#5B5BF0] focus:outline-none"
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setReplyingToId(null)}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleAddReply(comment.id)}
+                              >
+                                Reply
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Nested Replies Thread */}
+                        {comment.replies && comment.replies.length > 0 && (
+                          <div className="pl-6 sm:pl-10 space-y-3 border-l-2 border-[#E8E8E3] ml-4 pt-1">
+                            {comment.replies.map((reply) => (
+                              <div key={reply.id} className="flex items-start justify-between gap-3">
+                                <div className="flex items-start gap-2.5">
+                                  <div className="h-7 w-7 rounded-full bg-[#10B981] text-white flex items-center justify-center font-heading font-bold text-[10px] shrink-0 shadow-xs">
+                                    {reply.author.avatar}
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-heading font-bold text-xs text-[#0F0F10]">
+                                        {reply.author.name}
+                                      </span>
+                                      {reply.author.isMaker && (
+                                        <span className="rounded-full bg-[#EEF0FE] text-[#5B5BF0] px-1.5 py-0.2 text-[9px] font-bold">
+                                          Maker
+                                        </span>
+                                      )}
+                                      <span className="text-[11px] font-mono text-[#8E8E93]">
+                                        {reply.author.handle}
+                                      </span>
+                                      <span className="text-xs text-[#E8E8E3]">•</span>
+                                      <span className="text-[11px] font-mono text-[#8E8E93]">
+                                        {reply.timestamp}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-[#47474F] mt-0.5 leading-relaxed">
+                                      {reply.text}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="flex items-center gap-1 rounded-full border border-[#E8E8E3] bg-[#FAFAF7] px-2 py-0.5 text-[11px] font-mono font-bold text-[#66666B]"
+                                >
+                                  <ArrowBigUp className="h-3 w-3" />
+                                  <span>{reply.upvotes}</span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[12px] border border-dashed border-[#D5D5CE] bg-[#FAFAF7] p-8 text-center space-y-2">
+                    <MessageSquare className="h-8 w-8 text-[#8E8E93] mx-auto opacity-40" />
+                    <p className="text-sm font-medium text-[#66666B]">
+                      No comments yet. Be the first to share your feedback.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -722,44 +739,37 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
                     Top Alternatives to {product.name}
                   </h3>
                   <p className="text-xs sm:text-sm text-[#66666B]">
-                    Looking for comparable tools? Check out other high-ranked community launches.
+                    Looking for comparable tools? Check out other approved launches in {product.category}.
                   </p>
                 </div>
 
-                <div className="space-y-3 pt-1">
-                  {[
-                    {
-                      name: "Intercom Fin AI",
-                      pricing: "Enterprise ($99/mo)",
-                      differentiator: "Built for massive teams; high seat pricing",
-                    },
-                    {
-                      name: "Zendesk AI Agents",
-                      pricing: "Paid addon",
-                      differentiator: "Complex configuration, takes days to deploy",
-                    },
-                    {
-                      name: "Chatbase",
-                      pricing: "Freemium ($19/mo)",
-                      differentiator: "Simpler chatbot without deep two-way ticketing sync",
-                    },
-                  ].map((alt, i) => (
-                    <div
-                      key={i}
-                      className="rounded-[12px] border border-[#E8E8E3] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAFAF7]"
-                    >
-                      <div>
-                        <div className="font-heading font-bold text-sm text-[#0F0F10]">
-                          {alt.name}
+                {similarListings && similarListings.length > 0 ? (
+                  <div className="space-y-3 pt-1">
+                    {similarListings.map((alt) => (
+                      <Link
+                        key={alt.id}
+                        href={`/product/${alt.slug}`}
+                        className="rounded-[12px] border border-[#E8E8E3] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAFAF7] hover:border-[#5B5BF0] hover:bg-white transition-all group"
+                      >
+                        <div>
+                          <div className="font-heading font-bold text-sm text-[#0F0F10] group-hover:text-[#5B5BF0] transition-colors">
+                            {alt.name}
+                          </div>
+                          <div className="text-xs text-[#66666B] mt-0.5 line-clamp-1">{alt.tagline}</div>
                         </div>
-                        <div className="text-xs text-[#66666B] mt-0.5">{alt.differentiator}</div>
-                      </div>
-                      <span className="font-mono text-xs text-[#8E8E93] shrink-0 font-medium">
-                        {alt.pricing}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                        <span className="font-mono text-xs text-[#5B5BF0] shrink-0 font-medium">
+                          View tool &rarr;
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[12px] border border-dashed border-[#D5D5CE] bg-[#FAFAF7] p-8 text-center">
+                    <p className="text-sm text-[#66666B]">
+                      No alternative tools found in {product.category} yet.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -774,7 +784,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
 
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-full bg-[#5B5BF0] text-white flex items-center justify-center font-heading font-extrabold text-sm shadow-xs shrink-0">
-                  {product.founder.name.split(" ").map((n) => n[0]).join("")}
+                  {getSafeInitials(product.founder.name, "MK")}
                 </div>
                 <div>
                   <div className="font-heading font-bold text-sm sm:text-base text-[#0F0F10] leading-snug">
@@ -804,7 +814,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
                   <span className="text-[#8E8E93] flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" /> Launch Date:
                   </span>
-                  <span className="font-bold text-[#0F0F10]">Nov 9, 2026 (Today)</span>
+                  <span className="font-bold text-[#0F0F10]">{product.launchDate}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -897,50 +907,57 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({ productId 
         {/* ------------------------------------------------------------------ */}
         {/* BELOW: "SIMILAR PRODUCTS" GRID                                     */}
         {/* ------------------------------------------------------------------ */}
-        <div className="border-t border-[#E8E8E3] pt-10 space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-heading font-extrabold text-xl sm:text-2xl text-[#0F0F10] tracking-tight">
-                Similar Products in {product.category}
-              </h3>
-              <p className="text-xs sm:text-sm text-[#66666B]">
-                Discover other high-authority SaaS launches in this category.
-              </p>
+        {similarListings && similarListings.length > 0 && (
+          <div className="border-t border-[#E8E8E3] pt-10 space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-heading font-extrabold text-xl sm:text-2xl text-[#0F0F10] tracking-tight">
+                  Similar Products in {product.category}
+                </h3>
+                <p className="text-xs sm:text-sm text-[#66666B]">
+                  Discover other approved software launches in this category.
+                </p>
+              </div>
+              <Link href="/categories" className="text-xs font-semibold text-[#5B5BF0] hover:underline flex items-center gap-1">
+                <span>Browse all categories</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
-            <Link href="/" className="text-xs font-semibold text-[#5B5BF0] hover:underline flex items-center gap-1">
-              <span>View all launches</span>
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {similarProducts.map((p) => (
-              <ProductCard
-                key={p.id}
-                variant="grid"
-                product={{
-                  id: p.id,
-                  name: p.name,
-                  tagline: p.tagline,
-                  category: p.category,
-                  upvotes: p.upvotes,
-                  isUpvoted: p.isUpvoted,
-                  rank: p.rank,
-                  commentsCount: p.commentsCount,
-                  url: `/product/${p.id}`,
-                  initials: p.name.slice(0, 2).toUpperCase(),
-                  avatarGradient: "from-[#5B5BF0] to-[#7E7EF6]",
-                  maker: {
-                    name: p.founder.name,
-                    avatarInitials: p.founder.name.split(" ").map((n) => n[0]).join(""),
-                    avatarColor: "bg-[#5B5BF0]",
-                    role: p.founder.role,
-                  },
-                }}
-              />
-            ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {similarListings.map((sim) => {
+                const simMakerName = sim.submitted_by_email
+                  ? sim.submitted_by_email.split("@")[0].replace(/[._+-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim()
+                  : "Maker";
+                return (
+                  <ProductCard
+                    key={sim.id}
+                    variant="grid"
+                    product={{
+                      id: sim.slug,
+                      name: sim.name,
+                      tagline: sim.tagline,
+                      category: sim.categories?.name || sim.custom_category || product.category,
+                      upvotes: 1,
+                      isUpvoted: false,
+                      commentsCount: 0,
+                      url: `/product/${sim.slug}`,
+                      logoUrl: sim.logo_url || undefined,
+                      initials: getSafeInitials(sim.name, "TL"),
+                      avatarGradient: "from-[#5B5BF0] to-[#7E7EF6]",
+                      maker: {
+                        name: simMakerName,
+                        avatarInitials: getSafeInitials(simMakerName, "MK"),
+                        avatarColor: "bg-[#5B5BF0]",
+                        role: "Maker",
+                      },
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <Footer />

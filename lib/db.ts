@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { serverSecrets, config } from "@/lib/env/serverSecrets";
+import { publicEnv } from "@/lib/env/publicEnv";
 import type { Database } from "@/types/db";
 
 /**
@@ -26,6 +27,27 @@ export function getDb(): SupabaseClient<Database> {
 
 export function getAdminDb(): SupabaseClient<Database> {
   return db;
+}
+
+/**
+ * Public Server-Side Supabase Client (Publishable / Anon Key).
+ * Subject strictly to PostgreSQL Row-Level Security (RLS).
+ * Never uses service-role credentials; safe for public listing reads.
+ */
+export const publicDb: SupabaseClient<Database> = createClient<Database>(
+  publicEnv.supabaseUrl,
+  publicEnv.supabaseAnonKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  }
+);
+
+export function getPublicDb(): SupabaseClient<Database> {
+  return publicDb;
 }
 
 /**
