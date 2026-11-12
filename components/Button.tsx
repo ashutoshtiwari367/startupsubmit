@@ -28,25 +28,25 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-medium transition-all duration-200 ease-out cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none active:scale-[0.98]";
+      "inline-flex items-center justify-center font-semibold whitespace-nowrap transition-colors duration-150 ease-out cursor-pointer select-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none";
 
     const variantStyles = {
       primary:
-        "bg-[#5B5BF0] hover:bg-[#4B4BE5] text-white shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_12px_rgba(91,91,240,0.25)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.08),0_6px_20px_rgba(91,91,240,0.35)] hover:-translate-y-0.5",
+        "bg-[#4F46E5] text-white font-bold hover:bg-[#4338CA] active:bg-[#3730A3]",
       secondary:
-        "bg-white hover:bg-[#F5F5F0] text-[#0F0F10] border border-[#E8E8E3] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D5D5CE] hover:-translate-y-0.5",
+        "bg-white text-[#14142B] border border-[#D4D4E4] hover:bg-[#F6F6FB] hover:border-[#B9B9CF] active:bg-[#EDEDF5]",
       ghost:
-        "bg-transparent hover:bg-[#0F0F10]/[0.05] text-[#57575C] hover:text-[#0F0F10]",
+        "bg-transparent text-[#55556E] hover:bg-[#14142B]/[0.05] hover:text-[#14142B] active:bg-[#14142B]/[0.08]",
       "accent-soft":
-        "bg-[#EEF0FE] hover:bg-[#E2E5FD] text-[#4338CA] font-semibold border border-[#D5D8FC]",
+        "bg-[#F7F6FF] text-[#4338CA] border border-[#E0DEFC] hover:bg-[#E0DEFC] active:bg-[#D4D1FA]",
       destructive:
-        "bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#DC2626] border border-[#FECACA]",
+        "bg-[#FEF2F2] text-[#B91C1C] border border-[#FECACA] hover:bg-[#FEE2E2] active:bg-[#FECACA]",
     };
 
     const sizeStyles = {
-      sm: "h-8 px-3 text-xs gap-1.5 rounded-[8px]",
-      md: "h-10 px-4 text-sm gap-2 rounded-[10px]",
-      lg: "h-12 px-6 text-base gap-2.5 rounded-[10px]",
+      sm: "h-10 px-3.5 text-sm gap-1.5 rounded-[10px]",
+      md: "h-12 px-5 text-sm gap-2 rounded-xl",
+      lg: "h-[52px] px-6 text-base gap-2.5 rounded-xl",
       icon: "h-10 w-10 p-0 rounded-[10px]",
     };
 

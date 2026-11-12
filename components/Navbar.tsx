@@ -25,7 +25,7 @@ export const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { label: "Today's Launches", href: "/" },
+    { label: "Live Directory", href: "/" },
     { label: "Hall of Winners", href: "/winners" },
     { label: "Categories", href: "/categories" },
     { label: "Pricing", href: "/pricing" },
@@ -33,45 +33,36 @@ export const Navbar: React.FC = () => {
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+    if (href === "/categories") return pathname?.startsWith("/categories") || pathname?.startsWith("/category");
+    return pathname?.startsWith(href);
   };
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-[#E8E8E3] bg-[#FAFAF7]/90 backdrop-blur-md transition-colors">
-        <div className="mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-6">
-          {/* Brand Logo & Tag */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[#5B5BF0] text-white shadow-[0_2px_8px_rgba(91,91,240,0.3)] group-hover:scale-105 transition-transform">
+      <header className="sticky top-0 z-40 w-full border-b border-[#E6E6F0] bg-white/95 backdrop-blur-md transition-colors">
+        <div className="mx-auto flex h-16 max-w-[1240px] items-center justify-between px-6">
+          {/* Brand Logo */}
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#4F46E5] text-white group-hover:scale-105 transition-transform">
               <Sparkles className="h-5 w-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-heading text-lg font-extrabold tracking-tight text-[#0F0F10]">
-                  LaunchOS
-                </span>
-                <span className="rounded-full bg-[#EEF0FE] px-2 py-0.5 text-[10px] font-bold text-[#5B5BF0]">
-                  [BRAND]
-                </span>
-              </div>
-              <p className="text-[11px] text-[#66666B] font-mono leading-none">
-                Product Launch Directory
-              </p>
-            </div>
+            <span className="font-heading text-lg font-bold tracking-tight text-[#14142B]">
+              LaunchOS
+            </span>
           </Link>
 
           {/* Desktop Navigation Routes */}
-          <nav className="hidden md:flex items-center gap-1 rounded-full border border-[#E8E8E3] bg-white p-1 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <nav className="hidden md:flex items-center gap-1.5">
             {navLinks.map((link) => {
               const active = isActive(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  className={`px-3.5 py-1.5 rounded-xl text-sm font-semibold transition-all duration-150 ${
                     active
-                      ? "bg-[#5B5BF0] text-white shadow-[0_2px_8px_rgba(91,91,240,0.25)]"
-                      : "text-[#66666B] hover:text-[#0F0F10] hover:bg-[#FAFAF7]"
+                      ? "bg-[#F7F6FF] text-[#4F46E5] border border-[#E0DEFC] "
+                      : "text-[#55556E] hover:text-[#14142B] hover:bg-[#F1F1F8] border border-transparent"
                   }`}
                 >
                   {link.label}
@@ -81,16 +72,19 @@ export const Navbar: React.FC = () => {
           </nav>
 
           {/* Desktop Action CTAs & Controls */}
-          <div className="hidden sm:flex items-center gap-2.5">
+          <div className="hidden sm:flex items-center gap-3">
             <Link href="/submit">
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<Plus className="h-4 w-4" />}
-                className="font-bold text-xs shadow-[0_2px_8px_rgba(91,91,240,0.25)]"
+              <button
+                type="button"
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-white text-xs sm:text-sm font-semibold  transition-all cursor-pointer ${
+                  pathname === "/submit"
+                    ? "bg-[#4338CA] ring-2 ring-[#4F46E5] ring-offset-2"
+                    : "bg-[#4F46E5] hover:bg-[#4338CA]"
+                }`}
               >
-                Submit Product
-              </Button>
+                <Plus className="h-4 w-4" />
+                <span>Submit Product</span>
+              </button>
             </Link>
 
             <UserProfileDropdown onSignInClick={() => setShowAuthModal(true)} />
@@ -101,7 +95,7 @@ export const Navbar: React.FC = () => {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-[8px] border border-[#E8E8E3] bg-white text-[#0F0F10]"
+              className="p-2 rounded-[10px] border border-[#E6E6F0] bg-white text-[#14142B]"
               aria-label="Toggle mobile menu"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -111,26 +105,26 @@ export const Navbar: React.FC = () => {
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="sm:hidden border-t border-[#E8E8E3] bg-white px-4 py-4 space-y-3 animate-in fade-in duration-150">
+          <div className="sm:hidden border-t border-[#E6E6F0] bg-white px-4 py-4 space-y-3 animate-in fade-in duration-150">
             <div className="flex flex-col space-y-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`px-3 py-2 rounded-[8px] text-sm font-bold flex items-center justify-between ${
+                  className={`px-3 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between transition-colors ${
                     isActive(link.href)
-                      ? "bg-[#EEF0FE] text-[#5B5BF0]"
-                      : "text-[#66666B] hover:bg-[#FAFAF7]"
+                      ? "bg-[#F7F6FF] text-[#4F46E5] font-bold border border-[#E0DEFC]"
+                      : "text-[#55556E] hover:text-[#14142B] hover:bg-[#F1F1F8]"
                   }`}
                 >
                   <span>{link.label}</span>
-                  <ArrowRight className="h-4 w-4 opacity-40" />
+                  <ArrowRight className={`h-4 w-4 ${isActive(link.href) ? "text-[#4F46E5]" : "opacity-40"}`} />
                 </Link>
               ))}
             </div>
 
-            <div className="pt-2 border-t border-[#E8E8E3] flex flex-col gap-2">
+            <div className="pt-2 border-t border-[#E6E6F0] flex flex-col gap-2">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                 <Button
                   variant="secondary"

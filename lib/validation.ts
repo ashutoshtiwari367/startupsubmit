@@ -203,7 +203,11 @@ export const serverListingFieldsSchema = z
 
     // Conditional Software Pricing Model Validation
     const normPricing = (data.pricing_model || "").toLowerCase();
-    if (normPricing === "freemium" || normPricing === "premium") {
+    if (
+      normPricing === "freemium" ||
+      normPricing === "premium" ||
+      normPricing === "paid"
+    ) {
       const priceVal = data.starting_price;
       if (
         priceVal === undefined ||

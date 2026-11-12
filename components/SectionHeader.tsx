@@ -22,15 +22,15 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
   ...props
 }) => {
   const titleSizeStyles = {
-    sm: "text-xl md:text-2xl",
-    md: "text-2xl md:text-3xl",
-    lg: "text-3xl md:text-4xl",
+    sm: "text-2xl sm:text-[28px]",
+    md: "text-[26px] sm:text-[32px] leading-[1.15]",
+    lg: "text-[30px] sm:text-[36px] leading-[1.15]",
   };
 
   const descSizeStyles = {
     sm: "text-sm max-w-xl",
     md: "text-base max-w-2xl",
-    lg: "text-lg max-w-3xl",
+    lg: "text-base max-w-3xl",
   };
 
   return (
@@ -47,7 +47,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
         {badge && <div className="mb-2">{badge}</div>}
         <h2
           className={cn(
-            "font-heading font-extrabold tracking-[-0.03em] text-[#0F0F10] leading-tight",
+            "font-heading font-extrabold tracking-[-0.03em] text-[#14142B] leading-tight",
             titleSizeStyles[size]
           )}
         >
@@ -56,7 +56,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({
         {description && (
           <p
             className={cn(
-              "mt-1.5 text-[#66666B] leading-relaxed",
+              "mt-1.5 text-[#55556E] leading-relaxed",
               descSizeStyles[size]
             )}
           >

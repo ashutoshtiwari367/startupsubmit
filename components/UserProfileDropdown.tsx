@@ -179,7 +179,7 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Open profile menu"
         aria-expanded={isOpen}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#5B5BF0] text-white font-bold text-xs border-2 border-white ring-1 ring-[#E8E8E3] hover:ring-[#5B5BF0] transition-all cursor-pointer shadow-xs overflow-hidden"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-[#4F46E5] text-white font-bold text-xs border-2 border-white ring-1 ring-[#E6E6F0] hover:ring-[#4F46E5] transition-all cursor-pointer overflow-hidden"
       >
         {userProfile.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -196,21 +196,21 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
       {isOpen && (
         <div
           role="menu"
-          className="absolute right-0 mt-2 w-64 rounded-[14px] border border-[#E8E8E3] bg-white shadow-[0_12px_32px_rgba(0,0,0,0.12)] p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150"
+          className="absolute right-0 mt-2 w-64 rounded-2xl border border-[#E6E6F0] bg-white p-2 z-50 space-y-1 animate-in fade-in zoom-in-95 duration-150"
         >
           {/* User Info Header */}
-          <div className="px-3 py-2.5 border-b border-[#E8E8E3] space-y-1">
+          <div className="px-3 py-2.5 border-b border-[#E6E6F0] space-y-1">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-bold text-xs text-[#0F0F10] truncate">
+              <span className="font-bold text-xs text-[#14142B] truncate">
                 {userProfile.fullName}
               </span>
               {userProfile.custIdExt && (
-                <span className="rounded-full bg-[#EEF0FE] px-2 py-0.5 font-mono text-[10px] font-bold text-[#5B5BF0] shrink-0">
+                <span className="rounded-full bg-[#F7F6FF] px-2 py-0.5 font-mono text-[10px] font-bold text-[#4F46E5] shrink-0">
                   #{userProfile.custIdExt}
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-[#66666B] font-mono truncate">
+            <p className="text-[11px] text-[#55556E] font-mono truncate">
               {userProfile.email}
             </p>
           </div>
@@ -220,28 +220,28 @@ export const UserProfileDropdown: React.FC<UserProfileDropdownProps> = ({
             <Link
               href="/dashboard"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 rounded-[8px] px-3 py-2 text-xs font-semibold text-[#0F0F10] hover:bg-[#FAFAF7] transition-colors"
+              className="flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-xs font-semibold text-[#14142B] hover:bg-[#F6F6FB] transition-colors"
             >
-              <LayoutDashboard className="h-4 w-4 text-[#5B5BF0]" />
+              <LayoutDashboard className="h-4 w-4 text-[#4F46E5]" />
               <span>Dashboard &amp; Profile</span>
             </Link>
 
             <Link
               href="/submit"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-2.5 rounded-[8px] px-3 py-2 text-xs font-semibold text-[#0F0F10] hover:bg-[#FAFAF7] transition-colors"
+              className="flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-xs font-semibold text-[#14142B] hover:bg-[#F6F6FB] transition-colors"
             >
-              <PlusCircle className="h-4 w-4 text-[#5B5BF0]" />
+              <PlusCircle className="h-4 w-4 text-[#4F46E5]" />
               <span>Submit a Product</span>
             </Link>
           </div>
 
           {/* Sign Out */}
-          <div className="pt-1 border-t border-[#E8E8E3]">
+          <div className="pt-1 border-t border-[#E6E6F0]">
             <button
               type="button"
               onClick={handleSignOut}
-              className="w-full flex items-center gap-2.5 rounded-[8px] px-3 py-2 text-xs font-bold text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-xs font-bold text-[#DC2626] hover:bg-[#FEF2F2] transition-colors cursor-pointer"
             >
               <LogOut className="h-4 w-4" />
               <span>Sign Out</span>

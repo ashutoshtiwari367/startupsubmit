@@ -4,163 +4,142 @@ import React from "react";
 import Link from "next/link";
 import {
   Bot,
-  Cloud,
+  Briefcase,
   Megaphone,
   Zap,
   Code2,
   Palette,
   Coins,
   HeartPulse,
-  Video,
-  ShoppingBag,
-  ArrowRight,
-  Layers,
 } from "lucide-react";
 
 export interface CategoryCardData {
   id: string;
+  slug: string;
   name: string;
-  count: number;
-  icon: React.ReactNode;
+  count: number | string;
   iconBg: string;
   iconColor: string;
-  cardBg: string;
-  cardBorder: string;
-  cardHoverBg: string;
-  cardHoverBorder: string;
-  cardArrowColor: string;
+  icon: React.ReactNode;
+  cardBg?: string;
+  cardBorder?: string;
+  cardHoverBg?: string;
+  cardHoverBorder?: string;
+  cardArrowColor?: string;
 }
 
 export const CATEGORIES_DATA: CategoryCardData[] = [
   {
-    id: "ai-ml",
-    name: "AI & Machine Learning",
-    count: 428,
+    id: "artificial-intelligence",
+    slug: "artificial-intelligence",
+    name: "Artificial Intelligence",
+    count: 426,
+    iconBg: "bg-[#F0EEFF]",
+    iconColor: "text-[#4F46E5]",
     icon: <Bot className="h-5 w-5" />,
-    iconBg: "bg-[#EEF0FE]",
-    iconColor: "text-[#5B5BF0]",
-    cardBg: "bg-[#FAF9FF]",
-    cardBorder: "border-[#E8E8FD]",
-    cardHoverBg: "hover:bg-[#F3F2FE]",
-    cardHoverBorder: "hover:border-[#C7CAFC]",
-    cardArrowColor: "text-[#5B5BF0]",
+    cardBg: "bg-white",
+    cardBorder: "border-[#E6E6F0]",
+    cardHoverBg: "hover:bg-[#F6F6FB]",
+    cardHoverBorder: "hover:border-[#D4D4E4]",
+    cardArrowColor: "text-[#4F46E5]",
   },
   {
-    id: "saas-tools",
-    name: "SaaS & Tools",
-    count: 384,
-    icon: <Cloud className="h-5 w-5" />,
-    iconBg: "bg-[#E0F2FE]",
-    iconColor: "text-[#0284C7]",
-    cardBg: "bg-[#F7FAFD]",
-    cardBorder: "border-[#E2EFFC]",
-    cardHoverBg: "hover:bg-[#EDF6FD]",
-    cardHoverBorder: "hover:border-[#BAE6FD]",
-    cardArrowColor: "text-[#0284C7]",
+    id: "sales",
+    slug: "sales",
+    name: "Sales",
+    count: 240,
+    iconBg: "bg-[#F0FDF4]",
+    iconColor: "text-[#15803D]",
+    icon: <Briefcase className="h-5 w-5" />,
+    cardBg: "bg-white",
+    cardBorder: "border-[#E6E6F0]",
+    cardHoverBg: "hover:bg-[#F6F6FB]",
+    cardHoverBorder: "hover:border-[#D4D4E4]",
+    cardArrowColor: "text-[#15803D]",
   },
   {
-    id: "marketing-sales",
-    name: "Marketing & Sales",
-    count: 246,
-    icon: <Megaphone className="h-5 w-5" />,
-    iconBg: "bg-[#FFEDD5]",
+    id: "marketing",
+    slug: "marketing",
+    name: "Marketing",
+    count: 295,
+    iconBg: "bg-[#FFF4ED]",
     iconColor: "text-[#EA580C]",
-    cardBg: "bg-[#FFF9F4]",
-    cardBorder: "border-[#FDEEE2]",
-    cardHoverBg: "hover:bg-[#FFF3E8]",
-    cardHoverBorder: "hover:border-[#FED7AA]",
+    icon: <Megaphone className="h-5 w-5" />,
+    cardBg: "bg-white",
+    cardBorder: "border-[#E6E6F0]",
+    cardHoverBg: "hover:bg-[#F6F6FB]",
+    cardHoverBorder: "hover:border-[#D4D4E4]",
     cardArrowColor: "text-[#EA580C]",
   },
   {
     id: "productivity",
+    slug: "productivity",
     name: "Productivity",
     count: 312,
+    iconBg: "bg-[#FEFCE8]",
+    iconColor: "text-[#7A4E00]",
     icon: <Zap className="h-5 w-5" />,
-    iconBg: "bg-[#FEF3C7]",
-    iconColor: "text-[#D97706]",
-    cardBg: "bg-[#FFFCF2]",
-    cardBorder: "border-[#FDF6E2]",
-    cardHoverBg: "hover:bg-[#FEF7D8]",
-    cardHoverBorder: "hover:border-[#FDE68A]",
-    cardArrowColor: "text-[#D97706]",
+    cardBg: "bg-white",
+    cardBorder: "border-[#E6E6F0]",
+    cardHoverBg: "hover:bg-[#F6F6FB]",
+    cardHoverBorder: "hover:border-[#D4D4E4]",
+    cardArrowColor: "text-[#7A4E00]",
   },
   {
     id: "developer-tools",
+    slug: "developer-tools",
     name: "Developer Tools",
-    count: 389,
+    count: 390,
+    iconBg: "bg-[#F0FDF4]",
+    iconColor: "text-[#0F8A5F]",
     icon: <Code2 className="h-5 w-5" />,
-    iconBg: "bg-[#ECFDF5]",
-    iconColor: "text-[#059669]",
-    cardBg: "bg-[#F7FDFB]",
-    cardBorder: "border-[#E3F7EE]",
-    cardHoverBg: "hover:bg-[#ECFAF3]",
-    cardHoverBorder: "hover:border-[#A7F3D0]",
-    cardArrowColor: "text-[#059669]",
+    cardBg: "bg-white",
+    cardBorder: "border-[#E6E6F0]",
+    cardHoverBg: "hover:bg-[#F6F6FB]",
+    cardHoverBorder: "hover:border-[#D4D4E4]",
+    cardArrowColor: "text-[#0F8A5F]",
   },
   {
-    id: "design-art",
-    name: "Design & Art",
-    count: 194,
-    icon: <Palette className="h-5 w-5" />,
-    iconBg: "bg-[#FCE7F3]",
+    id: "design",
+    slug: "design",
+    name: "Design",
+    count: 246,
+    iconBg: "bg-[#FDF2F8]",
     iconColor: "text-[#DB2777]",
-    cardBg: "bg-[#FDF7FA]",
-    cardBorder: "border-[#FCE6F1]",
-    cardHoverBg: "hover:bg-[#FCEBF5]",
-    cardHoverBorder: "hover:border-[#FBCFE8]",
+    icon: <Palette className="h-5 w-5" />,
+    cardBg: "bg-white",
+    cardBorder: "border-[#E6E6F0]",
+    cardHoverBg: "hover:bg-[#F6F6FB]",
+    cardHoverBorder: "hover:border-[#D4D4E4]",
     cardArrowColor: "text-[#DB2777]",
   },
   {
-    id: "finance-fintech",
-    name: "Finance & FinTech",
-    count: 162,
+    id: "fintech",
+    slug: "fintech",
+    name: "Fintech",
+    count: 198,
+    iconBg: "bg-[#ECFEFF]",
+    iconColor: "text-[#0D9488]",
     icon: <Coins className="h-5 w-5" />,
-    iconBg: "bg-[#DCFCE7]",
-    iconColor: "text-[#16A34A]",
-    cardBg: "bg-[#F7FDF8]",
-    cardBorder: "border-[#E1F7E8]",
-    cardHoverBg: "hover:bg-[#ECFBF1]",
-    cardHoverBorder: "hover:border-[#BBF7D0]",
-    cardArrowColor: "text-[#16A34A]",
+    cardBg: "bg-white",
+    cardBorder: "border-[#E6E6F0]",
+    cardHoverBg: "hover:bg-[#F6F6FB]",
+    cardHoverBorder: "hover:border-[#D4D4E4]",
+    cardArrowColor: "text-[#0D9488]",
   },
   {
-    id: "health-wellness",
-    name: "Health & Wellness",
-    count: 98,
+    id: "health-fitness",
+    slug: "health-fitness",
+    name: "Health & Fitness",
+    count: 174,
+    iconBg: "bg-[#FFF1F2]",
+    iconColor: "text-[#E11D48]",
     icon: <HeartPulse className="h-5 w-5" />,
-    iconBg: "bg-[#FEE2E2]",
-    iconColor: "text-[#DC2626]",
-    cardBg: "bg-[#FFF7F7]",
-    cardBorder: "border-[#FDE6E6]",
-    cardHoverBg: "hover:bg-[#FEECEB]",
-    cardHoverBorder: "hover:border-[#FECACA]",
-    cardArrowColor: "text-[#DC2626]",
-  },
-  {
-    id: "video-content",
-    name: "Video & Content",
-    count: 175,
-    icon: <Video className="h-5 w-5" />,
-    iconBg: "bg-[#F3E8FF]",
-    iconColor: "text-[#9333EA]",
-    cardBg: "bg-[#FAF7FD]",
-    cardBorder: "border-[#F2E8FC]",
-    cardHoverBg: "hover:bg-[#F4ECFD]",
-    cardHoverBorder: "hover:border-[#E9D5FF]",
-    cardArrowColor: "text-[#9333EA]",
-  },
-  {
-    id: "e-commerce",
-    name: "E-commerce",
-    count: 210,
-    icon: <ShoppingBag className="h-5 w-5" />,
-    iconBg: "bg-[#DBEAFE]",
-    iconColor: "text-[#2563EB]",
-    cardBg: "bg-[#F7FAFF]",
-    cardBorder: "border-[#E3EEFD]",
-    cardHoverBg: "hover:bg-[#ECF4FE]",
-    cardHoverBorder: "hover:border-[#BFDBFE]",
-    cardArrowColor: "text-[#2563EB]",
+    cardBg: "bg-white",
+    cardBorder: "border-[#E6E6F0]",
+    cardHoverBg: "hover:bg-[#F6F6FB]",
+    cardHoverBorder: "hover:border-[#D4D4E4]",
+    cardArrowColor: "text-[#E11D48]",
   },
 ];
 
@@ -172,85 +151,61 @@ export const BrowseByCategorySection: React.FC<BrowseByCategorySectionProps> = (
   onCategorySelect,
 }) => {
   return (
-    <section className="relative w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-10 sm:py-14 space-y-6">
-      {/* Section Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E8E8E3] pb-4">
+    <section className="relative w-full max-w-[1240px] mx-auto px-6 py-10 md:py-14 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EEF0FE] text-[#5B5BF0] text-xs">
-              <Layers className="h-3.5 w-3.5" />
-            </span>
-            <span className="text-xs font-mono font-bold tracking-wider uppercase text-[#5B5BF0]">
-              Discover Directory
-            </span>
-          </div>
-
-          <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-[#0F0F10] tracking-[-0.03em]">
-            Browse by Category
+          <span className="font-mono text-xs font-semibold uppercase tracking-[0.08em] text-[#4F46E5] block mb-1">
+            DISCOVER DIRECTORY
+          </span>
+          <h2 className="font-heading font-extrabold text-[26px] sm:text-[32px] text-[#14142B] tracking-tight leading-tight">
+            Browse by category
           </h2>
-
-          <p className="mt-1 text-xs sm:text-sm text-[#66666B]">
-            Explore 2,600+ curated SaaS products, developer tools, and autonomous AI agents.
+          <p className="mt-1 text-sm sm:text-base text-[#55556E]">
+            Explore 2,600+ curated SaaS products, developer tools and AI agents.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/categories"
-            className="text-xs font-semibold text-[#5B5BF0] hover:underline flex items-center gap-1"
-          >
-            <span>Explore all categories</span>
-            <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-          <span className="text-xs font-mono text-[#8E8E93] hidden sm:block">• 10 Ecosystem Categories</span>
-        </div>
+        <Link
+          href="/categories"
+          className="text-xs sm:text-sm font-bold text-[#4F46E5] hover:text-[#4338CA] hover:underline flex items-center gap-1 self-start sm:self-auto"
+        >
+          <span>View all 35 categories</span>
+          <span>&rarr;</span>
+        </Link>
       </div>
 
-      {/* Grid: 4-col desktop / 2-col mobile */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* 4x2 Grid of Category Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {CATEGORIES_DATA.map((cat) => (
-          <div
+          <Link
             key={cat.id}
-            role="button"
-            tabIndex={0}
-            onClick={() => onCategorySelect?.(cat.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
+            href={`/category/${cat.slug}`}
+            onClick={(e) => {
+              if (onCategorySelect) {
                 e.preventDefault();
-                onCategorySelect?.(cat.id);
+                onCategorySelect(cat.slug);
               }
             }}
-            className={`group relative flex flex-col justify-between rounded-[14px] border ${cat.cardBorder} ${cat.cardBg} p-4 sm:p-4.5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-200 cursor-pointer select-none hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5B5BF0] ${cat.cardHoverBg} ${cat.cardHoverBorder}`}
+            className="rounded-2xl border border-[#E6E6F0] bg-white p-5 hover:border-[#4F46E5] hover:shadow-[0_8px_30px_rgba(79,70,229,0.08)] transition-all cursor-pointer group block"
           >
-            <div>
-              {/* Colorful icon in rounded square (42px) */}
-              <div
-                className={`flex h-10.5 w-10.5 sm:h-11 sm:w-11 items-center justify-center rounded-[10px] ${cat.iconBg} ${cat.iconColor} shadow-[0_1px_2px_rgba(0,0,0,0.04)] group-hover:scale-105 transition-transform duration-200 mb-3`}
-              >
-                {cat.icon}
-              </div>
-
-              {/* Category Name */}
-              <h3 className="font-heading font-bold text-sm sm:text-base text-[#0F0F10] tracking-tight group-hover:text-[#5B5BF0] transition-colors line-clamp-1 mb-1">
-                {cat.name}
-              </h3>
+            {/* Squircle Pastel Icon */}
+            <div
+              className={`w-11 h-11 rounded-xl ${cat.iconBg} ${cat.iconColor} mb-4 flex items-center justify-center group-hover:scale-105 transition-transform`}
+            >
+              {cat.icon}
             </div>
 
-            {/* Bottom Row: Tool count & Arrow on hover */}
-            <div className="pt-2 mt-2 border-t border-black/[0.06] flex items-center justify-between text-xs">
-              <span className="font-mono text-[#8E8E93] text-[11px] sm:text-xs font-medium">
-                {cat.count} tools
-              </span>
-
-              {/* Arrow on hover */}
-              <div className={`flex items-center ${cat.cardArrowColor} opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-200`}>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </div>
-            </div>
-          </div>
+            {/* Title & Count */}
+            <h3 className="font-bold text-sm sm:text-base text-[#14142B] tracking-tight group-hover:text-[#4F46E5] transition-colors">
+              {cat.name}
+            </h3>
+            <p className="text-xs text-[#55556E] mt-1 font-medium">
+              {typeof cat.count === "number" ? `${cat.count} tools` : cat.count}
+            </p>
+          </Link>
         ))}
       </div>
     </section>
   );
 };
-

@@ -4,6 +4,7 @@ import React, { useOptimistic, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ShieldCheck,
+  ShieldAlert,
   Check,
   X,
   ExternalLink,
@@ -337,6 +338,15 @@ export function AdminQueueClient({
                 </span>
               )}
             </button>
+
+            {/* Reviews & Comments Moderation */}
+            <Link
+              href="/admin/moderation"
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-[#A1A1AA] hover:text-white hover:bg-[#212121] transition-all"
+            >
+              <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+              {sidebarOpen && <span>Reviews &amp; Comments</span>}
+            </Link>
 
             <Link
               href="/"

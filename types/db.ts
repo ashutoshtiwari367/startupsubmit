@@ -14,6 +14,10 @@ export type ListingPlan = "free" | "premium" | "featured" | "freemium" | "paid" 
 
 export type ListingStatus = "pending" | "approved" | "rejected";
 
+export type ReviewStatus = "pending" | "approved" | "rejected";
+export type CommentStatus = "pending" | "approved" | "hidden" | "rejected";
+export type AnalyticsEventType = "view" | "website_click";
+
 export type BigIntId = number | string;
 
 export interface Database {
@@ -347,6 +351,216 @@ export interface Database {
           }
         ];
       };
+      listing_analytics: {
+        Row: {
+          id: number;
+          listing_id: number;
+          event_type: AnalyticsEventType;
+          session_hash: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          listing_id: number;
+          event_type: AnalyticsEventType;
+          session_hash?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
+          listing_id?: number;
+          event_type?: AnalyticsEventType;
+          session_hash?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "listing_analytics_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      listing_reviews: {
+        Row: {
+          id: number;
+          listing_id: number;
+          user_id: string;
+          rating: number;
+          review_text: string;
+          status: ReviewStatus;
+          helpful_count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: never;
+          listing_id: number;
+          user_id: string;
+          rating: number;
+          review_text: string;
+          status?: ReviewStatus;
+          helpful_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: never;
+          listing_id?: number;
+          user_id?: string;
+          rating?: number;
+          review_text?: string;
+          status?: ReviewStatus;
+          helpful_count?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "listing_reviews_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      listing_review_helpful: {
+        Row: {
+          id: number;
+          review_id: number;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          review_id: number;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
+          review_id?: number;
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "listing_review_helpful_review_id_fkey";
+            columns: ["review_id"];
+            isOneToOne: false;
+            referencedRelation: "listing_reviews";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      listing_comments: {
+        Row: {
+          id: number;
+          listing_id: number;
+          user_id: string;
+          parent_comment_id: number | null;
+          comment_text: string;
+          status: CommentStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: never;
+          listing_id: number;
+          user_id: string;
+          parent_comment_id?: number | null;
+          comment_text: string;
+          status?: CommentStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: never;
+          listing_id?: number;
+          user_id?: string;
+          parent_comment_id?: number | null;
+          comment_text?: string;
+          status?: CommentStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "listing_comments_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      listing_review_reports: {
+        Row: {
+          id: number;
+          review_id: number;
+          reporter_id: string;
+          reason: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          review_id: number;
+          reporter_id: string;
+          reason: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
+          review_id?: number;
+          reporter_id?: string;
+          reason?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "listing_review_reports_review_id_fkey";
+            columns: ["review_id"];
+            isOneToOne: false;
+            referencedRelation: "listing_reviews";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      listing_comment_reports: {
+        Row: {
+          id: number;
+          comment_id: number;
+          reporter_id: string;
+          reason: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          comment_id: number;
+          reporter_id: string;
+          reason: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
+          comment_id?: number;
+          reporter_id?: string;
+          reason?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "listing_comment_reports_comment_id_fkey";
+            columns: ["comment_id"];
+            isOneToOne: false;
+            referencedRelation: "listing_comments";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -379,3 +593,9 @@ export type PlanRow = Database["public"]["Tables"]["plans"]["Row"];
 export type PaymentRow = Database["public"]["Tables"]["payments"]["Row"];
 export type PaymentGatewayEventRow =
   Database["public"]["Tables"]["payment_gateway_events"]["Row"];
+
+export type ListingAnalyticsRow = Database["public"]["Tables"]["listing_analytics"]["Row"];
+export type ListingReviewRow = Database["public"]["Tables"]["listing_reviews"]["Row"];
+export type ListingCommentRow = Database["public"]["Tables"]["listing_comments"]["Row"];
+export type ListingReviewReportRow = Database["public"]["Tables"]["listing_review_reports"]["Row"];
+export type ListingCommentReportRow = Database["public"]["Tables"]["listing_comment_reports"]["Row"];

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ProductDetailView } from "@/components/ProductDetailView";
 import { getApprovedListingBySlug, getSimilarApprovedListings } from "@/lib/listings";
 import { getSiteUrl, buildSoftwareAppJsonLd, serializeJsonLd } from "@/lib/seo";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * Incremental Static Regeneration (ISR)
@@ -118,6 +119,11 @@ export default async function ProductDetailPage({
     4
   );
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   const siteUrl = getSiteUrl();
   const jsonLd = buildSoftwareAppJsonLd(listing, siteUrl);
 
@@ -127,7 +133,11 @@ export default async function ProductDetailPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
-      <ProductDetailView listing={listing} similarListings={similarListings} />
+      <ProductDetailView
+        listing={listing}
+        similarListings={similarListings}
+        currentUserId={user?.id || null}
+      />
     </>
   );
 }

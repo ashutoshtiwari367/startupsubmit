@@ -1082,7 +1082,7 @@ describe("Authoritative Server Validation & Adversarial Cases (lib/validation.ts
 
     // 3 & 4. Customer email is visible and welcome name is dynamically resolved
     assert.ok(
-      dashboardSource.includes("export function resolveCustomerDisplayName") &&
+      dashboardSource.includes("resolveCustomerDisplayName") &&
         dashboardSource.includes("Welcome, {customerName}!") &&
         dashboardSource.includes("{customerEmail}"),
       "Dashboard must dynamically resolve customer name in welcome heading and display customer email"

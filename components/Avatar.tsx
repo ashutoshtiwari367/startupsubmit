@@ -57,11 +57,11 @@ export const Avatar: React.FC<AvatarProps> = ({
   // Consistent background color palette based on name/seed
   const getAvatarGradient = (seed: string) => {
     const gradients = [
-      "from-[#5B5BF0] to-[#7E7EF6] text-white",
-      "from-[#0F0F10] to-[#3A3A40] text-white",
-      "from-[#059669] to-[#34D399] text-white",
-      "from-[#D97706] to-[#FBBF24] text-white",
-      "from-[#4338CA] to-[#6366F1] text-white",
+      "from-[#4F46E5] to-[#7E7EF6] text-white",
+      "from-[#14142B] to-[#3A3A40] text-white",
+      "from-[#0F8A5F] to-[#34D399] text-white",
+      "from-[#7A4E00] to-[#FBBF24] text-white",
+      "from-[#4338CA] to-[#4F46E5] text-white",
       "from-[#7C3AED] to-[#A78BFA] text-white",
     ];
     let hash = 0;
@@ -73,16 +73,16 @@ export const Avatar: React.FC<AvatarProps> = ({
   };
 
   const statusStyles = {
-    online: "bg-[#10B981]",
+    online: "bg-[#0F8A5F]",
     busy: "bg-[#F59E0B]",
-    offline: "bg-[#9CA3AF]",
+    offline: "bg-[#55556E]",
   };
 
   return (
     <div className={cn("relative inline-flex shrink-0 select-none", className)} {...props}>
       <div
         className={cn(
-          "flex items-center justify-center overflow-hidden border border-[#E8E8E3] font-semibold tracking-tight shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+          "flex items-center justify-center overflow-hidden border border-[#E6E6F0] font-semibold tracking-tight ",
           sizeStyles[size],
           shapeStyles[shape],
           !src || imageError

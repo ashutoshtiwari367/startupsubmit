@@ -7,23 +7,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Sparkles,
-  UploadCloud,
   Check,
   CheckCircle2,
   AlertCircle,
   Image as ImageIcon,
-  ShieldCheck,
-  Globe,
-  Tag,
   DollarSign,
-  ArrowBigUp,
   X,
-  Mail,
-  FileText,
-  Clock,
   Loader2,
-  Send,
   RefreshCw,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "./Button";
 import { Navbar } from "./Navbar";
@@ -59,18 +51,21 @@ export const SOFTWARE_PRICING_OPTIONS = [
   {
     value: "free",
     label: "Free",
+    subtitle: "Fully free or open source",
     badge: "100% Free",
     description: "Completely free, open source, or free tier only. No paid plans.",
   },
   {
     value: "freemium",
     label: "Freemium",
+    subtitle: "Free tier + paid upgrades",
     badge: "Free + Paid Upgrades",
     description: "Free version with starting paid upgrades or subscription plans.",
   },
   {
-    value: "premium",
-    label: "Premium",
+    value: "paid",
+    label: "Paid",
+    subtitle: "Purchase or subscription",
     badge: "Paid Software",
     description: "Commercial software requiring paid purchase or subscription.",
   },
@@ -190,10 +185,12 @@ export const SubmitForm: React.FC = () => {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>("");
   const [logoError, setLogoError] = useState<string | null>(null);
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
 
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
   const [screenshotsError, setScreenshotsError] = useState<string | null>(null);
+  const [isDraggingScreenshots, setIsDraggingScreenshots] = useState(false);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const screenshotsInputRef = useRef<HTMLInputElement>(null);
@@ -221,10 +218,7 @@ export const SubmitForm: React.FC = () => {
     }
   }, [setValue]);
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processLogoFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
       setLogoError("Logo must be a valid image file (PNG, JPG, WebP, SVG, GIF).");
       return;
@@ -240,8 +234,13 @@ export const SubmitForm: React.FC = () => {
     setLogoError(null);
   };
 
-  const handleScreenshotsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || []);
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processLogoFile(file);
+  };
+
+  const processScreenshotsFiles = (selected: File[]) => {
     if (selected.length === 0) return;
 
     const combined = [...screenshotFiles, ...selected];
@@ -270,6 +269,11 @@ export const SubmitForm: React.FC = () => {
     if (screenshotsInputRef.current) {
       screenshotsInputRef.current.value = "";
     }
+  };
+
+  const handleScreenshotsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    processScreenshotsFiles(selected);
   };
 
   const removeScreenshot = (index: number) => {
@@ -379,7 +383,11 @@ export const SubmitForm: React.FC = () => {
         return;
       }
 
-      setSubmittedResult(data.listing);
+      setSubmittedResult({
+        ...data.listing,
+        listing_plan: data.listing?.listing_plan || values.listing_plan || "free",
+        listing_plan_price: data.listing?.listing_plan_price ?? values.listing_plan_price ?? 0,
+      });
       if (data.event?.event_name) {
         setEmittedEventName(data.event.event_name);
       }
@@ -458,7 +466,7 @@ export const SubmitForm: React.FC = () => {
           prefill: {
             email: values.submitted_by_email.trim() || orderData.userEmail || "",
           },
-          theme: { color: "#5B5BF0" },
+          theme: { color: "#4F46E5" },
           handler: async function (response: {
             razorpay_order_id: string;
             razorpay_payment_id: string;
@@ -554,37 +562,9 @@ export const SubmitForm: React.FC = () => {
   const selectedCategoryName = isOtherCategory
     ? watchedCustomCategory.trim() || "Other"
     : categories.find((c) => String(c.id) === String(watchedCategoryId))
-        ?.name || "Category";
-
-  const selectedSoftwarePricing = SOFTWARE_PRICING_OPTIONS.find(
-    (p) => p.value === watchedPricingModel
-  );
-  const selectedPricingLabel =
-    selectedSoftwarePricing?.label || watchedPricingModel;
+        ?.name || "AI";
 
   const selectedListingPlan = getPlanById(watchedListingPlan || "free");
-  const directoryPlans = getAllPlans();
-
-  const formatSoftwarePricingPreview = () => {
-    if (watchedPricingModel === "free") return "Free";
-    const periodLabel =
-      watchedBillingPeriod === "one_time"
-        ? "once"
-        : watchedBillingPeriod === "yearly"
-        ? "yr"
-        : "mo";
-    if (
-      watchedStartingPrice !== undefined &&
-      watchedStartingPrice !== null &&
-      Number(watchedStartingPrice) > 0
-    ) {
-      if (watchedPricingModel === "freemium") {
-        return `Freemium • From $${watchedStartingPrice}/${periodLabel}`;
-      }
-      return `Premium • $${watchedStartingPrice}/${periodLabel}`;
-    }
-    return watchedPricingModel === "freemium" ? "Freemium" : "Premium";
-  };
 
   const previewSlug =
     submittedResult?.slug ||
@@ -596,51 +576,36 @@ export const SubmitForm: React.FC = () => {
     "your-tool";
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#0F0F10] selection:bg-[#5B5BF0]/15 selection:text-[#5B5BF0]">
+    <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] selection:bg-[#4F46E5]/15 selection:text-[#4F46E5]">
       <Script
         src="https://checkout.razorpay.com/v1/checkout.js"
         strategy="lazyOnload"
       />
       <Navbar />
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E8E3] pb-6">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <Link
-                href="/"
-                className="text-xs font-mono text-[#66666B] hover:text-[#5B5BF0] transition-colors flex items-center gap-1 font-semibold"
-              >
-                <span>&larr; Back to Directory</span>
-              </Link>
-              <span className="text-xs text-[#E8E8E3]">•</span>
-              <span className="text-xs font-mono font-bold text-[#5B5BF0]">
-                Public Submission
-              </span>
-            </div>
-            <h1 className="font-heading font-extrabold text-2xl sm:text-3xl lg:text-4xl text-[#0F0F10] tracking-[-0.03em]">
-              Submit Your Tool
-            </h1>
-            <p className="mt-1 text-xs sm:text-sm text-[#66666B]">
-              Submit your software or AI tool without logging in. All submissions enter moderation with{" "}
-              <span className="font-mono font-bold text-[#0F0F10]">pending</span> status.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border border-[#E8E8E3] bg-white px-3.5 py-1.5 text-xs font-mono text-[#66666B] shadow-xs">
-              <ShieldCheck className="h-4 w-4 text-[#10B981]" />
-              <span>Moderated Directory</span>
-            </div>
-          </div>
+      <main className="max-w-[1240px] mx-auto px-6 py-8 sm:py-10">
+        {/* Back Link & Title Area */}
+        <div className="mb-8">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-[#55556E] hover:text-[#14142B] transition-colors"
+          >
+            <span>&larr;</span>
+            <span>Back to Directory</span>
+          </Link>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-[#14142B] tracking-tight mt-2.5">
+            Submit your tool
+          </h1>
+          <p className="text-sm sm:text-base text-[#55556E] mt-1.5">
+            Takes about 3 minutes. No login needed. Your tool goes live after a quick review.
+          </p>
         </div>
 
         {/* Server Error Banner */}
         {serverBannerError && (
           <div
             role="alert"
-            className="rounded-[12px] border border-[#FCA5A5] bg-[#FEF2F2] p-4 flex items-start gap-3 text-xs sm:text-sm text-[#DC2626]"
+            className="mb-8 rounded-xl border border-[#FCA5A5] bg-[#FEF2F2] p-4 flex items-start gap-3 text-xs sm:text-sm text-[#DC2626]"
           >
             <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
             <div className="flex-1">
@@ -650,7 +615,7 @@ export const SubmitForm: React.FC = () => {
             <button
               type="button"
               onClick={() => setServerBannerError(null)}
-              className="text-[#DC2626] hover:opacity-75"
+              className="text-[#DC2626] hover:opacity-75 cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
@@ -658,132 +623,131 @@ export const SubmitForm: React.FC = () => {
         )}
 
         {!submittedResult ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* LEFT: REACT-HOOK-FORM + ZOD FORM (7 COLS) */}
-            <form
-              onSubmit={handleSubmit(onSubmit)}
-              noValidate
-              className="lg:col-span-7 space-y-6"
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            noValidate
+            className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+          >
+            {/* Honeypot anti-spam trap (hidden from humans) */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: "-10000px",
+                top: "auto",
+                width: "1px",
+                height: "1px",
+                overflow: "hidden",
+              }}
             >
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-5">
-                <div className="border-b border-[#E8E8E3] pb-4">
-                  <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
-                    1. Tool Details
-                  </h2>
-                  <p className="text-xs sm:text-sm text-[#66666B]">
-                    All fields below are validated client-side and verified on the server.
-                  </p>
-                </div>
+              <label htmlFor="field-company-website-hp">Leave this field empty</label>
+              <input
+                id="field-company-website-hp"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                {...register("company_website_hp")}
+              />
+            </div>
 
-                {/* Honeypot anti-spam trap (hidden from real humans) */}
-                <div
-                  aria-hidden="true"
-                  style={{
-                    position: "absolute",
-                    left: "-10000px",
-                    top: "auto",
-                    width: "1px",
-                    height: "1px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <label htmlFor="field-company-website-hp">
-                    Leave this field empty
-                  </label>
-                  <input
-                    id="field-company-website-hp"
-                    type="text"
-                    tabIndex={-1}
-                    autoComplete="off"
-                    {...register("company_website_hp")}
-                  />
-                </div>
-
-                {/* 1. Name */}
-                <div>
-                  <label
-                    htmlFor="field-name"
-                    className="block text-xs font-bold text-[#0F0F10] mb-1.5"
-                  >
-                    Tool Name <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <input
-                    id="field-name"
-                    type="text"
-                    placeholder="e.g. WritePro"
-                    {...register("name")}
-                    className={`w-full h-10 rounded-[10px] border bg-white px-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
-                      errors.name
-                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
-                    }`}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                      {errors.name.message}
-                    </p>
-                  )}
-                </div>
-
-                {/* 2. Category (Moved BEFORE Website URL, includes 'Other' option) */}
-                <div>
-                  <label
-                    htmlFor="field-category"
-                    className="block text-xs font-bold text-[#0F0F10] mb-1.5"
-                  >
-                    Category <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="field-category"
-                      disabled={loadingCategories}
-                      {...register("category_id")}
-                      className={`w-full h-10 appearance-none rounded-[10px] border bg-white px-3.5 text-sm font-medium text-[#0F0F10] focus:outline-none ${
-                        errors.category_id
-                          ? "border-[#DC2626]"
-                          : "border-[#E8E8E3] focus:border-[#5B5BF0]"
-                      }`}
-                    >
-                      {loadingCategories ? (
-                        <option value="">Loading categories...</option>
-                      ) : (
-                        <>
-                          {categories.map((cat) => (
-                            <option key={cat.id} value={String(cat.id)}>
-                              {cat.name}
-                            </option>
-                          ))}
-                          <option value="other">
-                            Other (Specify custom category)
-                          </option>
-                        </>
-                      )}
-                    </select>
-                    <Tag className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
+            {/* LEFT COLUMN: 3 NUMBERED SECTIONS (8 COLS) */}
+            <div className="lg:col-span-8 space-y-6">
+              {/* SECTION 1: TOOL DETAILS */}
+              <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-7 space-y-5">
+                <div className="flex items-start gap-3.5 pb-2">
+                  <div className="h-6 w-6 rounded-full bg-[#14142B] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    1
                   </div>
-                  {categoriesError && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                      {categoriesError}
+                  <div>
+                    <h2 className="text-lg font-bold text-[#14142B] leading-tight">
+                      Tool details
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[#55556E] mt-0.5">
+                      The basics people see first.
                     </p>
-                  )}
-                  {errors.category_id && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
-                      {errors.category_id.message}
-                    </p>
-                  )}
+                  </div>
+                </div>
+
+                {/* Row 1: Tool name & Category */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label
+                      htmlFor="field-name"
+                      className="block text-xs font-semibold text-[#14142B] mb-1.5"
+                    >
+                      Tool name <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <input
+                      id="field-name"
+                      type="text"
+                      placeholder="e.g. WritePro"
+                      {...register("name")}
+                      className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
+                        errors.name
+                          ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                          : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                      }`}
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-xs text-[#DC2626]">{errors.name.message}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="field-category"
+                      className="block text-xs font-semibold text-[#14142B] mb-1.5"
+                    >
+                      Category <span className="text-[#DC2626]">*</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        id="field-category"
+                        disabled={loadingCategories}
+                        {...register("category_id")}
+                        className={`w-full h-11 appearance-none rounded-xl border bg-white px-3.5 pr-10 text-sm font-medium text-[#14142B] focus:outline-none transition-all cursor-pointer ${
+                          errors.category_id
+                            ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                            : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                        }`}
+                      >
+                        {loadingCategories ? (
+                          <option value="">Loading categories...</option>
+                        ) : (
+                          <>
+                            {categories.map((cat) => (
+                              <option key={cat.id} value={String(cat.id)}>
+                                {cat.name}
+                              </option>
+                            ))}
+                            <option value="other">Other (Specify custom category)</option>
+                          </>
+                        )}
+                      </select>
+                      <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E] pointer-events-none" />
+                    </div>
+                    {categoriesError && (
+                      <p className="mt-1 text-xs text-[#DC2626]">{categoriesError}</p>
+                    )}
+                    {errors.category_id && (
+                      <p className="mt-1 text-xs text-[#DC2626]">
+                        {errors.category_id.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Conditional Custom Category Field when "Other" is selected */}
                 {isOtherCategory && (
-                  <div className="rounded-[12px] border border-[#5B5BF0]/30 bg-[#EEF0FE]/40 p-4 space-y-2">
+                  <div className="rounded-xl border border-[#4F46E5]/25 bg-[#F7F6FF]/30 p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <label
                         htmlFor="field-custom-category"
-                        className="block text-xs font-bold text-[#0F0F10]"
+                        className="block text-xs font-semibold text-[#14142B]"
                       >
                         Specify Other Category <span className="text-[#DC2626]">*</span>
                       </label>
-                      <span className="text-xs font-mono font-semibold text-[#66666B]">
+                      <span className="text-xs font-mono text-[#55556E]">
                         {watchedCustomCategory.length}/{SUBMIT_LIMITS.CUSTOM_CATEGORY_MAX}
                       </span>
                     </div>
@@ -793,224 +757,199 @@ export const SubmitForm: React.FC = () => {
                       autoFocus
                       placeholder="e.g. Cybersecurity, LegalTech, Web3, HR Tech"
                       {...register("custom_category")}
-                      className={`w-full h-10 rounded-[10px] border bg-white px-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                      className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
                         errors.custom_category
                           ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                          : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                          : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
                       }`}
                     />
                     {errors.custom_category && (
-                      <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                      <p className="mt-1 text-xs text-[#DC2626]">
                         {errors.custom_category.message}
                       </p>
                     )}
                   </div>
                 )}
 
-                {/* 3. Website URL (Required for standard categories; optional when 'Other' is selected) */}
+                {/* Row 2: Website URL */}
                 <div>
                   <label
                     htmlFor="field-website-url"
-                    className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                    className="block text-xs font-semibold text-[#14142B] mb-1.5"
                   >
-                    Website URL (HTTPS Only){" "}
+                    Website URL{" "}
                     {isOtherCategory ? (
-                      <span className="text-xs font-normal text-[#66666B]">(Optional)</span>
+                      <span className="text-[#55556E] font-normal">(Optional)</span>
                     ) : (
                       <span className="text-[#DC2626]">*</span>
                     )}
                   </label>
-                  <div className="relative">
-                    <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
-                    <input
-                      id="field-website-url"
-                      type="url"
-                      placeholder="https://writepro.ai"
-                      {...register("website_url")}
-                      className={`w-full h-10 rounded-[10px] border bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
-                        errors.website_url
-                          ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                          : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
-                      }`}
-                    />
-                  </div>
+                  <input
+                    id="field-website-url"
+                    type="url"
+                    placeholder="https://writepro.ai"
+                    {...register("website_url")}
+                    className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
+                      errors.website_url
+                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                        : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                    }`}
+                  />
                   {errors.website_url && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                    <p className="mt-1 text-xs text-[#DC2626]">
                       {errors.website_url.message}
                     </p>
                   )}
                 </div>
 
-                {/* 4. Tagline (60 chars limit) */}
+                {/* Row 3: Tagline */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label
                       htmlFor="field-tagline"
-                      className="text-xs font-bold text-[#0F0F10]"
+                      className="text-xs font-semibold text-[#14142B]"
                     >
                       Tagline <span className="text-[#DC2626]">*</span>
                     </label>
-                    <span
-                      className={`text-xs font-mono font-semibold ${
-                        watchedTagline.length > SUBMIT_LIMITS.TAGLINE_MAX
-                          ? "text-[#DC2626]"
-                          : watchedTagline.length > 50
-                          ? "text-[#EA580C]"
-                          : "text-[#8E8E93]"
-                      }`}
-                    >
+                    <span className="text-xs text-[#55556E] font-mono">
                       {watchedTagline.length}/{SUBMIT_LIMITS.TAGLINE_MAX}
                     </span>
                   </div>
                   <input
                     id="field-tagline"
                     type="text"
-                    placeholder="Short headline (max 60 characters)"
+                    placeholder="One line that explains what it does"
                     {...register("tagline")}
-                    className={`w-full h-10 rounded-[10px] border bg-white px-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                    className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
                       errors.tagline
                         ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                        : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
                     }`}
                   />
                   {errors.tagline && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                    <p className="mt-1 text-xs text-[#DC2626]">
                       {errors.tagline.message}
                     </p>
                   )}
                 </div>
 
-                {/* 5. Short Description (250 chars limit) */}
+                {/* Row 4: Short description */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label
                       htmlFor="field-description-short"
-                      className="text-xs font-bold text-[#0F0F10]"
+                      className="text-xs font-semibold text-[#14142B]"
                     >
-                      Short Description <span className="text-[#DC2626]">*</span>
+                      Short description <span className="text-[#DC2626]">*</span>
                     </label>
-                    <span
-                      className={`text-xs font-mono font-semibold ${
-                        watchedShortDesc.length > SUBMIT_LIMITS.SHORT_DESC_MAX
-                          ? "text-[#DC2626]"
-                          : watchedShortDesc.length > 220
-                          ? "text-[#EA580C]"
-                          : "text-[#8E8E93]"
-                      }`}
-                    >
+                    <span className="text-xs text-[#55556E] font-mono">
                       {watchedShortDesc.length}/{SUBMIT_LIMITS.SHORT_DESC_MAX}
                     </span>
                   </div>
                   <textarea
                     id="field-description-short"
-                    rows={2}
-                    placeholder="Brief introduction (max 250 characters)..."
+                    rows={3}
+                    placeholder="Shown on the directory card"
                     {...register("description_short")}
-                    className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                    className={`w-full rounded-xl border bg-white p-3.5 text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all min-h-[88px] resize-y ${
                       errors.description_short
                         ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                        : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
                     }`}
                   />
                   {errors.description_short && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                    <p className="mt-1 text-xs text-[#DC2626]">
                       {errors.description_short.message}
                     </p>
                   )}
                 </div>
 
-                {/* 6. Long Description (2000 chars limit) */}
+                {/* Row 5: Long description */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label
                       htmlFor="field-description-long"
-                      className="text-xs font-bold text-[#0F0F10]"
+                      className="text-xs font-semibold text-[#14142B]"
                     >
-                      Long Description <span className="text-[#DC2626]">*</span>
+                      Long description <span className="text-[#DC2626]">*</span>
                     </label>
-                    <span
-                      className={`text-xs font-mono font-semibold ${
-                        watchedLongDesc.length > SUBMIT_LIMITS.LONG_DESC_MAX
-                          ? "text-[#DC2626]"
-                          : watchedLongDesc.length > 1800
-                          ? "text-[#EA580C]"
-                          : "text-[#8E8E93]"
-                      }`}
-                    >
+                    <span className="text-xs text-[#55556E] font-mono">
                       {watchedLongDesc.length}/{SUBMIT_LIMITS.LONG_DESC_MAX}
                     </span>
                   </div>
                   <textarea
                     id="field-description-long"
                     rows={5}
-                    placeholder="Complete tool details, features, and use cases (max 2,000 characters)..."
+                    placeholder="Features, use cases, who it is for"
                     {...register("description_long")}
-                    className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                    className={`w-full rounded-xl border bg-white p-3.5 text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all min-h-[140px] resize-y ${
                       errors.description_long
                         ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                        : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                        : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
                     }`}
                   />
                   {errors.description_long && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                    <p className="mt-1 text-xs text-[#DC2626]">
                       {errors.description_long.message}
                     </p>
                   )}
                 </div>
 
-                {/* Submitter Email */}
-                <div className="border-t border-[#E8E8E3] pt-4">
+                {/* Row 6: Your email */}
+                <div>
                   <label
                     htmlFor="field-email"
-                    className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                    className="block text-xs font-semibold text-[#14142B] mb-1.5"
                   >
-                    Submitter Email <span className="text-[#DC2626]">*</span>
+                    Your email <span className="text-[#DC2626]">*</span>
                   </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
-                    <input
-                      id="field-email"
-                      type="email"
-                      placeholder="maker@writepro.ai"
-                      {...register("submitted_by_email")}
-                      className={`w-full h-10 rounded-[10px] border bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
-                        errors.submitted_by_email
-                          ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                          : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
-                      }`}
-                    />
-                  </div>
+                  <input
+                    id="field-email"
+                    type="email"
+                    placeholder="maker@writepro.ai"
+                    {...register("submitted_by_email")}
+                    className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
+                      errors.submitted_by_email
+                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                        : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                    }`}
+                  />
+                  <p className="mt-1.5 text-xs text-[#55556E]">
+                    Only used for review updates. Never shown publicly.
+                  </p>
                   {errors.submitted_by_email && (
-                    <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                    <p className="mt-1 text-xs text-[#DC2626]">
                       {errors.submitted_by_email.message}
                     </p>
                   )}
                 </div>
               </div>
 
-              {/* SECTION 2: SOFTWARE PRICING MODEL */}
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-5">
-                <div className="border-b border-[#E8E8E3] pb-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
-                      2. Software Pricing
-                    </h2>
-                    <span className="text-[11px] font-mono font-bold text-[#10B981] bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-0.5 rounded-full">
-                      Descriptive Only • No Fee
-                    </span>
+              {/* SECTION 2: HOW IS YOUR TOOL PRICED? */}
+              <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-7 space-y-5">
+                <span className="sr-only">Software Pricing</span>
+                <div className="flex items-start gap-3.5 pb-2">
+                  <div className="h-6 w-6 rounded-full bg-[#14142B] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    2
                   </div>
-                  <p className="text-xs sm:text-sm text-[#66666B] mt-1">
-                    Describe how your software or AI tool is priced. This does <strong>not</strong> charge you and does not trigger checkout.
-                  </p>
+                  <div>
+                    <h2 className="text-lg font-bold text-[#14142B] leading-tight">
+                      How is your tool priced?
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[#55556E] mt-0.5">
+                      Just a label for visitors. No payment happens here.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Software Pricing Model Cards (Free, Freemium, Premium) */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Segmented radio tabs matching the design */}
+                <div className="rounded-2xl border border-[#E6E6F0] bg-[#F1F1F8]/70 p-1.5 grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                   {SOFTWARE_PRICING_OPTIONS.map((opt) => {
                     const isSelected = watchedPricingModel === opt.value;
                     return (
-                      <div
+                      <button
                         key={opt.value}
+                        type="button"
                         onClick={() => {
                           setValue("pricing_model", opt.value, {
                             shouldValidate: true,
@@ -1021,54 +960,37 @@ export const SubmitForm: React.FC = () => {
                             });
                           }
                         }}
-                        className={`cursor-pointer rounded-[14px] p-4 border transition-all text-left flex flex-col justify-between ${
+                        className={`py-3 px-4 rounded-xl text-center transition-all cursor-pointer ${
                           isSelected
-                            ? "border-[#5B5BF0] bg-[#EEF0FE]/40 ring-2 ring-[#5B5BF0]/20 shadow-xs"
-                            : "border-[#E8E8E3] bg-white hover:border-[#D5D5CE] hover:bg-[#FAFAF7]"
+                            ? "bg-white text-[#14142B]  border border-[#E6E6F0]"
+                            : "text-[#55556E] hover:text-[#14142B] hover:bg-white/60 border border-transparent"
                         }`}
                       >
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between">
-                            <span className="font-heading font-extrabold text-sm text-[#0F0F10]">
-                              {opt.label}
-                            </span>
-                            <span
-                              className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                                isSelected
-                                  ? "border-[#5B5BF0] bg-[#5B5BF0] text-white"
-                                  : "border-[#D5D5CE] bg-white"
-                              }`}
-                            >
-                              {isSelected && <Check className="h-2.5 w-2.5 stroke-[3]" />}
-                            </span>
-                          </div>
-                          <span className="inline-block text-[10px] font-mono font-bold text-[#5B5BF0] uppercase tracking-wider">
-                            {opt.badge}
-                          </span>
-                          <p className="text-xs text-[#66666B] leading-relaxed">
-                            {opt.description}
-                          </p>
+                        <div className="font-bold text-sm leading-snug">{opt.label}</div>
+                        <div className="text-[11px] text-[#55556E] mt-0.5 leading-snug">
+                          {opt.subtitle}
                         </div>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
                 {errors.pricing_model && (
-                  <p className="text-xs font-medium text-[#DC2626]">
+                  <p className="text-xs text-[#DC2626] font-medium">
                     {errors.pricing_model.message}
                   </p>
                 )}
 
-                {/* Conditional Pricing Fields for Freemium and Premium */}
+                {/* Conditional fields for Freemium and Paid */}
                 {(watchedPricingModel === "freemium" ||
+                  watchedPricingModel === "paid" ||
                   watchedPricingModel === "premium") && (
-                  <div className="rounded-[12px] border border-[#5B5BF0]/25 bg-[#EEF0FE]/30 p-4 sm:p-5 space-y-4 animate-in fade-in-50 duration-200">
-                    <div className="flex items-center gap-2 text-xs font-bold text-[#0F0F10]">
-                      <DollarSign className="h-4 w-4 text-[#5B5BF0]" />
+                  <div className="rounded-xl border border-[#4F46E5]/25 bg-[#F7F6FF]/25 p-4 sm:p-5 space-y-4 animate-in fade-in-50 duration-200">
+                    <div className="flex items-center gap-2 text-xs font-bold text-[#14142B]">
+                      <DollarSign className="h-4 w-4 text-[#4F46E5]" />
                       <span>
                         {watchedPricingModel === "freemium"
                           ? "Freemium Pricing Details"
-                          : "Premium Software Pricing Details"}
+                          : "Paid Software Pricing Details"}
                       </span>
                     </div>
 
@@ -1077,7 +999,7 @@ export const SubmitForm: React.FC = () => {
                       <div>
                         <label
                           htmlFor="field-starting-price"
-                          className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                          className="block text-xs font-semibold text-[#14142B] mb-1.5"
                         >
                           {watchedPricingModel === "freemium"
                             ? "Starting Paid-Plan Price (USD $)"
@@ -1085,7 +1007,7 @@ export const SubmitForm: React.FC = () => {
                           <span className="text-[#DC2626]">*</span>
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[#66666B]">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#55556E]">
                             $
                           </span>
                           <input
@@ -1095,15 +1017,15 @@ export const SubmitForm: React.FC = () => {
                             step="any"
                             placeholder="e.g. 29"
                             {...register("starting_price")}
-                            className={`w-full h-10 rounded-[10px] border bg-white pl-8 pr-3.5 text-sm font-medium text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                            className={`w-full h-11 rounded-xl border bg-white pl-8 pr-3.5 text-sm font-medium text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
                               errors.starting_price
                                 ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                                : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                                : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
                             }`}
                           />
                         </div>
                         {errors.starting_price && (
-                          <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                          <p className="mt-1 text-xs text-[#DC2626]">
                             {errors.starting_price.message}
                           </p>
                         )}
@@ -1113,39 +1035,41 @@ export const SubmitForm: React.FC = () => {
                       <div>
                         <label
                           htmlFor="field-billing-period"
-                          className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                          className="block text-xs font-semibold text-[#14142B] mb-1.5"
                         >
                           Billing Period <span className="text-[#DC2626]">*</span>
                         </label>
-                        <select
-                          id="field-billing-period"
-                          {...register("billing_period")}
-                          className={`w-full h-10 appearance-none rounded-[10px] border bg-white px-3.5 text-sm font-medium text-[#0F0F10] focus:outline-none ${
-                            errors.billing_period
-                              ? "border-[#DC2626]"
-                              : "border-[#E8E8E3] focus:border-[#5B5BF0]"
-                          }`}
-                        >
-                          {BILLING_PERIOD_OPTIONS.map((b) => (
-                            <option key={b.value} value={b.value}>
-                              {b.label}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="relative">
+                          <select
+                            id="field-billing-period"
+                            {...register("billing_period")}
+                            className={`w-full h-11 appearance-none rounded-xl border bg-white px-3.5 pr-10 text-sm font-medium text-[#14142B] focus:outline-none transition-all cursor-pointer ${
+                              errors.billing_period
+                                ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
+                                : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
+                            }`}
+                          >
+                            {BILLING_PERIOD_OPTIONS.map((b) => (
+                              <option key={b.value} value={b.value}>
+                                {b.label}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E] pointer-events-none" />
+                        </div>
                         {errors.billing_period && (
-                          <p className="mt-1 text-xs font-medium text-[#DC2626]">
+                          <p className="mt-1 text-xs text-[#DC2626]">
                             {errors.billing_period.message}
                           </p>
                         )}
                       </div>
                     </div>
 
-                    {/* Example helper display */}
-                    <div className="rounded-[8px] bg-white border border-[#D5D8FC] px-3.5 py-2 text-xs text-[#5B5BF0] font-mono flex items-center gap-2">
+                    <div className="rounded-lg bg-white border border-[#E0DEFC] px-3.5 py-2 text-xs text-[#4F46E5] font-mono flex items-center gap-2">
                       <Sparkles className="h-3.5 w-3.5 shrink-0" />
                       <span>
                         Example:{" "}
-                        <strong className="text-[#0F0F10]">
+                        <strong className="text-[#14142B]">
                           {watchedPricingModel === "freemium"
                             ? `Freemium software – Starting at $${watchedStartingPrice || 29}/${
                                 watchedBillingPeriod === "one_time"
@@ -1154,7 +1078,7 @@ export const SubmitForm: React.FC = () => {
                                   ? "year"
                                   : "month"
                               }`
-                            : `Premium software – $${watchedStartingPrice || 49}/${
+                            : `Paid software – $${watchedStartingPrice || 49}/${
                                 watchedBillingPeriod === "one_time"
                                   ? "once"
                                   : watchedBillingPeriod === "yearly"
@@ -1168,172 +1092,113 @@ export const SubmitForm: React.FC = () => {
                 )}
               </div>
 
-              {/* SECTION 3: CHOOSE YOUR LISTING PLAN (DIRECTORY MONETIZATION) */}
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-5">
-                <div className="border-b border-[#E8E8E3] pb-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
-                      3. Choose Your Listing Plan
-                    </h2>
-                    <span className="text-[11px] font-mono font-bold text-[#5B5BF0] bg-[#EEF0FE] border border-[#D5D8FC] px-2.5 py-0.5 rounded-full">
-                      Directory Monetization
-                    </span>
+              {/* SECTION 3: LOGO AND SCREENSHOTS */}
+              <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-7 space-y-6">
+                <div className="flex items-start gap-3.5 pb-2">
+                  <div className="h-6 w-6 rounded-full bg-[#14142B] text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    3
                   </div>
-                  <p className="text-xs sm:text-sm text-[#66666B] mt-1">
-                    Choose how you want your product launched on LaunchOS. Free Listing is 100% free with no payment required. Paid plans fast-track your launch.
-                  </p>
+                  <div>
+                    <h2 className="text-lg font-bold text-[#14142B] leading-tight">
+                      Logo and screenshots
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[#55556E] mt-0.5">
+                      A clear logo and 2 to 3 screenshots get more views and engagement.
+                    </p>
+                  </div>
                 </div>
 
-                {/* Plan cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  {directoryPlans.map((plan) => {
-                    const isSelected = watchedListingPlan === plan.id;
-                    return (
-                      <div
-                        key={plan.id}
-                        onClick={() => {
-                          setValue("listing_plan", plan.id as any, {
-                            shouldValidate: true,
-                          });
-                          setValue("listing_plan_price", plan.price, {
-                            shouldValidate: true,
-                          });
-                        }}
-                        className={`cursor-pointer rounded-[14px] p-4 sm:p-5 border transition-all text-left flex flex-col justify-between relative ${
-                          isSelected
-                            ? "border-[#5B5BF0] bg-[#EEF0FE]/40 ring-2 ring-[#5B5BF0]/20 shadow-xs"
-                            : "border-[#E8E8E3] bg-white hover:border-[#D5D5CE] hover:bg-[#FAFAF7]"
-                        }`}
-                      >
-                        {plan.popular && (
-                          <span className="absolute -top-2.5 right-3 bg-[#5B5BF0] text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full shadow-xs">
-                            POPULAR
-                          </span>
-                        )}
-
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-heading font-extrabold text-sm text-[#0F0F10]">
-                              {plan.name}
-                            </span>
-                            <span
-                              className={`h-4 w-4 rounded-full border flex items-center justify-center ${
-                                isSelected
-                                  ? "border-[#5B5BF0] bg-[#5B5BF0] text-white"
-                                  : "border-[#D5D5CE] bg-white"
-                              }`}
-                            >
-                              {isSelected && <Check className="h-2.5 w-2.5 stroke-[3]" />}
-                            </span>
-                          </div>
-
-                          <div className="flex items-baseline gap-1">
-                            <span className="font-heading font-black text-2xl text-[#0F0F10]">
-                              {plan.formattedPrice}
-                            </span>
-                            <span className="text-[11px] font-mono text-[#8E8E93]">
-                              / {plan.period}
-                            </span>
-                          </div>
-
-                          <span className="inline-block rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-mono font-semibold text-[#66666B]">
-                            {plan.reviewSla}
-                          </span>
-
-                          <p className="text-xs text-[#66666B] leading-relaxed line-clamp-2">
-                            {plan.description}
-                          </p>
-
-                          <ul className="pt-2 border-t border-[#E8E8E3]/60 space-y-1.5 text-[11px] text-[#47474F]">
-                            {plan.features.slice(0, 3).map((feat, fIdx) => (
-                              <li key={fIdx} className="flex items-start gap-1.5">
-                                <Check className="h-3 w-3 text-[#10B981] shrink-0 mt-0.5" />
-                                <span className="line-clamp-1">{feat}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="rounded-[10px] bg-[#FAFAF7] border border-[#E8E8E3] p-3 text-xs text-[#66666B] flex items-center gap-2">
-                  <ShieldCheck className="h-4 w-4 text-[#10B981] shrink-0" />
-                  <span>
-                    <strong>Business Logic Guarantee:</strong> Software pricing above describes your product to buyers and never triggers a charge. Only choosing <strong>Premium ($29)</strong> or <strong>Featured ($49)</strong> initiates checkout.
-                  </span>
-                </div>
-              </div>
-
-              {/* MEDIA SECTION: LOGO + SCREENSHOTS (MAX 5) */}
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-6">
-                <div className="border-b border-[#E8E8E3] pb-4">
-                  <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
-                    4. Logo & Screenshots
-                  </h2>
-                  <p className="text-xs sm:text-sm text-[#66666B]">
-                    Upload your required tool logo and up to 5 product screenshots.
-                  </p>
-                </div>
-
-                {/* Logo Input */}
+                {/* Tool logo dropzone */}
                 <div>
-                  <label className="block text-xs font-bold text-[#0F0F10] mb-2">
-                    Tool Logo <span className="text-[#DC2626]">*</span>
+                  <label className="block text-xs font-semibold text-[#14142B] mb-2">
+                    Tool logo <span className="text-[#DC2626]">*</span>
                   </label>
                   <input
                     ref={logoInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
                     onChange={handleLogoChange}
                     className="hidden"
                   />
-                  <div className="flex items-center gap-4">
-                    <div className="h-16 w-16 rounded-[12px] border border-[#E8E8E3] bg-[#FAFAF7] overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
-                      {logoPreview ? (
+
+                  {logoPreview ? (
+                    <div className="flex items-center gap-4 p-4 rounded-xl border border-[#E6E6F0] bg-[#F6F6FB]">
+                      <div className="h-16 w-16 rounded-xl border border-[#E6E6F0] bg-white overflow-hidden shrink-0 flex items-center justify-center">
                         <img
                           src={logoPreview}
                           alt="Logo preview"
                           className="h-full w-full object-cover"
                         />
-                      ) : (
-                        <ImageIcon className="h-6 w-6 text-[#8E8E93]" />
-                      )}
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-sm font-semibold text-[#14142B] block">
+                          {logoFile ? logoFile.name : "Tool logo"}
+                        </span>
+                        <div className="flex items-center gap-3 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => logoInputRef.current?.click()}
+                            className="text-[#4F46E5] hover:underline font-medium cursor-pointer"
+                          >
+                            Change logo
+                          </button>
+                          <span className="text-[#D4D4E4]">•</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLogoFile(null);
+                              setLogoPreview("");
+                            }}
+                            className="text-[#DC2626] hover:underline font-medium cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
                     </div>
-
+                  ) : (
                     <div
                       onClick={() => logoInputRef.current?.click()}
-                      className={`w-full rounded-[12px] border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDraggingLogo(true);
+                      }}
+                      onDragLeave={() => setIsDraggingLogo(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingLogo(false);
+                        const file = e.dataTransfer.files?.[0];
+                        if (file) processLogoFile(file);
+                      }}
+                      className={`w-full rounded-2xl border-2 border-dashed py-8 px-4 text-center cursor-pointer transition-colors ${
                         logoError
                           ? "border-[#DC2626] bg-[#FEF2F2]"
-                          : "border-[#D5D5CE] hover:border-[#5B5BF0] bg-[#FAFAF7]"
+                          : isDraggingLogo
+                          ? "border-[#4F46E5] bg-[#F7F6FF]/40"
+                          : "border-[#D4D4E4] bg-[#F6F6FB] hover:bg-[#F1F1F8] hover:border-[#55556E]"
                       }`}
                     >
-                      <UploadCloud className="h-5 w-5 text-[#5B5BF0] mx-auto mb-1" />
-                      <span className="text-xs font-semibold text-[#0F0F10] block">
-                        {logoFile ? logoFile.name : "Click to upload tool logo"}
+                      <span className="text-sm font-semibold text-[#14142B] block mb-1">
+                        Click or drop to upload
                       </span>
-                      <span className="text-[10px] text-[#8E8E93]">
-                        PNG, JPG, SVG, WebP or GIF (Max 5MB)
+                      <span className="text-xs text-[#55556E] block">
+                        PNG, JPG, SVG, WebP, GIF · max 5MB
                       </span>
                     </div>
-                  </div>
+                  )}
                   {logoError && (
-                    <p className="mt-1.5 text-xs font-medium text-[#DC2626]">
-                      {logoError}
-                    </p>
+                    <p className="mt-1.5 text-xs text-[#DC2626]">{logoError}</p>
                   )}
                 </div>
 
-                {/* Screenshots Input (Max 5) */}
+                {/* Screenshots dropzone */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-[#0F0F10]">
-                      Screenshots (Maximum {SUBMIT_LIMITS.MAX_SCREENSHOTS})
+                    <label className="text-xs font-semibold text-[#14142B]">
+                      Screenshots
                     </label>
-                    <span className="text-xs font-mono font-semibold text-[#66666B]">
-                      {screenshotFiles.length}/{SUBMIT_LIMITS.MAX_SCREENSHOTS} selected
+                    <span className="text-xs text-[#55556E] font-mono">
+                      {screenshotFiles.length}/5
                     </span>
                   </div>
 
@@ -1349,27 +1214,36 @@ export const SubmitForm: React.FC = () => {
                   {screenshotFiles.length < SUBMIT_LIMITS.MAX_SCREENSHOTS && (
                     <div
                       onClick={() => screenshotsInputRef.current?.click()}
-                      className={`rounded-[12px] border-2 border-dashed p-5 text-center cursor-pointer transition-colors ${
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setIsDraggingScreenshots(true);
+                      }}
+                      onDragLeave={() => setIsDraggingScreenshots(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setIsDraggingScreenshots(false);
+                        const files = Array.from(e.dataTransfer.files || []);
+                        if (files.length) processScreenshotsFiles(files);
+                      }}
+                      className={`w-full rounded-2xl border-2 border-dashed py-8 px-4 text-center cursor-pointer transition-colors ${
                         screenshotsError
                           ? "border-[#DC2626] bg-[#FEF2F2]"
-                          : "border-[#D5D5CE] hover:border-[#5B5BF0] bg-[#FAFAF7]"
+                          : isDraggingScreenshots
+                          ? "border-[#4F46E5] bg-[#F7F6FF]/40"
+                          : "border-[#D4D4E4] bg-[#F6F6FB] hover:bg-[#F1F1F8] hover:border-[#55556E]"
                       }`}
                     >
-                      <UploadCloud className="h-6 w-6 text-[#5B5BF0] mx-auto mb-1" />
-                      <span className="text-xs font-bold text-[#0F0F10] block">
-                        Click to add screenshots (
-                        {SUBMIT_LIMITS.MAX_SCREENSHOTS - screenshotFiles.length} remaining)
+                      <span className="text-sm font-semibold text-[#14142B] block mb-1">
+                        Add up to 5 screenshots
                       </span>
-                      <span className="text-[11px] text-[#8E8E93]">
-                        Up to 5 images showing your tool interface
+                      <span className="text-xs text-[#55556E] block">
+                        Show your tool&apos;s interface
                       </span>
                     </div>
                   )}
 
                   {screenshotsError && (
-                    <p className="mt-1.5 text-xs font-medium text-[#DC2626]">
-                      {screenshotsError}
-                    </p>
+                    <p className="mt-1.5 text-xs text-[#DC2626]">{screenshotsError}</p>
                   )}
 
                   {screenshotPreviews.length > 0 && (
@@ -1377,7 +1251,7 @@ export const SubmitForm: React.FC = () => {
                       {screenshotPreviews.map((src, idx) => (
                         <div
                           key={idx}
-                          className="relative group rounded-[10px] border border-[#E8E8E3] overflow-hidden bg-[#FAFAF7] aspect-video"
+                          className="relative group rounded-xl border border-[#E6E6F0] overflow-hidden bg-[#F6F6FB] aspect-video"
                         >
                           <img
                             src={src}
@@ -1387,196 +1261,332 @@ export const SubmitForm: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => removeScreenshot(idx)}
-                            className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-[#0F0F10]/80 text-white flex items-center justify-center hover:bg-[#DC2626] transition-colors"
+                            className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-[#14142B]/80 text-white flex items-center justify-center hover:bg-[#DC2626] transition-colors cursor-pointer"
                             title="Remove screenshot"
                           >
                             <X className="h-3.5 w-3.5" />
                           </button>
-                          <span className="absolute bottom-1.5 left-1.5 rounded bg-[#0F0F10]/70 px-1.5 py-0.5 text-[10px] font-mono text-white">
-                            #{idx + 1}
-                          </span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
-
-                <div className="rounded-[10px] bg-[#EEF0FE]/60 border border-[#D5D8FC] p-3.5 text-xs text-[#47474F] flex items-center gap-2.5">
-                  <Clock className="h-4 w-4 text-[#5B5BF0] shrink-0" />
-                  <span>
-                    Submitting saves your tool with <strong>pending</strong> status. It will appear publicly only after admin approval.
-                  </span>
-                </div>
-
-                {/* Submit Action Bar */}
-                <div className="flex items-center justify-between pt-2">
-                  <Link href="/">
-                    <Button type="button" variant="ghost" size="md">
-                      Cancel
-                    </Button>
-                  </Link>
-
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="md"
-                    disabled={isSubmitting || isPaymentProcessing}
-                    rightIcon={
-                      isSubmitting || isPaymentProcessing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Send className="h-4 w-4" />
-                      )
-                    }
-                    className="font-bold shadow-[0_2px_10px_rgba(91,91,240,0.25)]"
-                  >
-                    {isPaymentProcessing
-                      ? "Processing Payment..."
-                      : isSubmitting
-                        ? "Submitting..."
-                        : selectedListingPlan && selectedListingPlan.price > 0
-                          ? `Pay ${selectedListingPlan.formattedPrice} & Submit Tool`
-                          : "Submit Tool for Free"}
-                  </Button>
-                </div>
-              </div>
-            </form>
-
-            {/* RIGHT: LIVE PREVIEW CARD (5 COLS) */}
-            <div className="lg:col-span-5 sticky top-24 space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#8E8E93]">
-                  Live Directory Card Preview
-                </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-[#10B981]">
-                  <span className="h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
-                  Real-time
-                </span>
-              </div>
-
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-5 sm:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.06)] space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="h-12 w-12 rounded-[12px] bg-linear-to-br from-[#EEF0FE] to-[#D5D8FC] border border-[#D5D8FC] overflow-hidden shrink-0 flex items-center justify-center font-heading font-extrabold text-base text-[#5B5BF0] shadow-xs">
-                      {logoPreview ? (
-                        <img
-                          src={logoPreview}
-                          alt={watchedName || "Logo"}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        (watchedName || "TL").slice(0, 2).toUpperCase()
-                      )}
-                    </div>
-
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-heading font-extrabold text-base sm:text-lg text-[#0F0F10] tracking-tight">
-                          {watchedName || "Your Tool Name"}
-                        </h3>
-                        <span className="rounded-full bg-[#FEF3C7] text-[#D97706] px-2 py-0.5 text-[10px] font-mono font-bold">
-                          pending
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-[#8E8E93]">
-                        <span className="font-mono text-[11px] text-[#5B5BF0]">
-                          /{previewSlug}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center justify-center rounded-[10px] border border-[#E8E8E3] bg-[#FAFAF7] px-3 py-1.5 shadow-xs">
-                    <ArrowBigUp className="h-4 w-4 text-[#5B5BF0] fill-current" />
-                    <span className="font-mono text-xs font-bold text-[#0F0F10]">1</span>
-                  </div>
-                </div>
-
-                <p className="text-xs sm:text-sm font-medium text-[#0F0F10] line-clamp-2 leading-relaxed">
-                  {watchedTagline || "Your 60-character tagline will appear here..."}
-                </p>
-
-                {watchedShortDesc && (
-                  <p className="text-xs text-[#66666B] line-clamp-3 leading-relaxed">
-                    {watchedShortDesc}
-                  </p>
-                )}
-
-                {screenshotPreviews.length > 0 && (
-                  <div className="h-28 w-full rounded-[8px] overflow-hidden border border-[#E8E8E3] bg-[#FAFAF7]">
-                    <img
-                      src={screenshotPreviews[0]}
-                      alt="Screenshot preview"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                )}
-
-                <div className="pt-3 border-t border-[#E8E8E3]/60 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-semibold text-[#66666B]">
-                      {selectedCategoryName}
-                    </span>
-                    <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-semibold text-[#0F0F10]">
-                      {formatSoftwarePricingPreview()}
-                    </span>
-                    <span className="rounded-full bg-[#EEF0FE] border border-[#D5D8FC] px-2 py-0.5 text-[10px] font-semibold text-[#5B5BF0]">
-                      {selectedListingPlan?.name || "Free Listing"}
-                    </span>
-                  </div>
-
-                  <span className="font-mono text-[11px] font-semibold text-[#66666B] flex items-center gap-1">
-                    <FileText className="h-3 w-3" />
-                    {screenshotFiles.length}/{SUBMIT_LIMITS.MAX_SCREENSHOTS} Screenshots
-                  </span>
-                </div>
               </div>
             </div>
-          </div>
+
+            {/* RIGHT COLUMN: LIVE PREVIEW & LISTING PLAN (4 COLS) */}
+            <div className="lg:col-span-4 sticky top-20 space-y-5">
+              {/* COMPONENT 1: LIVE PREVIEW */}
+              <div>
+                <span className="text-[11px] font-mono font-bold tracking-wider uppercase text-[#55556E] mb-2 block">
+                  LIVE PREVIEW
+                </span>
+
+                <div className="rounded-2xl border border-[#E6E6F0] bg-white p-4 sm:p-5 space-y-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="h-12 w-12 rounded-xl bg-[#F7F6FF] text-[#4F46E5] border border-[#E0DEFC] flex items-center justify-center font-bold text-sm shrink-0 overflow-hidden">
+                        {logoPreview ? (
+                          <img
+                            src={logoPreview}
+                            alt={watchedName || "Logo"}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          (watchedName || "TL").slice(0, 2).toUpperCase()
+                        )}
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="font-bold text-sm sm:text-base text-[#14142B] truncate">
+                            {watchedName || "Your Tool Name"}
+                          </h3>
+                          <span className="bg-[#FFF1D6] text-[#7A4E00] text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0">
+                            Pending
+                          </span>
+                        </div>
+                        <p className="text-xs text-[#55556E] truncate mt-0.5">
+                          {watchedTagline || "Your tagline appears here"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="border border-[#E6E6F0] rounded-lg px-2.5 py-1.5 flex flex-col items-center bg-white shrink-0">
+                      <span className="text-[9px] text-[#4F46E5] leading-none">▲</span>
+                      <span className="text-xs font-bold text-[#14142B] mt-0.5">1</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                    <span className="rounded-full bg-[#F1F1F8] text-[#55556E] px-2.5 py-0.5 text-xs font-medium">
+                      {selectedCategoryName || "AI"}
+                    </span>
+                    <span className="rounded-full bg-[#F1F1F8] text-[#55556E] px-2.5 py-0.5 text-xs font-medium capitalize">
+                      {watchedPricingModel === "paid"
+                        ? "Paid"
+                        : watchedPricingModel === "freemium"
+                        ? "Freemium"
+                        : "Free"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* COMPONENT 2: LISTING PLAN (PURCHASE & CHECKOUT CARD) */}
+              <div className="rounded-2xl border border-[#E6E6F0] bg-white p-5 sm:p-6 space-y-4">
+                <span className="sr-only">Choose Your Listing Plan</span>
+                <div>
+                  <h2 className="font-bold text-lg text-[#14142B] leading-tight">
+                    Listing plan
+                  </h2>
+                  <p className="text-xs text-[#55556E] mt-0.5">
+                    Start free anytime. Upgrade for faster review.
+                  </p>
+                </div>
+
+                {/* 3 Stacked Radio Options */}
+                <div className="space-y-2.5">
+                  {/* Free ($0) */}
+                  <div
+                    onClick={() => {
+                      setValue("listing_plan", "free", { shouldValidate: true });
+                      setValue("listing_plan_price", 0, { shouldValidate: true });
+                    }}
+                    className={`rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all ${
+                      watchedListingPlan === "free"
+                        ? "border-2 border-[#4F46E5] bg-[#F7F6FF]/25 shadow-[0_12px_40px_rgba(20,20,43,0.08)]"
+                        : "border border-[#E6E6F0] bg-white hover:border-[#D4D4E4]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          watchedListingPlan === "free"
+                            ? "border-[#4F46E5]"
+                            : "border-[#D4D4E4]"
+                        }`}
+                      >
+                        {watchedListingPlan === "free" && (
+                          <div className="h-2 w-2 rounded-full bg-[#4F46E5]" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm text-[#14142B]">Free</div>
+                        <div className="text-xs text-[#55556E]">Review in 3 to 5 days</div>
+                      </div>
+                    </div>
+                    <div className="font-bold text-base text-[#14142B]">$0</div>
+                  </div>
+
+                  {/* Premium ($29) */}
+                  <div
+                    onClick={() => {
+                      setValue("listing_plan", "premium", { shouldValidate: true });
+                      setValue("listing_plan_price", 29, { shouldValidate: true });
+                    }}
+                    className={`rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all ${
+                      watchedListingPlan === "premium"
+                        ? "border-2 border-[#4F46E5] bg-[#F7F6FF]/25 shadow-[0_12px_40px_rgba(20,20,43,0.08)]"
+                        : "border border-[#E6E6F0] bg-white hover:border-[#D4D4E4]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          watchedListingPlan === "premium"
+                            ? "border-[#4F46E5]"
+                            : "border-[#D4D4E4]"
+                        }`}
+                      >
+                        {watchedListingPlan === "premium" && (
+                          <div className="h-2 w-2 rounded-full bg-[#4F46E5]" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm text-[#14142B]">Premium</span>
+                          <span className="bg-[#4F46E5] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wide">
+                            POPULAR
+                          </span>
+                        </div>
+                        <div className="text-xs text-[#55556E]">Review in 24 hours</div>
+                      </div>
+                    </div>
+                    <div className="font-bold text-base text-[#14142B]">$29</div>
+                  </div>
+
+                  {/* Featured ($49) */}
+                  <div
+                    onClick={() => {
+                      setValue("listing_plan", "featured", { shouldValidate: true });
+                      setValue("listing_plan_price", 49, { shouldValidate: true });
+                    }}
+                    className={`rounded-xl p-3.5 flex items-center justify-between cursor-pointer transition-all ${
+                      watchedListingPlan === "featured"
+                        ? "border-2 border-[#4F46E5] bg-[#F7F6FF]/25 shadow-[0_12px_40px_rgba(20,20,43,0.08)]"
+                        : "border border-[#E6E6F0] bg-white hover:border-[#D4D4E4]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`h-4 w-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                          watchedListingPlan === "featured"
+                            ? "border-[#4F46E5]"
+                            : "border-[#D4D4E4]"
+                        }`}
+                      >
+                        {watchedListingPlan === "featured" && (
+                          <div className="h-2 w-2 rounded-full bg-[#4F46E5]" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm text-[#14142B]">Featured</div>
+                        <div className="text-xs text-[#55556E]">Priority in 12 hours</div>
+                      </div>
+                    </div>
+                    <div className="font-bold text-base text-[#14142B]">$49</div>
+                  </div>
+                </div>
+
+                {/* Plan Included Checklist Box */}
+                <div className="rounded-xl bg-[#F6F6FB] border border-[#F1F1F8] p-4 space-y-2">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-[#55556E]">
+                    {watchedListingPlan === "featured"
+                      ? "FEATURED INCLUDES"
+                      : watchedListingPlan === "premium"
+                      ? "PREMIUM INCLUDES"
+                      : "FREE INCLUDES"}
+                  </div>
+                  <ul className="space-y-1.5 text-xs text-[#55556E]">
+                    {watchedListingPlan === "featured" ? (
+                      <>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>Priority in 12 hours</span>
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>7 days homepage spotlight</span>
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>Featured in founder newsletter</span>
+                        </li>
+                      </>
+                    ) : watchedListingPlan === "premium" ? (
+                      <>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>Review in 24 hours</span>
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>Verified Maker badge</span>
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>Permanent dofollow backlink</span>
+                        </li>
+                      </>
+                    ) : (
+                      <>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>Standard launch</span>
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>Community launch visibility</span>
+                        </li>
+                        <li className="flex items-center gap-1.5">
+                          <span className="text-[#0F8A5F] font-bold">✓</span>
+                          <span>Permanent searchable listing</span>
+                        </li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+
+                {/* Due Today */}
+                <div className="flex items-center justify-between pt-2 border-t border-[#F1F1F8]">
+                  <span className="text-sm font-medium text-[#55556E]">Due today</span>
+                  <span className="text-2xl font-extrabold text-[#14142B]">
+                    {selectedListingPlan?.formattedPrice || "$0"}
+                  </span>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting || isPaymentProcessing}
+                  className="w-full py-3.5 px-4 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isPaymentProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Processing Payment...</span>
+                    </>
+                  ) : isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : selectedListingPlan && selectedListingPlan.price > 0 ? (
+                    <span>Pay {selectedListingPlan.formattedPrice} and submit →</span>
+                  ) : (
+                    <span>Submit tool for free →</span>
+                  )}
+                </button>
+
+                <span className="text-center text-xs text-[#55556E] block">
+                  Saved as pending. Public after admin approval.
+                </span>
+              </div>
+            </div>
+          </form>
         ) : (
           /* CONFIRMATION VIEW */
-          <div className="max-w-2xl mx-auto rounded-[20px] border border-[#E8E8E3] bg-white p-6 sm:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.06)] text-center space-y-7 animate-in zoom-in-95 duration-300">
-            <div className="relative mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-[#ECFDF5] text-[#10B981] border-4 border-[#A7F3D0]">
-              <Sparkles className="h-9 w-9 text-[#059669]" />
+          <div className="max-w-2xl mx-auto rounded-2xl border border-[#E6E6F0] bg-white p-8 sm:p-12 text-center space-y-6 animate-in zoom-in-95 duration-200">
+            <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F8A5F] border-4 border-[#A7F3D0]">
+              <Sparkles className="h-7 w-7 text-[#0F8A5F]" />
             </div>
 
             <div className="space-y-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-bold text-[#059669]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-bold text-[#0F8A5F]">
                 <CheckCircle2 className="h-3.5 w-3.5" />
-                Submission Received • Pending Admin Review
+                Submission Received • Pending Review
               </span>
-              <h2 className="font-heading font-black text-3xl sm:text-4xl text-[#0F0F10] tracking-tight">
+ <h2 className="font-heading font-extrabold text-[26px] sm:text-[32px] leading-[1.15] text-[#14142B] tracking-tight">
                 {submittedResult.name} is queued for review!
               </h2>
-              <p className="text-sm text-[#66666B] max-w-md mx-auto">
-                Your tool has been saved in the database with{" "}
-                <strong className="text-[#0F0F10]">pending</strong> status. It will become publicly visible once approved by an administrator.
+              <p className="text-sm text-[#55556E] max-w-md mx-auto">
+                Your tool has been saved with <strong className="text-[#14142B]">pending</strong> status. It will go live after admin approval.
               </p>
             </div>
 
-            <div className="rounded-[14px] bg-[#FAFAF7] border border-[#E8E8E3] p-4 text-left space-y-2.5 text-xs">
+            <div className="rounded-xl bg-[#F6F6FB] border border-[#E6E6F0] p-4 text-left space-y-2.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Listing ID:</span>
-                <span className="font-mono font-bold text-[#0F0F10] bg-[#EEF0FE] px-2 py-0.5 rounded border border-[#D5D8FC]">
+                <span className="text-[#55556E]">Listing ID:</span>
+                <span className="font-mono font-bold text-[#14142B] bg-[#F7F6FF] px-2 py-0.5 rounded border border-[#E0DEFC]">
                   {submittedResult.id}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Public URL Slug:</span>
-                <span className="font-mono font-bold text-[#5B5BF0]">
+                <span className="text-[#55556E]">Public URL Slug:</span>
+                <span className="font-mono font-bold text-[#4F46E5]">
                   /product/{submittedResult.slug}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Status:</span>
-                <span className="font-mono font-bold uppercase text-[#D97706] bg-[#FEF3C7] px-2 py-0.5 rounded">
+                <span className="text-[#55556E]">Status:</span>
+                <span className="font-mono font-bold uppercase text-[#7A4E00] bg-[#FFF1D6] px-2 py-0.5 rounded">
                   {submittedResult.status}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Software Pricing:</span>
-                <span className="font-mono font-bold text-[#0F0F10]">
+                <span className="text-[#55556E]">Pricing Model:</span>
+                <span className="font-mono font-bold text-[#14142B] capitalize">
                   {submittedResult.pricing_model}
                   {submittedResult.starting_price
                     ? ` ($${submittedResult.starting_price}/${
@@ -1590,19 +1600,13 @@ export const SubmitForm: React.FC = () => {
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Directory Listing Plan:</span>
-                <span className="font-mono font-bold text-[#5B5BF0] bg-[#EEF0FE] px-2 py-0.5 rounded border border-[#D5D8FC]">
+                <span className="text-[#55556E]">Listing Plan:</span>
+                <span className="font-mono font-bold text-[#4F46E5] bg-[#F7F6FF] px-2 py-0.5 rounded border border-[#E0DEFC]">
                   {submittedResult.listing_plan === "featured"
                     ? "Featured Listing ($49)"
                     : submittedResult.listing_plan === "premium"
                     ? "Premium Listing ($29)"
                     : "Free Listing ($0)"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Event Emitted:</span>
-                <span className="font-mono font-bold text-[#059669]">
-                  {emittedEventName}
                 </span>
               </div>
             </div>
@@ -1618,7 +1622,7 @@ export const SubmitForm: React.FC = () => {
                 variant="primary"
                 size="md"
                 onClick={handleReset}
-                className="w-full sm:w-auto font-bold shadow-[0_2px_10px_rgba(91,91,240,0.25)]"
+                className="w-full sm:w-auto font-bold"
                 leftIcon={<RefreshCw className="h-4 w-4" />}
               >
                 Submit Another Tool
@@ -1626,7 +1630,7 @@ export const SubmitForm: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       <AuthModal
         isOpen={showAuthModal}
@@ -1637,4 +1641,3 @@ export const SubmitForm: React.FC = () => {
     </div>
   );
 };
-

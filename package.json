@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/listings.test.mjs",
+    "test": "node --test tests/listings.test.mjs tests/task4.test.mjs",
     "db:types": "supabase gen types typescript --project-id tbatttczyklqaxgbqlke --schema public > types/db.ts"
   },
   "dependencies": {

@@ -389,34 +389,34 @@ export const SubmitProductWizard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#0F0F10] selection:bg-[#5B5BF0]/15 selection:text-[#5B5BF0]">
+    <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] selection:bg-[#4F46E5]/15 selection:text-[#4F46E5]">
       <Navbar />
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8">
+      <div className="max-w-[1240px] mx-auto px-6 py-8 sm:py-12 space-y-8">
         {/* Navigation Breadcrumb & Title Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E8E3] pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E6E6F0] pb-6">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <Link
                 href="/"
-                className="text-xs font-mono text-[#66666B] hover:text-[#5B5BF0] transition-colors flex items-center gap-1 font-semibold"
+                className="text-xs font-mono text-[#55556E] hover:text-[#4F46E5] transition-colors flex items-center gap-1 font-semibold"
               >
                 <span>&larr; Back to Directory</span>
               </Link>
-              <span className="text-xs text-[#E8E8E3]">•</span>
-              <span className="text-xs font-mono font-bold text-[#5B5BF0]">Public Submit Form</span>
+              <span className="text-xs text-[#E6E6F0]">•</span>
+              <span className="text-xs font-mono font-bold text-[#4F46E5]">Public Submit Form</span>
             </div>
-            <h1 className="font-heading font-extrabold text-2xl sm:text-3xl lg:text-4xl text-[#0F0F10] tracking-[-0.03em]">
+            <h1 className="font-heading font-extrabold text-2xl sm:text-3xl lg:text-4xl text-[#14142B] tracking-[-0.03em]">
               Submit Your Tool
             </h1>
-            <p className="mt-1 text-xs sm:text-sm text-[#66666B]">
+            <p className="mt-1.5 text-base text-[#55556E] leading-relaxed">
               No login required. Submit your software or AI tool for admin review and directory listing.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border border-[#E8E8E3] bg-white px-3.5 py-1.5 text-xs font-mono text-[#66666B] shadow-xs">
-              <ShieldCheck className="h-4 w-4 text-[#10B981]" />
+            <div className="flex items-center gap-2 rounded-full border border-[#E6E6F0] bg-white px-3.5 py-1.5 text-xs font-mono text-[#55556E]">
+              <ShieldCheck className="h-4 w-4 text-[#0F8A5F]" />
               <span>Reviewed by Admin Before Publishing</span>
             </div>
           </div>
@@ -442,26 +442,26 @@ export const SubmitProductWizard: React.FC = () => {
 
         {/* 3-STEP PROGRESS BAR */}
         {step < 4 && (
-          <div className="rounded-[14px] border border-[#E8E8E3] bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+          <div className="rounded-2xl border border-[#E6E6F0] bg-white p-4 sm:p-5">
             <div className="grid grid-cols-3 gap-2 sm:gap-4 relative">
               <button
                 type="button"
                 onClick={() => setStep(1)}
                 className={`flex items-center gap-2 sm:gap-3 p-2 rounded-[10px] transition-all text-left ${
                   step === 1
-                    ? "bg-[#EEF0FE] text-[#5B5BF0]"
+                    ? "bg-[#F7F6FF] text-[#4F46E5]"
                     : step > 1
-                    ? "text-[#10B981] hover:bg-[#FAFAF7]"
-                    : "text-[#8E8E93] opacity-60"
+                    ? "text-[#0F8A5F] hover:bg-[#F6F6FB]"
+                    : "text-[#55556E] opacity-60"
                 }`}
               >
                 <div
                   className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                     step === 1
-                      ? "bg-[#5B5BF0] text-white shadow-xs"
+                      ? "bg-[#4F46E5] text-white "
                       : step > 1
-                      ? "bg-[#10B981] text-white"
-                      : "bg-[#E8E8E3] text-[#66666B]"
+                      ? "bg-[#0F8A5F] text-white"
+                      : "bg-[#E6E6F0] text-[#55556E]"
                   }`}
                 >
                   {step > 1 ? <Check className="h-4 w-4" /> : "1"}
@@ -479,19 +479,19 @@ export const SubmitProductWizard: React.FC = () => {
                 }}
                 className={`flex items-center gap-2 sm:gap-3 p-2 rounded-[10px] transition-all text-left ${
                   step === 2
-                    ? "bg-[#EEF0FE] text-[#5B5BF0]"
+                    ? "bg-[#F7F6FF] text-[#4F46E5]"
                     : step > 2
-                    ? "text-[#10B981] hover:bg-[#FAFAF7]"
-                    : "text-[#8E8E93] opacity-60"
+                    ? "text-[#0F8A5F] hover:bg-[#F6F6FB]"
+                    : "text-[#55556E] opacity-60"
                 }`}
               >
                 <div
                   className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                     step === 2
-                      ? "bg-[#5B5BF0] text-white shadow-xs"
+                      ? "bg-[#4F46E5] text-white "
                       : step > 2
-                      ? "bg-[#10B981] text-white"
-                      : "bg-[#E8E8E3] text-[#66666B]"
+                      ? "bg-[#0F8A5F] text-white"
+                      : "bg-[#E6E6F0] text-[#55556E]"
                   }`}
                 >
                   {step > 2 ? <Check className="h-4 w-4" /> : "2"}
@@ -508,12 +508,12 @@ export const SubmitProductWizard: React.FC = () => {
                   if (validateStep1() && validateStep2()) setStep(3);
                 }}
                 className={`flex items-center gap-2 sm:gap-3 p-2 rounded-[10px] transition-all text-left ${
-                  step === 3 ? "bg-[#EEF0FE] text-[#5B5BF0]" : "text-[#8E8E93] opacity-60"
+                  step === 3 ? "bg-[#F7F6FF] text-[#4F46E5]" : "text-[#55556E] opacity-60"
                 }`}
               >
                 <div
                   className={`flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-                    step === 3 ? "bg-[#5B5BF0] text-white shadow-xs" : "bg-[#E8E8E3] text-[#66666B]"
+                    step === 3 ? "bg-[#4F46E5] text-white " : "bg-[#E6E6F0] text-[#55556E]"
                   }`}
                 >
                   3
@@ -525,9 +525,9 @@ export const SubmitProductWizard: React.FC = () => {
               </button>
             </div>
 
-            <div className="w-full bg-[#E8E8E3] h-1.5 rounded-full mt-3 overflow-hidden">
+            <div className="w-full bg-[#E6E6F0] h-1.5 rounded-full mt-3 overflow-hidden">
               <div
-                className="bg-[#5B5BF0] h-full transition-all duration-300 rounded-full"
+                className="bg-[#4F46E5] h-full transition-all duration-300 rounded-full"
                 style={{ width: step === 1 ? "33%" : step === 2 ? "66%" : "100%" }}
               />
             </div>
@@ -541,19 +541,19 @@ export const SubmitProductWizard: React.FC = () => {
             <div className="lg:col-span-7 space-y-6">
               {/* STEP 1: TOOL DETAILS */}
               {step === 1 && (
-                <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-5 animate-in fade-in duration-200">
-                  <div className="border-b border-[#E8E8E3] pb-4">
-                    <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
+                <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-7 space-y-5 animate-in fade-in duration-200">
+                  <div className="border-b border-[#E6E6F0] pb-4">
+                    <h2 className="font-heading font-extrabold text-xl text-[#14142B] tracking-tight">
                       Step 1: Tool Information
                     </h2>
-                    <p className="text-xs sm:text-sm text-[#66666B]">
+                    <p className="text-xs sm:text-sm text-[#55556E]">
                       Provide your tool's name, descriptions, HTTPS website URL, category, pricing, and email.
                     </p>
                   </div>
 
                   {/* 1. Name (Required) */}
                   <div>
-                    <label className="block text-xs font-bold text-[#0F0F10] mb-1.5">
+                    <label className="block text-xs font-bold text-[#14142B] mb-1.5">
                       Tool Name <span className="text-[#DC2626]">*</span>
                     </label>
                     <Input
@@ -567,7 +567,7 @@ export const SubmitProductWizard: React.FC = () => {
                   {/* 2. Tagline (Max 60 characters) */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-[#0F0F10]">
+                      <label className="text-xs font-bold text-[#14142B]">
                         Tagline (Short Headline) <span className="text-[#DC2626]">*</span>
                       </label>
                       <span
@@ -576,7 +576,7 @@ export const SubmitProductWizard: React.FC = () => {
                             ? "text-[#DC2626]"
                             : formData.tagline.length > 50
                             ? "text-[#EA580C]"
-                            : "text-[#8E8E93]"
+                            : "text-[#55556E]"
                         }`}
                       >
                         {formData.tagline.length}/60
@@ -588,14 +588,14 @@ export const SubmitProductWizard: React.FC = () => {
                       onChange={(e) => handleFieldChange("tagline", e.target.value)}
                       error={errors.tagline}
                     />
-                    <span className="text-[11px] text-[#8E8E93] mt-1 block">
+                    <span className="text-[11px] text-[#55556E] mt-1 block">
                       Maximum 60 characters.
                     </span>
                   </div>
 
                   {/* 3. Website URL (HTTPS only) */}
                   <div>
-                    <label className="block text-xs font-bold text-[#0F0F10] mb-1.5">
+                    <label className="block text-xs font-bold text-[#14142B] mb-1.5">
                       Website URL (HTTPS Only) <span className="text-[#DC2626]">*</span>
                     </label>
                     <Input
@@ -605,7 +605,7 @@ export const SubmitProductWizard: React.FC = () => {
                       leftIcon={<Globe className="h-4 w-4" />}
                       error={errors.website_url}
                     />
-                    <span className="text-[11px] text-[#8E8E93] mt-1 block">
+                    <span className="text-[11px] text-[#55556E] mt-1 block">
                       Must start with https:// (plain http:// links are rejected).
                     </span>
                   </div>
@@ -613,7 +613,7 @@ export const SubmitProductWizard: React.FC = () => {
                   {/* 4. Short Description (Max 250 characters) */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-[#0F0F10]">
+                      <label className="text-xs font-bold text-[#14142B]">
                         Short Description <span className="text-[#DC2626]">*</span>
                       </label>
                       <span
@@ -622,7 +622,7 @@ export const SubmitProductWizard: React.FC = () => {
                             ? "text-[#DC2626]"
                             : formData.description_short.length > 220
                             ? "text-[#EA580C]"
-                            : "text-[#8E8E93]"
+                            : "text-[#55556E]"
                         }`}
                       >
                         {formData.description_short.length}/250
@@ -633,10 +633,10 @@ export const SubmitProductWizard: React.FC = () => {
                       value={formData.description_short}
                       onChange={(e) => handleFieldChange("description_short", e.target.value)}
                       placeholder="Brief introduction to your tool (up to 250 characters)..."
-                      className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-xs sm:text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                      className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-xs sm:text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
                         errors.description_short
                           ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                          : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                          : "border-[#E6E6F0] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
                       }`}
                     />
                     {errors.description_short && (
@@ -649,7 +649,7 @@ export const SubmitProductWizard: React.FC = () => {
                   {/* 5. Long Description (Max 2,000 characters) */}
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-[#0F0F10]">
+                      <label className="text-xs font-bold text-[#14142B]">
                         Long Description <span className="text-[#DC2626]">*</span>
                       </label>
                       <span
@@ -658,7 +658,7 @@ export const SubmitProductWizard: React.FC = () => {
                             ? "text-[#DC2626]"
                             : formData.description_long.length > 1800
                             ? "text-[#EA580C]"
-                            : "text-[#8E8E93]"
+                            : "text-[#55556E]"
                         }`}
                       >
                         {formData.description_long.length}/2000
@@ -669,10 +669,10 @@ export const SubmitProductWizard: React.FC = () => {
                       value={formData.description_long}
                       onChange={(e) => handleFieldChange("description_long", e.target.value)}
                       placeholder="Complete tool details, key features, use cases, and how it helps users (up to 2,000 characters)..."
-                      className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-xs sm:text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:outline-none transition-all ${
+                      className={`w-full rounded-[10px] border bg-white px-3.5 py-2.5 text-xs sm:text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
                         errors.description_long
                           ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                          : "border-[#E8E8E3] focus:border-[#5B5BF0] focus:ring-2 focus:ring-[#5B5BF0]/20"
+                          : "border-[#E6E6F0] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20"
                       }`}
                     />
                     {errors.description_long && (
@@ -685,14 +685,14 @@ export const SubmitProductWizard: React.FC = () => {
                   {/* 6 & 7. Category & Pricing Model */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#0F0F10] mb-1.5">
+                      <label className="block text-xs font-bold text-[#14142B] mb-1.5">
                         Category <span className="text-[#DC2626]">*</span>
                       </label>
                       <div className="relative">
                         <select
                           value={formData.category}
                           onChange={(e) => handleFieldChange("category", e.target.value)}
-                          className="w-full appearance-none rounded-[10px] border border-[#E8E8E3] bg-white px-3.5 py-2.5 text-xs sm:text-sm font-medium text-[#0F0F10] focus:border-[#5B5BF0] focus:outline-none"
+                          className="w-full appearance-none rounded-[10px] border border-[#E6E6F0] bg-white px-3.5 py-2.5 text-xs sm:text-sm font-medium text-[#14142B] focus:border-[#4F46E5] focus:outline-none"
                         >
                           {CATEGORIES.map((cat) => (
                             <option key={cat.slug} value={cat.slug}>
@@ -700,7 +700,7 @@ export const SubmitProductWizard: React.FC = () => {
                             </option>
                           ))}
                         </select>
-                        <Tag className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
+                        <Tag className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E] pointer-events-none" />
                       </div>
                       {errors.category && (
                         <p className="mt-1 text-xs font-medium text-[#DC2626]">{errors.category}</p>
@@ -708,7 +708,7 @@ export const SubmitProductWizard: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#0F0F10] mb-1.5">
+                      <label className="block text-xs font-bold text-[#14142B] mb-1.5">
                         Pricing Model <span className="text-[#DC2626]">*</span>
                       </label>
                       <div className="relative">
@@ -717,7 +717,7 @@ export const SubmitProductWizard: React.FC = () => {
                           onChange={(e) =>
                             handleFieldChange("pricing_model", e.target.value as PricingModel)
                           }
-                          className="w-full appearance-none rounded-[10px] border border-[#E8E8E3] bg-white px-3.5 py-2.5 text-xs sm:text-sm font-medium text-[#0F0F10] focus:border-[#5B5BF0] focus:outline-none"
+                          className="w-full appearance-none rounded-[10px] border border-[#E6E6F0] bg-white px-3.5 py-2.5 text-xs sm:text-sm font-medium text-[#14142B] focus:border-[#4F46E5] focus:outline-none"
                         >
                           {PRICING_OPTIONS.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -725,7 +725,7 @@ export const SubmitProductWizard: React.FC = () => {
                             </option>
                           ))}
                         </select>
-                        <DollarSign className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93] pointer-events-none" />
+                        <DollarSign className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E] pointer-events-none" />
                       </div>
                       {errors.pricing_model && (
                         <p className="mt-1 text-xs font-medium text-[#DC2626]">
@@ -736,8 +736,8 @@ export const SubmitProductWizard: React.FC = () => {
                   </div>
 
                   {/* 8. Submitter Email */}
-                  <div className="border-t border-[#E8E8E3] pt-4">
-                    <label className="block text-xs font-bold text-[#0F0F10] mb-1.5">
+                  <div className="border-t border-[#E6E6F0] pt-4">
+                    <label className="block text-xs font-bold text-[#14142B] mb-1.5">
                       Submitter Email <span className="text-[#DC2626]">*</span>
                     </label>
                     <Input
@@ -748,7 +748,7 @@ export const SubmitProductWizard: React.FC = () => {
                       error={errors.submitted_by_email}
                       leftIcon={<Mail className="h-4 w-4" />}
                     />
-                    <span className="text-[11px] text-[#8E8E93] mt-1 block">
+                    <span className="text-[11px] text-[#55556E] mt-1 block">
                       We'll notify this email once your listing is reviewed and approved.
                     </span>
                   </div>
@@ -757,19 +757,19 @@ export const SubmitProductWizard: React.FC = () => {
 
               {/* STEP 2: LOGO & SCREENSHOTS (MAX 5) */}
               {step === 2 && (
-                <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-6 animate-in fade-in duration-200">
-                  <div className="border-b border-[#E8E8E3] pb-4">
-                    <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
+                <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-7 space-y-6 animate-in fade-in duration-200">
+                  <div className="border-b border-[#E6E6F0] pb-4">
+                    <h2 className="font-heading font-extrabold text-xl text-[#14142B] tracking-tight">
                       Step 2: Tool Logo & Screenshots
                     </h2>
-                    <p className="text-xs sm:text-sm text-[#66666B]">
+                    <p className="text-xs sm:text-sm text-[#55556E]">
                       Upload your tool's logo (required) and up to 5 product screenshots. Files are securely uploaded via our backend API.
                     </p>
                   </div>
 
                   {/* 9. Logo Upload (Required) */}
                   <div>
-                    <label className="block text-xs font-bold text-[#0F0F10] mb-2">
+                    <label className="block text-xs font-bold text-[#14142B] mb-2">
                       Tool Logo <span className="text-[#DC2626]">*</span>
                     </label>
                     <input
@@ -780,7 +780,7 @@ export const SubmitProductWizard: React.FC = () => {
                       className="hidden"
                     />
                     <div className="flex items-center gap-4">
-                      <div className="h-16 w-16 rounded-[12px] border border-[#E8E8E3] bg-[#FAFAF7] overflow-hidden shrink-0 flex items-center justify-center shadow-xs">
+                      <div className="h-16 w-16 rounded-[12px] border border-[#E6E6F0] bg-[#F6F6FB] overflow-hidden shrink-0 flex items-center justify-center">
                         {logoPreview ? (
                           <img
                             src={logoPreview}
@@ -788,7 +788,7 @@ export const SubmitProductWizard: React.FC = () => {
                             className="h-full w-full object-cover"
                           />
                         ) : (
-                          <ImageIcon className="h-6 w-6 text-[#8E8E93]" />
+                          <ImageIcon className="h-6 w-6 text-[#55556E]" />
                         )}
                       </div>
 
@@ -797,14 +797,14 @@ export const SubmitProductWizard: React.FC = () => {
                         className={`w-full rounded-[12px] border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
                           errors.logo
                             ? "border-[#DC2626] bg-[#FEF2F2]"
-                            : "border-[#D5D5CE] hover:border-[#5B5BF0] bg-[#FAFAF7]"
+                            : "border-[#D4D4E4] hover:border-[#4F46E5] bg-[#F6F6FB]"
                         }`}
                       >
-                        <UploadCloud className="h-5 w-5 text-[#5B5BF0] mx-auto mb-1" />
-                        <span className="text-xs font-semibold text-[#0F0F10] block">
+                        <UploadCloud className="h-5 w-5 text-[#4F46E5] mx-auto mb-1" />
+                        <span className="text-xs font-semibold text-[#14142B] block">
                           {logoFile ? logoFile.name : "Click to select tool logo image"}
                         </span>
-                        <span className="text-[10px] text-[#8E8E93]">
+                        <span className="text-[10px] text-[#55556E]">
                           PNG, JPG, SVG or WebP (Max 5MB)
                         </span>
                       </div>
@@ -817,10 +817,10 @@ export const SubmitProductWizard: React.FC = () => {
                   {/* 10. Screenshots Upload (Maximum 5) */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-bold text-[#0F0F10]">
+                      <label className="text-xs font-bold text-[#14142B]">
                         Product Screenshots (Maximum 5)
                       </label>
-                      <span className="text-xs font-mono font-semibold text-[#66666B]">
+                      <span className="text-xs font-mono font-semibold text-[#55556E]">
                         {screenshotFiles.length}/5 uploaded
                       </span>
                     </div>
@@ -840,14 +840,14 @@ export const SubmitProductWizard: React.FC = () => {
                         className={`rounded-[12px] border-2 border-dashed p-6 text-center cursor-pointer transition-colors ${
                           errors.screenshots
                             ? "border-[#DC2626] bg-[#FEF2F2]"
-                            : "border-[#D5D5CE] hover:border-[#5B5BF0] bg-[#FAFAF7]"
+                            : "border-[#D4D4E4] hover:border-[#4F46E5] bg-[#F6F6FB]"
                         }`}
                       >
-                        <UploadCloud className="h-7 w-7 text-[#5B5BF0] mx-auto mb-1.5" />
-                        <span className="text-xs font-bold text-[#0F0F10] block">
+                        <UploadCloud className="h-7 w-7 text-[#4F46E5] mx-auto mb-1.5" />
+                        <span className="text-xs font-bold text-[#14142B] block">
                           Click to upload screenshots ({5 - screenshotFiles.length} remaining)
                         </span>
-                        <span className="text-[11px] text-[#8E8E93]">
+                        <span className="text-[11px] text-[#55556E]">
                           Saved in listing_screenshots with ordered position (0..4)
                         </span>
                       </div>
@@ -864,7 +864,7 @@ export const SubmitProductWizard: React.FC = () => {
                         {screenshotPreviews.map((src, idx) => (
                           <div
                             key={idx}
-                            className="relative group rounded-[10px] border border-[#E8E8E3] overflow-hidden bg-[#FAFAF7] aspect-video"
+                            className="relative group rounded-[10px] border border-[#E6E6F0] overflow-hidden bg-[#F6F6FB] aspect-video"
                           >
                             <img
                               src={src}
@@ -874,12 +874,12 @@ export const SubmitProductWizard: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => removeScreenshot(idx)}
-                              className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-[#0F0F10]/80 text-white flex items-center justify-center hover:bg-[#DC2626] transition-colors"
+                              className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-[#14142B]/80 text-white flex items-center justify-center hover:bg-[#DC2626] transition-colors"
                               title="Remove screenshot"
                             >
                               <X className="h-3.5 w-3.5" />
                             </button>
-                            <span className="absolute bottom-1.5 left-1.5 rounded bg-[#0F0F10]/70 px-1.5 py-0.5 text-[10px] font-mono text-white">
+                            <span className="absolute bottom-1.5 left-1.5 rounded bg-[#14142B]/70 px-1.5 py-0.5 text-[10px] font-mono text-white">
                               pos: {idx}
                             </span>
                           </div>
@@ -892,59 +892,59 @@ export const SubmitProductWizard: React.FC = () => {
 
               {/* STEP 3: REVIEW & SUBMIT */}
               {step === 3 && (
-                <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-6 animate-in fade-in duration-200">
-                  <div className="border-b border-[#E8E8E3] pb-4">
-                    <h2 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
+                <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-7 space-y-6 animate-in fade-in duration-200">
+                  <div className="border-b border-[#E6E6F0] pb-4">
+                    <h2 className="font-heading font-extrabold text-xl text-[#14142B] tracking-tight">
                       Step 3: Review & Submit for Approval
                     </h2>
-                    <p className="text-xs sm:text-sm text-[#66666B]">
+                    <p className="text-xs sm:text-sm text-[#55556E]">
                       Verify your tool details below. After submission, your listing will be saved with{" "}
-                      <span className="font-mono font-bold text-[#0F0F10]">pending</span> status for admin review.
+                      <span className="font-mono font-bold text-[#14142B]">pending</span> status for admin review.
                     </p>
                   </div>
 
                   {/* Summary Table */}
-                  <div className="rounded-[12px] border border-[#E8E8E3] bg-[#FAFAF7] p-4 space-y-3 text-xs sm:text-sm">
-                    <div className="flex justify-between gap-4 border-b border-[#E8E8E3] pb-2">
-                      <span className="text-[#66666B] font-medium">Tool Name:</span>
-                      <span className="font-bold text-[#0F0F10]">{formData.name}</span>
+                  <div className="rounded-[12px] border border-[#E6E6F0] bg-[#F6F6FB] p-4 space-y-3 text-xs sm:text-sm">
+                    <div className="flex justify-between gap-4 border-b border-[#E6E6F0] pb-2">
+                      <span className="text-[#55556E] font-medium">Tool Name:</span>
+                      <span className="font-bold text-[#14142B]">{formData.name}</span>
                     </div>
-                    <div className="flex justify-between gap-4 border-b border-[#E8E8E3] pb-2">
-                      <span className="text-[#66666B] font-medium">Tagline ({formData.tagline.length}/60):</span>
-                      <span className="font-medium text-[#0F0F10] text-right">{formData.tagline}</span>
+                    <div className="flex justify-between gap-4 border-b border-[#E6E6F0] pb-2">
+                      <span className="text-[#55556E] font-medium">Tagline ({formData.tagline.length}/60):</span>
+                      <span className="font-medium text-[#14142B] text-right">{formData.tagline}</span>
                     </div>
-                    <div className="flex justify-between gap-4 border-b border-[#E8E8E3] pb-2">
-                      <span className="text-[#66666B] font-medium">Website URL:</span>
-                      <span className="font-mono text-[#5B5BF0] break-all">{formData.website_url}</span>
+                    <div className="flex justify-between gap-4 border-b border-[#E6E6F0] pb-2">
+                      <span className="text-[#55556E] font-medium">Website URL:</span>
+                      <span className="font-mono text-[#4F46E5] break-all">{formData.website_url}</span>
                     </div>
-                    <div className="flex justify-between gap-4 border-b border-[#E8E8E3] pb-2">
-                      <span className="text-[#66666B] font-medium">Category & Pricing:</span>
-                      <span className="font-semibold text-[#0F0F10]">
+                    <div className="flex justify-between gap-4 border-b border-[#E6E6F0] pb-2">
+                      <span className="text-[#55556E] font-medium">Category & Pricing:</span>
+                      <span className="font-semibold text-[#14142B]">
                         {selectedCategoryLabel} • {selectedPricingLabel} ({formData.pricing_model})
                       </span>
                     </div>
-                    <div className="flex justify-between gap-4 border-b border-[#E8E8E3] pb-2">
-                      <span className="text-[#66666B] font-medium">Submitter Email:</span>
-                      <span className="font-mono text-[#0F0F10]">{formData.submitted_by_email}</span>
+                    <div className="flex justify-between gap-4 border-b border-[#E6E6F0] pb-2">
+                      <span className="text-[#55556E] font-medium">Submitter Email:</span>
+                      <span className="font-mono text-[#14142B]">{formData.submitted_by_email}</span>
                     </div>
-                    <div className="flex justify-between gap-4 border-b border-[#E8E8E3] pb-2">
-                      <span className="text-[#66666B] font-medium">Media Attached:</span>
-                      <span className="font-semibold text-[#10B981]">
+                    <div className="flex justify-between gap-4 border-b border-[#E6E6F0] pb-2">
+                      <span className="text-[#55556E] font-medium">Media Attached:</span>
+                      <span className="font-semibold text-[#0F8A5F]">
                         1 Logo + {screenshotFiles.length} Screenshot(s)
                       </span>
                     </div>
                     <div className="pt-1">
-                      <span className="text-[#66666B] font-medium block mb-1">
+                      <span className="text-[#55556E] font-medium block mb-1">
                         Short Description ({formData.description_short.length}/250):
                       </span>
-                      <p className="text-xs text-[#0F0F10] bg-white p-2.5 rounded-[8px] border border-[#E8E8E3]">
+                      <p className="text-xs text-[#14142B] bg-white p-2.5 rounded-[10px] border border-[#E6E6F0]">
                         {formData.description_short}
                       </p>
                     </div>
                   </div>
 
-                  <div className="rounded-[10px] bg-[#EEF0FE]/60 border border-[#D5D8FC] p-3.5 text-xs text-[#47474F] flex items-center gap-2.5">
-                    <Clock className="h-4 w-4 text-[#5B5BF0] shrink-0" />
+                  <div className="rounded-[10px] bg-[#F7F6FF]/60 border border-[#E0DEFC] p-3.5 text-xs text-[#55556E] flex items-center gap-2.5">
+                    <Clock className="h-4 w-4 text-[#4F46E5] shrink-0" />
                     <span>
                       Submitted tools enter the database with <strong>pending</strong> status and will only appear in the public directory after admin approval.
                     </span>
@@ -984,7 +984,7 @@ export const SubmitProductWizard: React.FC = () => {
                       <ArrowRight className="h-4 w-4" />
                     )
                   }
-                  className="font-bold shadow-[0_2px_10px_rgba(91,91,240,0.25)]"
+                  className="font-bold"
                 >
                   {isSubmitting
                     ? "Submitting Tool..."
@@ -998,19 +998,19 @@ export const SubmitProductWizard: React.FC = () => {
             {/* RIGHT: DYNAMIC LIVE PREVIEW CARD (5 COLS) */}
             <div className="lg:col-span-5 sticky top-24 space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#8E8E93]">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#55556E]">
                   Live Directory Card Preview
                 </span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-[#10B981]">
-                  <span className="h-2 w-2 rounded-full bg-[#10B981] animate-pulse" />
+                <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold text-[#0F8A5F]">
+                  <span className="h-2 w-2 rounded-full bg-[#0F8A5F] animate-pulse" />
                   Live Preview
                 </span>
               </div>
 
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-5 sm:p-6 shadow-[0_4px_20px_rgba(0,0,0,0.06)] space-y-4">
+              <div className="rounded-2xl border border-[#E6E6F0] bg-white p-5 sm:p-6 space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <div className="h-12 w-12 rounded-[12px] bg-linear-to-br from-[#EEF0FE] to-[#D5D8FC] border border-[#D5D8FC] overflow-hidden shrink-0 flex items-center justify-center font-heading font-extrabold text-base text-[#5B5BF0] shadow-xs">
+                    <div className="h-12 w-12 rounded-[12px] bg-linear-to-br from-[#F7F6FF] to-[#E0DEFC] border border-[#E0DEFC] overflow-hidden shrink-0 flex items-center justify-center font-heading font-extrabold text-base text-[#4F46E5]">
                       {logoPreview ? (
                         <img
                           src={logoPreview}
@@ -1024,40 +1024,40 @@ export const SubmitProductWizard: React.FC = () => {
 
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <h3 className="font-heading font-extrabold text-base sm:text-lg text-[#0F0F10] tracking-tight">
+                        <h3 className="font-heading font-extrabold text-base sm:text-lg text-[#14142B] tracking-tight">
                           {formData.name || "Your Tool Name"}
                         </h3>
-                        <span className="rounded-full bg-[#FEF3C7] text-[#D97706] px-2 py-0.5 text-[10px] font-mono font-bold">
+                        <span className="rounded-full bg-[#FFF1D6] text-[#7A4E00] px-2 py-0.5 text-[10px] font-mono font-bold">
                           pending
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-[#8E8E93]">
-                        <span className="font-mono text-[11px] text-[#5B5BF0]">
+                      <div className="flex items-center gap-2 mt-0.5 text-xs text-[#55556E]">
+                        <span className="font-mono text-[11px] text-[#4F46E5]">
                           /{finalSlug}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-center justify-center rounded-[10px] border border-[#E8E8E3] bg-[#FAFAF7] px-3 py-1.5 shadow-xs">
-                    <ArrowBigUp className="h-4 w-4 text-[#5B5BF0] fill-current" />
-                    <span className="font-mono text-xs font-bold text-[#0F0F10]">1</span>
+                  <div className="flex flex-col items-center justify-center rounded-[10px] border border-[#E6E6F0] bg-[#F6F6FB] px-3 py-1.5">
+                    <ArrowBigUp className="h-4 w-4 text-[#4F46E5] fill-current" />
+                    <span className="font-mono text-xs font-bold text-[#14142B]">1</span>
                   </div>
                 </div>
 
-                <p className="text-xs sm:text-sm font-medium text-[#0F0F10] line-clamp-2 leading-relaxed">
+                <p className="text-xs sm:text-sm font-medium text-[#14142B] line-clamp-2 leading-relaxed">
                   {formData.tagline || "Your 60-character tagline will appear here..."}
                 </p>
 
                 {formData.description_short && (
-                  <p className="text-xs text-[#66666B] line-clamp-3 leading-relaxed">
+                  <p className="text-xs text-[#55556E] line-clamp-3 leading-relaxed">
                     {formData.description_short}
                   </p>
                 )}
 
                 {screenshotPreviews.length > 0 && (
-                  <div className="h-28 w-full rounded-[8px] overflow-hidden border border-[#E8E8E3] bg-[#FAFAF7]">
+                  <div className="h-28 w-full rounded-[10px] overflow-hidden border border-[#E6E6F0] bg-[#F6F6FB]">
                     <img
                       src={screenshotPreviews[0]}
                       alt="Preview"
@@ -1066,17 +1066,17 @@ export const SubmitProductWizard: React.FC = () => {
                   </div>
                 )}
 
-                <div className="pt-3 border-t border-[#E8E8E3]/60 flex items-center justify-between text-xs">
+                <div className="pt-3 border-t border-[#E6E6F0]/60 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-semibold text-[#66666B]">
+                    <span className="rounded-full bg-[#F6F6FB] border border-[#E6E6F0] px-2 py-0.5 text-[10px] font-semibold text-[#55556E]">
                       {selectedCategoryLabel}
                     </span>
-                    <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 text-[10px] font-semibold text-[#66666B]">
+                    <span className="rounded-full bg-[#F6F6FB] border border-[#E6E6F0] px-2 py-0.5 text-[10px] font-semibold text-[#55556E]">
                       {selectedPricingLabel}
                     </span>
                   </div>
 
-                  <span className="font-mono text-[11px] font-semibold text-[#66666B] flex items-center gap-1">
+                  <span className="font-mono text-[11px] font-semibold text-[#55556E] flex items-center gap-1">
                     <FileText className="h-3 w-3" />
                     {screenshotFiles.length}/5 Screenshots
                   </span>
@@ -1086,80 +1086,80 @@ export const SubmitProductWizard: React.FC = () => {
           </div>
         ) : (
           /* STEP 4: SUCCESS CONFIRMATION SCREEN */
-          <div className="max-w-2xl mx-auto rounded-[20px] border border-[#E8E8E3] bg-white p-6 sm:p-10 shadow-[0_8px_32px_rgba(0,0,0,0.06)] text-center space-y-7 animate-in zoom-in-95 duration-300">
-            <div className="relative mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-[#ECFDF5] text-[#10B981] border-4 border-[#A7F3D0]">
-              <Sparkles className="h-9 w-9 text-[#059669]" />
+          <div className="max-w-2xl mx-auto rounded-[20px] border border-[#E6E6F0] bg-white p-6 sm:p-10 text-center space-y-7 animate-in zoom-in-95 duration-300">
+            <div className="relative mx-auto h-20 w-20 flex items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F8A5F] border-4 border-[#A7F3D0]">
+              <Sparkles className="h-9 w-9 text-[#0F8A5F]" />
             </div>
 
             <div className="space-y-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-bold text-[#059669]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ECFDF5] px-3 py-1 text-xs font-bold text-[#0F8A5F]">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Saved in Database • Status: Pending Review
               </span>
-              <h2 className="font-heading font-black text-3xl sm:text-4xl text-[#0F0F10] tracking-tight">
+ <h2 className="font-heading font-extrabold text-[26px] sm:text-[32px] leading-[1.15] text-[#14142B] tracking-tight">
                 {submittedResult?.name || formData.name} has been submitted!
               </h2>
-              <p className="text-sm text-[#66666B] max-w-md mx-auto">
-                Your tool is safely stored with <strong className="text-[#0F0F10]">pending</strong> status. Our admin team will review it and publish it to the directory once approved.
+              <p className="text-sm text-[#55556E] max-w-md mx-auto">
+                Your tool is safely stored with <strong className="text-[#14142B]">pending</strong> status. Our admin team will review it and publish it to the directory once approved.
               </p>
             </div>
 
             {/* Database Record Summary Box */}
-            <div className="rounded-[14px] bg-[#FAFAF7] border border-[#E8E8E3] p-4 text-left space-y-2.5 text-xs">
+            <div className="rounded-2xl bg-[#F6F6FB] border border-[#E6E6F0] p-4 text-left space-y-2.5 text-xs">
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Database Record UUID:</span>
-                <span className="font-mono font-bold text-[#0F0F10]">
+                <span className="text-[#55556E]">Database Record UUID:</span>
+                <span className="font-mono font-bold text-[#14142B]">
                   {submittedResult?.id ?? "—"}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Generated Unique Slug:</span>
-                <span className="font-mono font-bold text-[#5B5BF0]">
+                <span className="text-[#55556E]">Generated Unique Slug:</span>
+                <span className="font-mono font-bold text-[#4F46E5]">
                   {submittedResult?.slug || finalSlug}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Listing Status:</span>
-                <span className="font-mono font-bold uppercase text-[#D97706] bg-[#FEF3C7] px-2 py-0.5 rounded">
+                <span className="text-[#55556E]">Listing Status:</span>
+                <span className="font-mono font-bold uppercase text-[#7A4E00] bg-[#FFF1D6] px-2 py-0.5 rounded">
                   {submittedResult?.status || "pending"}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Pricing Model Enum:</span>
-                <span className="font-mono font-bold text-[#0F0F10]">
+                <span className="text-[#55556E]">Pricing Model Enum:</span>
+                <span className="font-mono font-bold text-[#14142B]">
                   {submittedResult?.pricing_model || formData.pricing_model}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">System Event Emitted:</span>
-                <span className="font-mono font-bold text-[#059669]">
+                <span className="text-[#55556E]">System Event Emitted:</span>
+                <span className="font-mono font-bold text-[#0F8A5F]">
                   {emittedEventName}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8E8E93]">Website URL:</span>
-                <span className="font-mono text-[#5B5BF0] truncate max-w-[240px]">
+                <span className="text-[#55556E]">Website URL:</span>
+                <span className="font-mono text-[#4F46E5] truncate max-w-[240px]">
                   {submittedResult?.website_url || formData.website_url}
                 </span>
               </div>
             </div>
 
             {/* EMBED CODE SNIPPET BOX */}
-            <div className="rounded-[14px] border border-[#D5D8FC] bg-[#FAF9FF] p-5 text-left space-y-3">
+            <div className="rounded-2xl border border-[#E0DEFC] bg-[#F7F6FF] p-5 text-left space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Award className="h-4 w-4 text-[#5B5BF0]" />
-                  <span className="font-heading font-bold text-xs sm:text-sm text-[#0F0F10]">
+                  <Award className="h-4 w-4 text-[#4F46E5]" />
+                  <span className="font-heading font-bold text-xs sm:text-sm text-[#14142B]">
                     Prepare your LaunchOS badge for launch day
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={copyEmbedCode}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[#5B5BF0] hover:text-[#4338CA] bg-white border border-[#D5D8FC] px-2.5 py-1 rounded-md transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#4F46E5] hover:text-[#4338CA] bg-white border border-[#E0DEFC] px-2.5 py-1 rounded-md transition-colors cursor-pointer"
                 >
                   {copiedCode ? (
-                    <Check className="h-3.5 w-3.5 text-[#10B981]" />
+                    <Check className="h-3.5 w-3.5 text-[#0F8A5F]" />
                   ) : (
                     <Copy className="h-3.5 w-3.5" />
                   )}
@@ -1167,7 +1167,7 @@ export const SubmitProductWizard: React.FC = () => {
                 </button>
               </div>
 
-              <pre className="text-[11px] font-mono text-[#47474F] bg-white p-3 rounded-[8px] border border-[#E8E8E3] overflow-x-auto select-all">
+              <pre className="text-[11px] font-mono text-[#55556E] bg-white p-3 rounded-[10px] border border-[#E6E6F0] overflow-x-auto select-all">
                 {badgeEmbedSnippet}
               </pre>
             </div>
@@ -1183,7 +1183,7 @@ export const SubmitProductWizard: React.FC = () => {
                 variant="primary"
                 size="md"
                 onClick={resetForAnotherSubmission}
-                className="w-full sm:w-auto font-bold shadow-[0_2px_10px_rgba(91,91,240,0.25)]"
+                className="w-full sm:w-auto font-bold"
                 leftIcon={<Share2 className="h-4 w-4" />}
               >
                 Submit Another Tool

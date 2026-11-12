@@ -138,7 +138,11 @@ export const submitListingSchema = z
 
     // Conditional Software Pricing Model Validation
     const normPricing = (data.pricing_model || "").toLowerCase();
-    if (normPricing === "freemium" || normPricing === "premium") {
+    if (
+      normPricing === "freemium" ||
+      normPricing === "premium" ||
+      normPricing === "paid"
+    ) {
       const priceVal = data.starting_price;
       if (
         priceVal === undefined ||
@@ -152,7 +156,7 @@ export const submitListingSchema = z
           message:
             normPricing === "freemium"
               ? "Starting paid-plan price in USD ($) is required for freemium software."
-              : "Software price in USD ($) is required for premium software.",
+              : "Software price in USD ($) is required for paid software.",
         });
       }
       if (!data.billing_period || !BILLING_PERIODS.includes(data.billing_period)) {

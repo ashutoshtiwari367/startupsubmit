@@ -19,13 +19,13 @@ export const Badge: React.FC<BadgeProps> = ({
   ...props
 }) => {
   const variantStyles = {
-    neutral: "bg-[#F5F5F0] text-[#57575C] border-[#E8E8E3]",
-    accent: "bg-[#EEF0FE] text-[#4338CA] border-[#D5D8FC]",
-    live: "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]",
-    gold: "bg-[#FEF9E7] text-[#B45309] border-[#F7E5A9] font-semibold",
-    silver: "bg-[#F3F4F6] text-[#475569] border-[#E2E4E8] font-semibold",
+    neutral: "bg-[#F6F6FB] text-[#55556E] border-[#E6E6F0]",
+    accent: "bg-[#F7F6FF] text-[#4338CA] border-[#E0DEFC]",
+    live: "bg-[#ECFDF5] text-[#0F8A5F] border-[#A7F3D0]",
+    gold: "bg-[#FFF1D6] text-[#7A4E00] border-[#F7E5A9] font-semibold",
+    silver: "bg-[#F1F1F8] text-[#475569] border-[#E6E6F0] font-semibold",
     bronze: "bg-[#FAF2EB] text-[#9A3412] border-[#ECD5C5] font-semibold",
-    dark: "bg-[#0F0F10] text-white border-[#0F0F10]",
+    dark: "bg-[#14142B] text-white border-[#14142B]",
   };
 
   const sizeStyles = {
@@ -37,9 +37,9 @@ export const Badge: React.FC<BadgeProps> = ({
   // Rank icons fallback
   const getRankIcon = () => {
     if (icon) return icon;
-    if (variant === "gold") return <Trophy className="h-3 w-3 text-[#D97706]" />;
+    if (variant === "gold") return <Trophy className="h-3 w-3 text-[#7A4E00]" />;
     if (variant === "silver") return <Medal className="h-3 w-3 text-[#64748B]" />;
-    if (variant === "bronze") return <Award className="h-3 w-3 text-[#B45309]" />;
+    if (variant === "bronze") return <Award className="h-3 w-3 text-[#7A4E00]" />;
     return null;
   };
 
@@ -55,8 +55,8 @@ export const Badge: React.FC<BadgeProps> = ({
     >
       {variant === "live" && !icon && (
         <span className="relative flex h-2 w-2 mr-0.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#059669]"></span>
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#0F8A5F] opacity-75"></span>
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#0F8A5F]"></span>
         </span>
       )}
       {getRankIcon()}

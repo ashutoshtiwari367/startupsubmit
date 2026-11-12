@@ -56,7 +56,7 @@ export const UpvoteButton: React.FC<UpvoteButtonProps> = ({
   };
 
   const horizontalSizes = {
-    sm: "h-8 px-3 text-xs gap-1.5 rounded-[8px]",
+    sm: "h-8 px-3 text-xs gap-1.5 rounded-[10px]",
     md: "h-10 px-4 text-sm gap-2 rounded-[10px]",
     lg: "h-12 px-5 text-base gap-2.5 rounded-[10px]",
   };
@@ -79,8 +79,8 @@ export const UpvoteButton: React.FC<UpvoteButtonProps> = ({
           ? cn("flex-col", verticalSizes[size])
           : cn("flex-row", horizontalSizes[size]),
         upvoted
-          ? "bg-[#EEF0FE] text-[#5B5BF0] border-[#5B5BF0] shadow-[0_2px_8px_rgba(91,91,240,0.2)]"
-          : "bg-white text-[#0F0F10] border-[#E8E8E3] hover:border-[#D5D5CE] hover:bg-[#FAFAF7] shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
+          ? "bg-[#F7F6FF] text-[#4F46E5] border-[#4F46E5] "
+          : "bg-white text-[#14142B] border-[#E6E6F0] hover:border-[#D4D4E4] hover:bg-[#F6F6FB] ",
         "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97]",
         disabled && "opacity-50 cursor-not-allowed pointer-events-none",
         className
@@ -91,7 +91,7 @@ export const UpvoteButton: React.FC<UpvoteButtonProps> = ({
         className={cn(
           chevronSizes[size],
           "transition-transform duration-200",
-          upvoted ? "text-[#5B5BF0]" : "text-[#8E8E93] group-hover:text-[#5B5BF0]",
+          upvoted ? "text-[#4F46E5]" : "text-[#55556E] group-hover:text-[#4F46E5]",
           isBouncing && "-translate-y-1 scale-110",
           !upvoted && "group-hover:-translate-y-0.5"
         )}
@@ -99,7 +99,7 @@ export const UpvoteButton: React.FC<UpvoteButtonProps> = ({
       <span
         className={cn(
           "font-mono tracking-tight",
-          upvoted ? "text-[#5B5BF0] font-bold" : "text-[#0F0F10]"
+          upvoted ? "text-[#4F46E5] font-bold" : "text-[#14142B]"
         )}
       >
         {formatCount(currentCount)}

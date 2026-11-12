@@ -45,8 +45,8 @@ export const Pill = React.forwardRef<HTMLButtonElement, PillProps>(
         className={cn(
           "inline-flex items-center justify-center rounded-full border transition-all duration-200 ease-out cursor-pointer select-none",
           active
-            ? "bg-[#5B5BF0] text-white border-[#5B5BF0] shadow-[0_2px_8px_rgba(91,91,240,0.25)]"
-            : "bg-white text-[#57575C] border-[#E8E8E3] hover:border-[#D5D5CE] hover:text-[#0F0F10] hover:bg-[#FAFAF7]",
+            ? "bg-[#4F46E5] text-white border-[#4F46E5] "
+            : "bg-white text-[#55556E] border-[#E6E6F0] hover:border-[#D4D4E4] hover:text-[#14142B] hover:bg-[#F6F6FB]",
           disabled && "opacity-50 cursor-not-allowed pointer-events-none",
           sizeStyles[size],
           className
@@ -61,7 +61,7 @@ export const Pill = React.forwardRef<HTMLButtonElement, PillProps>(
               "rounded-full font-semibold transition-colors",
               active
                 ? "bg-white/20 text-white"
-                : "bg-[#F3F4F6] text-[#57575C] group-hover:bg-[#E5E7EB]",
+                : "bg-[#F1F1F8] text-[#55556E] group-hover:bg-[#E6E6F0]",
               countSizeStyles[size]
             )}
           >

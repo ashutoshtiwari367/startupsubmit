@@ -73,7 +73,7 @@ const TWEETS_DATA: TweetCardData[] = [
     name: "Alex Rivera",
     handle: "@arivera_dev",
     avatarText: "AR",
-    avatarBg: "bg-[#5B5BF0]",
+    avatarBg: "bg-[#4F46E5]",
     quote:
       "Launched our developer tool on LaunchOS yesterday. Ended up at #1 Product of the Day — woke up to 1,400+ targeted visitors, 48 signups, and our DR 72 dofollow backlink is already indexed in Google Search Console! 🚀",
     highlightTag: "+1,400 visitors",
@@ -85,7 +85,7 @@ const TWEETS_DATA: TweetCardData[] = [
     name: "Elena Rostova",
     handle: "@elena_saas",
     avatarText: "ER",
-    avatarBg: "bg-[#059669]",
+    avatarBg: "bg-[#0F8A5F]",
     quote:
       "Most launch platforms give you temporary bot clicks. LaunchOS gave us real founders who actually bought our annual plan. The permanent editorial backlink alone is worth 10x what we spent preparing the launch.",
     highlightTag: "12 annual customers",
@@ -97,7 +97,7 @@ const TWEETS_DATA: TweetCardData[] = [
     name: "Marcus Chen",
     handle: "@marcus_builds",
     avatarText: "MC",
-    avatarBg: "bg-[#D97706]",
+    avatarBg: "bg-[#7A4E00]",
     quote:
       "The 24h voting period was intense but super fair. No shady bot manipulation. Finished 2nd place and got our winner badge proudly embedded on our homepage now. The referral traffic hasn't stopped.",
     highlightTag: "2nd Place Winner",
@@ -208,65 +208,65 @@ export const TestimonialsSection: React.FC = () => {
   return (
     <section
       ref={sectionRef}
-      className="relative w-full max-w-[1200px] mx-auto px-4 sm:px-6 py-12 sm:py-20 space-y-12"
+      className="relative w-full max-w-[1240px] mx-auto px-6 py-12 sm:py-20 space-y-12"
     >
       {/* ------------------------------------------------------------------ */}
       {/* STATS BAR WITH COUNT-UP ANIMATION                                  */}
       {/* ------------------------------------------------------------------ */}
-      <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-[#E8E8E3]">
+      <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-[#E6E6F0]">
           {/* STAT 1: 30,000+ USERS */}
           <div className="flex flex-col items-center text-center px-2 pt-2 md:pt-0">
-            <span className="font-heading font-black text-3xl sm:text-4xl lg:text-5xl text-[#0F0F10] tracking-tight">
+            <span className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-5xl text-[#14142B] tracking-tight">
               {counts.users.toLocaleString()}
-              <span className="text-[#5B5BF0]">+</span>
+              <span className="text-[#4F46E5]">+</span>
             </span>
-            <span className="mt-1 text-xs sm:text-sm font-bold text-[#0F0F10]">
+            <span className="mt-1 text-xs sm:text-sm font-bold text-[#14142B]">
               Active Makers
             </span>
-            <span className="mt-0.5 text-[11px] font-mono text-[#8E8E93]">
+            <span className="mt-0.5 text-[11px] font-mono text-[#55556E]">
               Founders & early adopters
             </span>
           </div>
 
           {/* STAT 2: 5,000+ LAUNCHES */}
           <div className="flex flex-col items-center text-center px-2 pt-4 md:pt-0">
-            <span className="font-heading font-black text-3xl sm:text-4xl lg:text-5xl text-[#0F0F10] tracking-tight">
+            <span className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-5xl text-[#14142B] tracking-tight">
               {counts.launches.toLocaleString()}
-              <span className="text-[#5B5BF0]">+</span>
+              <span className="text-[#4F46E5]">+</span>
             </span>
-            <span className="mt-1 text-xs sm:text-sm font-bold text-[#0F0F10]">
+            <span className="mt-1 text-xs sm:text-sm font-bold text-[#14142B]">
               Total Launches
             </span>
-            <span className="mt-0.5 text-[11px] font-mono text-[#8E8E93]">
+            <span className="mt-0.5 text-[11px] font-mono text-[#55556E]">
               Vetted SaaS & AI products
             </span>
           </div>
 
           {/* STAT 3: DR 72+ */}
           <div className="flex flex-col items-center text-center px-2 pt-4 md:pt-0">
-            <span className="font-heading font-black text-3xl sm:text-4xl lg:text-5xl text-[#5B5BF0] tracking-tight">
+            <span className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-5xl text-[#4F46E5] tracking-tight">
               DR {counts.dr}
               <span>+</span>
             </span>
-            <span className="mt-1 text-xs sm:text-sm font-bold text-[#0F0F10]">
+            <span className="mt-1 text-xs sm:text-sm font-bold text-[#14142B]">
               Domain Rating
             </span>
-            <span className="mt-0.5 text-[11px] font-mono text-[#8E8E93]">
+            <span className="mt-0.5 text-[11px] font-mono text-[#55556E]">
               Ahrefs authority score
             </span>
           </div>
 
           {/* STAT 4: 1M+ MONTHLY VISITS */}
           <div className="flex flex-col items-center text-center px-2 pt-4 md:pt-0">
-            <span className="font-heading font-black text-3xl sm:text-4xl lg:text-5xl text-[#0F0F10] tracking-tight">
+            <span className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-5xl text-[#14142B] tracking-tight">
               {counts.visits}
-              <span className="text-[#5B5BF0]">M+</span>
+              <span className="text-[#4F46E5]">M+</span>
             </span>
-            <span className="mt-1 text-xs sm:text-sm font-bold text-[#0F0F10]">
+            <span className="mt-1 text-xs sm:text-sm font-bold text-[#14142B]">
               Monthly Visits
             </span>
-            <span className="mt-0.5 text-[11px] font-mono text-[#8E8E93]">
+            <span className="mt-0.5 text-[11px] font-mono text-[#55556E]">
               High-intent buyer traffic
             </span>
           </div>
@@ -280,10 +280,10 @@ export const TestimonialsSection: React.FC = () => {
         <Badge variant="accent" size="sm" icon={<Sparkles className="h-3 w-3" />}>
           REAL FOUNDER STORIES
         </Badge>
-        <h2 className="font-heading font-extrabold text-3xl sm:text-4xl text-[#0F0F10] tracking-[-0.03em]">
+ <h2 className="font-heading font-extrabold text-[26px] sm:text-[32px] leading-[1.15] text-[#14142B] tracking-[-0.03em]">
           Loved by builders who ship & grow
         </h2>
-        <p className="text-sm sm:text-base text-[#66666B]">
+        <p className="text-base text-[#55556E] leading-relaxed">
           See what happens when indie hackers and SaaS founders launch their tools into our high-authority community.
         </p>
       </div>
@@ -295,26 +295,26 @@ export const TestimonialsSection: React.FC = () => {
         {TWEETS_DATA.map((tweet) => (
           <div
             key={tweet.id}
-            className="break-inside-avoid group relative rounded-[14px] border border-[#E8E8E3] bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] hover:border-[#D5D5CE] transition-all duration-200 flex flex-col justify-between"
+            className="break-inside-avoid group relative rounded-2xl border border-[#E6E6F0] bg-white p-5 sm:p-6 hover:-translate-y-1 hover:border-[#D4D4E4] transition-all duration-200 flex flex-col justify-between"
           >
             {/* Top row: Author Info & Subtle X Icon */}
             <div>
               <div className="flex items-start justify-between mb-3.5">
                 <div className="flex items-center gap-3">
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tweet.avatarBg} text-white font-heading font-bold text-xs shadow-xs`}
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${tweet.avatarBg} text-white font-heading font-bold text-xs `}
                   >
                     {tweet.avatarText}
                   </div>
                   <div>
-                    <div className="font-heading font-bold text-sm text-[#0F0F10] flex items-center gap-1.5 leading-snug">
+                    <div className="font-heading font-bold text-sm text-[#14142B] flex items-center gap-1.5 leading-snug">
                       <span>{tweet.name}</span>
-                      <span className="h-1 w-1 rounded-full bg-[#E8E8E3]" />
-                      <span className="text-[11px] font-mono text-[#8E8E93] font-normal">
+                      <span className="h-1 w-1 rounded-full bg-[#E6E6F0]" />
+                      <span className="text-[11px] font-mono text-[#55556E] font-normal">
                         {tweet.date}
                       </span>
                     </div>
-                    <div className="text-xs font-mono text-[#8E8E93]">
+                    <div className="text-xs font-mono text-[#55556E]">
                       {tweet.handle}
                     </div>
                   </div>
@@ -322,7 +322,7 @@ export const TestimonialsSection: React.FC = () => {
 
                 {/* Subtle X (Twitter) Icon */}
                 <div
-                  className="text-[#8E8E93] group-hover:text-[#0F0F10] transition-colors p-1"
+                  className="text-[#55556E] group-hover:text-[#14142B] transition-colors p-1"
                   aria-label="View on X"
                 >
                   <svg
@@ -336,18 +336,18 @@ export const TestimonialsSection: React.FC = () => {
               </div>
 
               {/* Quote Body */}
-              <p className="text-sm text-[#47474F] leading-relaxed mb-4">
+              <p className="text-sm text-[#55556E] leading-relaxed mb-4">
                 "{tweet.quote}"
               </p>
             </div>
 
             {/* Bottom Row Tags */}
-            <div className="pt-3 border-t border-[#E8E8E3]/60 flex items-center justify-between text-xs">
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#EEF0FE] text-[#5B5BF0] px-2.5 py-0.5 text-[11px] font-semibold">
+            <div className="pt-3 border-t border-[#E6E6F0]/60 flex items-center justify-between text-xs">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#F7F6FF] text-[#4F46E5] px-2.5 py-0.5 text-[11px] font-semibold">
                 <TrendingUp className="h-3 w-3" />
                 {tweet.highlightTag}
               </span>
-              <span className="font-mono text-[10px] text-[#8E8E93] bg-[#FAFAF7] border border-[#E8E8E3] px-2 py-0.5 rounded-full">
+              <span className="font-mono text-[10px] text-[#55556E] bg-[#F6F6FB] border border-[#E6E6F0] px-2 py-0.5 rounded-full">
                 {tweet.statsTag}
               </span>
             </div>

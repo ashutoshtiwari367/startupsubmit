@@ -6,47 +6,20 @@ import {
   Layers,
   Search,
   ArrowRight,
-  Sparkles,
-  Bot,
-  Cloud,
-  Megaphone,
-  Zap,
-  Code2,
-  Palette,
-  Coins,
-  HeartPulse,
-  Video,
-  ShoppingBag,
-  ExternalLink,
   Filter,
+  Sparkles,
 } from "lucide-react";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
-import { FinalCTA } from "./FinalCTA";
 import { ProductCard } from "./ProductCard";
 import { Input } from "./Input";
-import { Pill } from "./Pill";
 import { Badge } from "./Badge";
-import { CATEGORIES_DATA } from "./BrowseByCategorySection";
+import { ALL_35_CATEGORIES } from "@/lib/categories";
 import { MOCK_PRODUCTS, LaunchProduct } from "@/lib/mock-data";
 
 export const CategoriesPageView: React.FC = () => {
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<LaunchProduct[]>(MOCK_PRODUCTS);
-
-  const categoryMapping: Record<string, string> = {
-    "ai-ml": "AI & Agents",
-    "developer-tools": "Developer Tools",
-    "saas-tools": "Developer Tools",
-    "productivity": "Productivity",
-    "design-art": "Design & UX",
-    "finance-fintech": "Analytics & Data",
-    "marketing-sales": "Productivity",
-    "health-wellness": "AI & Agents",
-    "video-content": "Design & UX",
-    "e-commerce": "Analytics & Data",
-  };
 
   const handleUpvote = (productId: string, isUpvoted: boolean) => {
     setProducts((prev) =>
@@ -63,45 +36,50 @@ export const CategoriesPageView: React.FC = () => {
     );
   };
 
+  // Filter categories by search query
+  const displayedCategories = useMemo(() => {
+    if (!searchQuery.trim()) return ALL_35_CATEGORIES;
+    const q = searchQuery.toLowerCase().trim();
+    return ALL_35_CATEGORIES.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.description.toLowerCase().includes(q) ||
+        c.slug.includes(q)
+    );
+  }, [searchQuery]);
+
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
-      let matchesCat = true;
-      if (selectedCategoryId !== "all") {
-        const expectedName = categoryMapping[selectedCategoryId];
-        matchesCat = p.category === expectedName;
-      }
-
-      const matchesSearch =
-        searchQuery === "" ||
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.category.toLowerCase().includes(searchQuery.toLowerCase());
-
-      return matchesCat && matchesSearch;
-    });
-  }, [products, selectedCategoryId, searchQuery]);
+    if (!searchQuery.trim()) return products;
+    const q = searchQuery.toLowerCase().trim();
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.tagline.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q)
+    );
+  }, [products, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#0F0F10] selection:bg-[#5B5BF0]/15 selection:text-[#5B5BF0]">
+    <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] selection:bg-[#4F46E5]/15 selection:text-[#4F46E5] flex flex-col justify-between">
       <Navbar />
 
-      <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-10 sm:py-16 space-y-12">
+      <main className="max-w-[1240px] mx-auto px-6 py-10 sm:py-16 space-y-12 flex-1">
         {/* Header Hero */}
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <Badge variant="accent" size="sm" icon={<Layers className="h-3 w-3" />}>
-            ECOSYSTEM TAXONOMY
+            ECOSYSTEM TAXONOMY &bull; 35 MASTER CATEGORIES
           </Badge>
-          <h1 className="font-heading font-black text-3xl sm:text-5xl text-[#0F0F10] tracking-[-0.03em]">
+          <h1 className="font-heading font-extrabold text-3xl sm:text-5xl text-[#14142B] tracking-[-0.03em]">
             Browse by Category
           </h1>
-          <p className="text-sm sm:text-base text-[#66666B]">
-            Explore 2,600+ vetted SaaS products, AI developer tools, and workflow automations indexed by community authority.
+          <p className="text-base text-[#55556E] leading-relaxed">
+            Explore 2,600+ vetted SaaS products, developer tools, and autonomous AI agents across 35 curated industry verticals.
           </p>
 
           {/* Search Bar */}
           <div className="pt-2 max-w-md mx-auto">
             <Input
-              placeholder="Search category or tool name..."
+              placeholder="Search all 35 categories or tools..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leftIcon={<Search className="h-4 w-4" />}
@@ -111,125 +89,109 @@ export const CategoriesPageView: React.FC = () => {
           </div>
         </div>
 
-        {/* 10 CATEGORIES GRID */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {CATEGORIES_DATA.map((cat) => {
-            const isSelected = selectedCategoryId === cat.id;
+        {/* Total Categories Badge & Action */}
+        <div className="flex items-center justify-between border-b border-[#E6E6F0] pb-4">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold uppercase tracking-wider text-[#14142B]">
+              All 35 Master Categories
+            </span>
+            <span className="rounded-full bg-[#F1F1F8] border border-[#E6E6F0] px-2.5 py-0.5 text-xs font-mono font-bold text-[#4F46E5]">
+              {displayedCategories.length} / 35
+            </span>
+          </div>
 
-            return (
-              <div
-                key={cat.id}
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  setSelectedCategoryId(isSelected ? "all" : cat.id)
-                }
-                className={`group relative flex flex-col justify-between rounded-[14px] border p-4 sm:p-4.5 transition-all duration-200 cursor-pointer select-none ${
-                  isSelected
-                    ? "border-[#5B5BF0] bg-[#EEF0FE]/70 shadow-[0_4px_16px_rgba(91,91,240,0.15)] ring-2 ring-[#5B5BF0]/30"
-                    : `${cat.cardBorder} ${cat.cardBg} hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(0,0,0,0.06)] ${cat.cardHoverBg} ${cat.cardHoverBorder}`
-                }`}
-              >
-                <div>
+          <span className="text-xs text-[#55556E] font-medium hidden sm:inline">
+            Click any category to view its curated software and tools
+          </span>
+        </div>
+
+        {/* 35 CATEGORIES GRID (Responsive: 1 col mobile, 2 col tablet, 4 col desktop) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {displayedCategories.map((cat) => (
+            <Link
+              key={cat.id}
+              href={`/category/${cat.slug}`}
+              className="group relative flex flex-col justify-between rounded-2xl border border-[#E6E6F0] bg-white p-5 hover:border-[#4F46E5] hover:shadow-[0_8px_30px_rgba(79,70,229,0.08)] transition-all cursor-pointer block"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-3.5">
+                  {/* Icon Squircle */}
                   <div
-                    className={`flex h-11 w-11 items-center justify-center rounded-[10px] ${cat.iconBg} ${cat.iconColor} shadow-xs group-hover:scale-105 transition-transform mb-3`}
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl ${cat.iconBg} ${cat.iconColor} group-hover:scale-105 transition-transform`}
                   >
                     {cat.icon}
                   </div>
-                  <h3 className="font-heading font-bold text-sm sm:text-base text-[#0F0F10] tracking-tight group-hover:text-[#5B5BF0] transition-colors">
-                    {cat.name}
-                  </h3>
-                </div>
 
-                <div className="pt-2 mt-2 border-t border-black/[0.06] flex items-center justify-between text-xs">
-                  <span className="font-mono text-[#8E8E93] text-[11px] sm:text-xs font-medium">
+                  <span className="text-xs font-mono font-semibold text-[#55556E] bg-[#F6F6FB] px-2 py-0.5 rounded-md border border-[#E6E6F0]">
                     {cat.count} tools
                   </span>
-                  <div
-                    className={`flex items-center ${cat.cardArrowColor} opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all`}
-                  >
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </div>
+                </div>
+
+                <h3 className="font-heading font-bold text-sm sm:text-base text-[#14142B] tracking-tight group-hover:text-[#4F46E5] transition-colors">
+                  {cat.name}
+                </h3>
+
+                <p className="text-xs text-[#55556E] mt-1.5 leading-relaxed line-clamp-2">
+                  {cat.description}
+                </p>
+              </div>
+
+              <div className="pt-3 mt-3 border-t border-[#F1F1F8] flex items-center justify-between text-xs">
+                <span className="text-xs font-semibold text-[#4F46E5] group-hover:underline">
+                  Explore {cat.name}
+                </span>
+                <div className="flex items-center text-[#4F46E5] opacity-60 group-hover:opacity-100 group-hover:translate-x-1 transition-all">
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </div>
               </div>
-            );
-          })}
+            </Link>
+          ))}
         </div>
 
-        {/* FILTERED PRODUCTS LIST */}
-        <div className="space-y-5 pt-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E8E8E3] pb-4">
+        {/* FEATURED COMMUNITY LAUNCHES */}
+        <div className="space-y-5 pt-6 border-t border-[#E6E6F0]">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
             <div>
-              <h2 className="font-heading font-extrabold text-xl sm:text-2xl text-[#0F0F10] tracking-tight">
-                {selectedCategoryId === "all"
-                  ? "All Category Launches"
-                  : CATEGORIES_DATA.find((c) => c.id === selectedCategoryId)?.name}
+              <h2 className="font-heading font-extrabold text-xl sm:text-2xl text-[#14142B] tracking-tight">
+                Trending Software Across All Categories
               </h2>
-              <span className="text-xs font-mono text-[#8E8E93]">
+              <span className="text-xs font-mono text-[#55556E]">
                 Showing {filteredProducts.length} verified products
               </span>
             </div>
-
-            {selectedCategoryId !== "all" && (
-              <button
-                type="button"
-                onClick={() => setSelectedCategoryId("all")}
-                className="text-xs font-bold text-[#5B5BF0] hover:underline cursor-pointer"
-              >
-                Reset filter (Show all)
-              </button>
-            )}
           </div>
 
-          {filteredProducts.length === 0 ? (
-            <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-12 text-center text-[#66666B] space-y-3">
-              <p className="text-base font-semibold">No products found for this search.</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSelectedCategoryId("all");
-                  setSearchQuery("");
+          <div className="space-y-3">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                variant="row"
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  tagline: product.tagline,
+                  category: product.category,
+                  upvotes: product.upvotes,
+                  isUpvoted: product.isUpvoted,
+                  rank: product.rank,
+                  commentsCount: product.commentsCount,
+                  url: `/product/${product.id}`,
+                  initials: product.name.split(" ").map((n) => n[0]).join(""),
+                  avatarGradient: "from-[#4F46E5] to-[#7E7EF6]",
+                  badgeEarned: product.rank === 1 ? "#1 Product of the Day" : undefined,
+                  maker: {
+                    name: product.founder.name,
+                    avatarInitials: product.founder.name.split(" ").map((n) => n[0]).join(""),
+                    avatarColor: "bg-[#4F46E5]",
+                    role: product.founder.role,
+                  },
                 }}
-                className="text-xs text-[#5B5BF0] font-bold hover:underline cursor-pointer"
-              >
-                Clear filters
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-3.5">
-              {filteredProducts.map((p) => (
-                <ProductCard
-                  key={p.id}
-                  variant="row"
-                  product={{
-                    id: p.id,
-                    name: p.name,
-                    tagline: p.tagline,
-                    category: p.category,
-                    upvotes: p.upvotes,
-                    isUpvoted: p.isUpvoted,
-                    rank: p.rank,
-                    commentsCount: p.commentsCount,
-                    url: `/product/${p.id}`,
-                    initials: p.name.slice(0, 2).toUpperCase(),
-                    avatarGradient: "from-[#5B5BF0] to-[#7E7EF6]",
-                    badgeEarned: p.rank === 1 ? "#1 Product of the Day" : undefined,
-                    maker: {
-                      name: p.founder.name,
-                      avatarInitials: p.founder.name.split(" ").map((n) => n[0]).join(""),
-                      avatarColor: "bg-[#5B5BF0]",
-                      role: p.founder.role,
-                    },
-                  }}
-                  onUpvoteToggle={(id, isVoted) => handleUpvote(id, isVoted)}
-                />
-              ))}
-            </div>
-          )}
+              />
+            ))}
+          </div>
         </div>
       </main>
 
-      <FinalCTA />
       <Footer />
     </div>
   );

@@ -231,14 +231,14 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       <div className="text-center space-y-2">
         <Link
           href="/"
-          className="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#5B5BF0] text-white shadow-[0_2px_10px_rgba(91,91,240,0.3)]"
+          className="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#4F46E5] text-white"
         >
           <Sparkles className="h-5 w-5" />
         </Link>
 
         <h2
           id="auth-modal-title"
-          className="font-heading font-extrabold text-2xl text-[#0F0F10] tracking-tight"
+          className="font-heading font-extrabold text-2xl text-[#14142B] tracking-tight"
         >
           {step === "otp"
             ? "Verify your Email OTP"
@@ -251,7 +251,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
             : "Create your maker account"}
         </h2>
 
-        <p className="text-xs sm:text-sm text-[#66666B]">
+        <p className="text-xs sm:text-sm text-[#55556E]">
           {step === "otp"
             ? `Enter the 6-digit verification code sent to ${email}`
             : step === "magic"
@@ -281,15 +281,15 @@ export const AuthCard: React.FC<AuthCardProps> = ({
             </div>
           )}
 
-          <div className="rounded-[12px] bg-[#FAFAF7] border border-[#E8E8E3] p-4 space-y-2.5 text-center">
+          <div className="rounded-[12px] bg-[#F6F6FB] border border-[#E6E6F0] p-4 space-y-2.5 text-center">
             <label
               htmlFor="otp-code-input"
-              className="block text-xs font-bold text-[#0F0F10]"
+              className="block text-xs font-bold text-[#14142B]"
             >
               6-Digit OTP Code
             </label>
             <div className="relative">
-              <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+              <KeyRound className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E]" />
               <input
                 id="otp-code-input"
                 type="text"
@@ -302,16 +302,16 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 onChange={(e) =>
                   setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                 }
-                className="w-full h-11 rounded-[10px] border border-[#5B5BF0] bg-white pl-10 pr-4 text-center tracking-[0.45em] font-mono font-bold text-base text-[#0F0F10] focus:outline-none focus:ring-2 focus:ring-[#5B5BF0]/20"
+                className="w-full h-11 rounded-[10px] border border-[#4F46E5] bg-white pl-10 pr-4 text-center tracking-[0.45em] font-mono font-bold text-base text-[#14142B] focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20"
               />
             </div>
-            <p className="text-[11px] text-[#66666B]">
+            <p className="text-[11px] text-[#55556E]">
               Didn&apos;t receive the code?{" "}
               <button
                 type="button"
                 disabled={isLoading}
                 onClick={handleResendOtpOrMagic}
-                className="font-bold text-[#5B5BF0] hover:underline cursor-pointer"
+                className="font-bold text-[#4F46E5] hover:underline cursor-pointer"
               >
                 Resend OTP
               </button>
@@ -330,7 +330,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 <ArrowRight className="h-4 w-4" />
               )
             }
-            className="w-full font-bold shadow-[0_2px_10px_rgba(91,91,240,0.3)]"
+            className="w-full font-bold"
           >
             {isLoading ? "Verifying OTP..." : "Verify OTP & Continue"}
           </Button>
@@ -343,7 +343,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 setErrorMsg(null);
                 setInfoMsg(null);
               }}
-              className="text-xs text-[#66666B] hover:text-[#0F0F10] underline cursor-pointer"
+              className="text-xs text-[#55556E] hover:text-[#14142B] underline cursor-pointer"
             >
               ← Change email or sign-in method
             </button>
@@ -354,12 +354,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       {/* STEP: MAGIC LINK SENT */}
       {step === "magic" && (
         <div className="space-y-4 text-center py-1 animate-in fade-in">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF5] text-[#10B981] border-2 border-[#A7F3D0]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F8A5F] border-2 border-[#A7F3D0]">
             <CheckCircle2 className="h-7 w-7" />
           </div>
 
-          <div className="rounded-[12px] bg-[#FAFAF7] border border-[#E8E8E3] p-4 text-xs text-[#52525A] space-y-1.5">
-            <span className="font-bold text-[#0F0F10] block">
+          <div className="rounded-[12px] bg-[#F6F6FB] border border-[#E6E6F0] p-4 text-xs text-[#52525A] space-y-1.5">
+            <span className="font-bold text-[#14142B] block">
               Instant Passwordless Access
             </span>
             <p>
@@ -369,7 +369,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
           </div>
 
           {infoMsg && (
-            <p className="text-xs text-[#059669] font-medium">{infoMsg}</p>
+            <p className="text-xs text-[#0F8A5F] font-medium">{infoMsg}</p>
           )}
 
           <div className="flex flex-col gap-2">
@@ -377,7 +377,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               type="button"
               disabled={isLoading}
               onClick={handleResendOtpOrMagic}
-              className="w-full h-10 rounded-[10px] border border-[#E8E8E3] bg-white hover:bg-[#FAFAF7] text-xs font-bold text-[#0F0F10] transition-colors cursor-pointer"
+              className="w-full h-10 rounded-[10px] border border-[#E6E6F0] bg-white hover:bg-[#F6F6FB] text-xs font-bold text-[#14142B] transition-colors cursor-pointer"
             >
               {isLoading ? "Sending..." : "Resend Magic Link"}
             </button>
@@ -388,7 +388,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 setErrorMsg(null);
                 setInfoMsg(null);
               }}
-              className="text-xs text-[#66666B] hover:text-[#0F0F10] underline cursor-pointer py-1"
+              className="text-xs text-[#55556E] hover:text-[#14142B] underline cursor-pointer py-1"
             >
               ← Back to sign-in options
             </button>
@@ -399,12 +399,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       {/* STEP: SIGNUP CONFIRMATION */}
       {step === "signup_confirm" && (
         <div className="space-y-4 text-center py-1 animate-in fade-in">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF5] text-[#10B981] border-2 border-[#A7F3D0]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF5] text-[#0F8A5F] border-2 border-[#A7F3D0]">
             <CheckCircle2 className="h-7 w-7" />
           </div>
 
-          <div className="rounded-[12px] bg-[#FAFAF7] border border-[#E8E8E3] p-4 text-xs text-[#52525A] space-y-1.5">
-            <span className="font-bold text-[#0F0F10] block">
+          <div className="rounded-[12px] bg-[#F6F6FB] border border-[#E6E6F0] p-4 text-xs text-[#52525A] space-y-1.5">
+            <span className="font-bold text-[#14142B] block">
               Account created with password!
             </span>
             <p>
@@ -433,14 +433,14 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       {step === "form" && (
         <div className="space-y-4">
           {/* 1. Sign In / Create Account Mode Switcher */}
-          <div className="flex rounded-full bg-[#FAFAF7] p-1 border border-[#E8E8E3]">
+          <div className="flex rounded-full bg-[#F6F6FB] p-1 border border-[#E6E6F0]">
             <button
               type="button"
               onClick={() => handleModeSwitch("signin")}
               className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 mode === "signin"
-                  ? "bg-white text-[#0F0F10] shadow-xs"
-                  : "text-[#66666B] hover:text-[#0F0F10]"
+                  ? "bg-white text-[#14142B] "
+                  : "text-[#55556E] hover:text-[#14142B]"
               }`}
             >
               Sign In
@@ -450,8 +450,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               onClick={() => handleModeSwitch("signup")}
               className={`flex-1 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
                 mode === "signup"
-                  ? "bg-white text-[#0F0F10] shadow-xs"
-                  : "text-[#66666B] hover:text-[#0F0F10]"
+                  ? "bg-white text-[#14142B] "
+                  : "text-[#55556E] hover:text-[#14142B]"
               }`}
             >
               Create Account
@@ -463,7 +463,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
             type="button"
             disabled={isLoading}
             onClick={handleGoogleLogin}
-            className="w-full flex items-center justify-center gap-2.5 rounded-[10px] border border-[#E8E8E3] bg-white hover:bg-[#FAFAF7] py-2.5 px-4 text-xs font-bold text-[#0F0F10] shadow-xs transition-colors cursor-pointer disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2.5 rounded-[10px] border border-[#E6E6F0] bg-white hover:bg-[#F6F6FB] py-2.5 px-4 text-xs font-bold text-[#14142B] transition-colors cursor-pointer disabled:opacity-60"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path
@@ -492,22 +492,22 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 
           {/* Divider */}
           <div className="relative flex items-center justify-center">
-            <div className="w-full border-t border-[#E8E8E3]" />
-            <span className="absolute bg-white px-3 text-[11px] font-mono text-[#8E8E93] uppercase tracking-wider">
+            <div className="w-full border-t border-[#E6E6F0]" />
+            <span className="absolute bg-white px-3 text-[11px] font-mono text-[#55556E] uppercase tracking-wider">
               or with email
             </span>
           </div>
 
           {/* 3. Email Auth Method Selector Pills (Shown ONLY in Sign In mode; Default = Password) */}
           {mode === "signin" && (
-            <div className="grid grid-cols-3 gap-1.5 rounded-[10px] bg-[#FAFAF7] p-1 border border-[#E8E8E3]">
+            <div className="grid grid-cols-3 gap-1.5 rounded-[10px] bg-[#F6F6FB] p-1 border border-[#E6E6F0]">
               <button
                 type="button"
                 onClick={() => handleMethodSwitch("password")}
                 className={`py-1.5 px-2 rounded-[7px] text-xs font-bold transition-all cursor-pointer ${
                   authMethod === "password"
-                    ? "bg-[#5B5BF0] text-white shadow-xs"
-                    : "text-[#66666B] hover:text-[#0F0F10]"
+                    ? "bg-[#4F46E5] text-white "
+                    : "text-[#55556E] hover:text-[#14142B]"
                 }`}
               >
                 Password
@@ -517,8 +517,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 onClick={() => handleMethodSwitch("otp")}
                 className={`py-1.5 px-2 rounded-[7px] text-xs font-bold transition-all cursor-pointer ${
                   authMethod === "otp"
-                    ? "bg-[#5B5BF0] text-white shadow-xs"
-                    : "text-[#66666B] hover:text-[#0F0F10]"
+                    ? "bg-[#4F46E5] text-white "
+                    : "text-[#55556E] hover:text-[#14142B]"
                 }`}
               >
                 Email OTP
@@ -528,8 +528,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 onClick={() => handleMethodSwitch("magic")}
                 className={`py-1.5 px-2 rounded-[7px] text-xs font-bold transition-all cursor-pointer ${
                   authMethod === "magic"
-                    ? "bg-[#5B5BF0] text-white shadow-xs"
-                    : "text-[#66666B] hover:text-[#0F0F10]"
+                    ? "bg-[#4F46E5] text-white "
+                    : "text-[#55556E] hover:text-[#14142B]"
                 }`}
               >
                 Magic Link
@@ -552,12 +552,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               <div>
                 <label
                   htmlFor="auth-full-name"
-                  className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                  className="block text-xs font-bold text-[#14142B] mb-1.5"
                 >
                   Full Name
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E]" />
                   <input
                     id="auth-full-name"
                     name="fullName"
@@ -565,7 +565,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     placeholder="Alex Rivera"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full h-10 rounded-[10px] border border-[#E8E8E3] bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] focus:border-[#5B5BF0] focus:outline-none"
+                    className="w-full h-10 rounded-[10px] border border-[#E6E6F0] bg-white pl-10 pr-3.5 text-sm text-[#14142B] focus:border-[#4F46E5] focus:outline-none"
                   />
                 </div>
               </div>
@@ -575,12 +575,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
             <div>
               <label
                 htmlFor="auth-email"
-                className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                className="block text-xs font-bold text-[#14142B] mb-1.5"
               >
                 Email Address <span className="text-[#DC2626]">*</span>
               </label>
               <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E]" />
                 <input
                   id="auth-email"
                   name="email"
@@ -592,7 +592,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     setEmail(e.target.value);
                     if (errorMsg) setErrorMsg(null);
                   }}
-                  className="w-full h-10 rounded-[10px] border border-[#E8E8E3] bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] focus:border-[#5B5BF0] focus:outline-none"
+                  className="w-full h-10 rounded-[10px] border border-[#E6E6F0] bg-white pl-10 pr-3.5 text-sm text-[#14142B] focus:border-[#4F46E5] focus:outline-none"
                 />
               </div>
             </div>
@@ -603,7 +603,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 <div>
                   <label
                     htmlFor="auth-password"
-                    className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                    className="block text-xs font-bold text-[#14142B] mb-1.5"
                   >
                     {mode === "signup"
                       ? "Password (min. 8 characters)"
@@ -611,7 +611,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     <span className="text-[#DC2626]">*</span>
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+                    <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E]" />
                     <input
                       id="auth-password"
                       name="password"
@@ -621,7 +621,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                       placeholder="••••••••"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-10 rounded-[10px] border border-[#E8E8E3] bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] focus:border-[#5B5BF0] focus:outline-none"
+                      className="w-full h-10 rounded-[10px] border border-[#E6E6F0] bg-white pl-10 pr-3.5 text-sm text-[#14142B] focus:border-[#4F46E5] focus:outline-none"
                     />
                   </div>
                 </div>
@@ -630,12 +630,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                   <div>
                     <label
                       htmlFor="auth-confirm-password"
-                      className="block text-xs font-bold text-[#0F0F10] mb-1.5"
+                      className="block text-xs font-bold text-[#14142B] mb-1.5"
                     >
                       Confirm Password <span className="text-[#DC2626]">*</span>
                     </label>
                     <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8E8E93]" />
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#55556E]" />
                       <input
                         id="auth-confirm-password"
                         name="confirmPassword"
@@ -645,7 +645,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                         placeholder="••••••••"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
-                        className="w-full h-10 rounded-[10px] border border-[#E8E8E3] bg-white pl-10 pr-3.5 text-sm text-[#0F0F10] focus:border-[#5B5BF0] focus:outline-none"
+                        className="w-full h-10 rounded-[10px] border border-[#E6E6F0] bg-white pl-10 pr-3.5 text-sm text-[#14142B] focus:border-[#4F46E5] focus:outline-none"
                       />
                     </div>
                   </div>
@@ -653,11 +653,11 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               </div>
             ) : (
               /* Helper Box for OTP / Magic Link in Sign In mode */
-              <div className="rounded-[10px] bg-[#FAFAF7] border border-[#E8E8E3] px-3.5 py-2.5 text-xs text-[#66666B]">
+              <div className="rounded-[10px] bg-[#F6F6FB] border border-[#E6E6F0] px-3.5 py-2.5 text-xs text-[#55556E]">
                 {effectiveMethod === "otp" ? (
                   <>
                     We&apos;ll send a{" "}
-                    <strong className="text-[#0F0F10]">
+                    <strong className="text-[#14142B]">
                       6-digit one-time code
                     </strong>{" "}
                     to your email for instant verification.
@@ -665,7 +665,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 ) : (
                   <>
                     We&apos;ll email you a{" "}
-                    <strong className="text-[#0F0F10]">
+                    <strong className="text-[#14142B]">
                       one-click Magic Link
                     </strong>{" "}
                     to sign in without a password.
@@ -680,7 +680,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               size="md"
               type="submit"
               disabled={isLoading}
-              className="w-full font-bold shadow-[0_2px_10px_rgba(91,91,240,0.3)]"
+              className="w-full font-bold"
               rightIcon={
                 isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -702,13 +702,13 @@ export const AuthCard: React.FC<AuthCardProps> = ({
           </form>
 
           {/* Privacy note */}
-          <div className="pt-1 text-center text-[11px] text-[#8E8E93] leading-relaxed">
+          <div className="pt-1 text-center text-[11px] text-[#55556E] leading-relaxed">
             By continuing, you agree to LaunchOS&apos;s{" "}
-            <a href="#terms" className="underline hover:text-[#0F0F10]">
+            <a href="#terms" className="underline hover:text-[#14142B]">
               Terms
             </a>{" "}
             and{" "}
-            <a href="#privacy" className="underline hover:text-[#0F0F10]">
+            <a href="#privacy" className="underline hover:text-[#14142B]">
               Privacy Policy
             </a>
             .
@@ -741,13 +741,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       aria-labelledby="auth-modal-title"
     >
       <div
-        className="relative w-full max-w-md rounded-[18px] border border-[#E8E8E3] bg-white p-6 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.25)] animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-md rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-8 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
           aria-label="Close modal"
-          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-[#8E8E93] hover:text-[#0F0F10] hover:bg-[#FAFAF7] transition-colors cursor-pointer"
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-[#55556E] hover:text-[#14142B] hover:bg-[#F6F6FB] transition-colors cursor-pointer"
         >
           <X className="h-4 w-4" />
         </button>

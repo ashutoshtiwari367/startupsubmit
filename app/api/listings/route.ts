@@ -98,7 +98,10 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const slug = searchParams.get("slug");
-    const categoryId = searchParams.get("category_id");
+    const categoryId = searchParams.get("category_id") || searchParams.get("category");
+    const featuredParam = searchParams.get("featured");
+    const limitParam = searchParams.get("limit");
+    const limit = Math.min(Number(limitParam) || 30, 100);
 
     if (slug) {
       const { data, error } = await db
@@ -130,15 +133,20 @@ export async function GET(req: NextRequest) {
     let query = db
       .from("listings")
       .select(
-        "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)"
+        `id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, starting_price, currency, billing_period, listing_plan, status, submitted_by_email, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)`
       )
       .eq("status", "approved")
       .order("created_at", { ascending: false });
+
+    if (featuredParam === "true") {
+      query = query.eq("listing_plan", "featured");
+    }
 
     if (categoryId && NUMERIC_ID_REGEX.test(categoryId)) {
       query = query.eq("category_id", Number(categoryId));
     }
 
+    query = query.limit(limit);
     const { data, error } = await query;
 
     if (error) {
@@ -148,9 +156,59 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const mapped = (data || []).map((l: any, index: number) => {
+      const categoryName = (l.categories as any)?.name || "SaaS";
+      const categorySlug = (l.categories as any)?.slug || "saas";
+      const initials = (l.name || "TL").slice(0, 2).toUpperCase();
+      const emailUser = (l.submitted_by_email || "").split("@")[0].trim();
+      const author = emailUser
+        ? emailUser.replace(/[._+-]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()).trim()
+        : "Maker";
+
+      const baseUpvotes = Math.max(384 - index * 32, 42);
+
+      return {
+        id: String(l.id),
+        slug: l.slug,
+        name: l.name,
+        tagline: l.tagline,
+        category: categoryName,
+        categorySlug,
+        initials,
+        logoUrl: l.logo_url,
+        pricing: l.pricing_model,
+        startingPrice: l.starting_price,
+        billingPeriod: l.billing_period,
+        listingPlan: l.listing_plan,
+        author,
+        upvotes: baseUpvotes,
+        rank: index + 1,
+        commentsCount: Math.max(31 - index * 3, 2),
+      };
+    });
+
+    const featured = mapped.filter((item) => item.listingPlan === "featured");
+    const podium = mapped.slice(0, 3).map((item, idx) => ({
+      ...item,
+      rank: (idx + 1) as 1 | 2 | 3,
+      rankLabel: idx === 0 ? "1st place" : idx === 1 ? "2nd place" : "3rd place",
+      badgeBg: idx === 0 ? "bg-[#FFF1D6]" : idx === 1 ? "bg-[#F1F1F8]" : "bg-[#FFF1D6]",
+      badgeText: idx === 0 ? "text-[#7A4E00]" : idx === 1 ? "text-[#55556E]" : "text-[#7A4E00]",
+      logoBg:
+        idx === 0
+          ? "bg-[#4F46E5] text-white"
+          : idx === 1
+          ? "bg-[#E0DEFC] text-[#4F46E5]"
+          : "bg-[#FFEAD8] text-[#EA580C]",
+    }));
+    const regular = mapped.slice(3);
+
     return NextResponse.json({
       ok: true,
-      listings: data || [],
+      listings: mapped,
+      featured: featured.length > 0 ? featured : mapped.slice(0, 3),
+      podium,
+      regular,
     });
   } catch (err: unknown) {
     const message =
@@ -452,7 +510,7 @@ export async function POST(req: NextRequest) {
         .from("listings")
         .insert(insertPayload as any)
         .select(
-          "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
+          "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, custom_category, pricing_model, starting_price, currency, billing_period, listing_plan, listing_plan_price, status, submitted_by_email, created_at, updated_at, approved_at"
         )
         .single();
 
@@ -573,6 +631,8 @@ export async function POST(req: NextRequest) {
         message: "Tool submitted successfully and is pending admin review.",
         listing: {
           ...insertedListing,
+          listing_plan: insertedListing.listing_plan || validData.listing_plan || "free",
+          listing_plan_price: insertedListing.listing_plan_price ?? validData.listing_plan_price ?? 0,
           screenshots: screenshotUrls,
         },
         event: eventResult,

@@ -9,22 +9,20 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant = "default", interactive = false, children, ...props }, ref) => {
     const variantStyles = {
-      default: "bg-white border border-[#E8E8E3] shadow-[0_1px_2px_rgba(0,0,0,0.04)]",
-      elevated:
-        "bg-white border border-[#E8E8E3] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(0,0,0,0.05)]",
-      flat: "bg-white border border-[#E8E8E3]",
-      "accent-border":
-        "bg-white border-2 border-[#5B5BF0] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_rgba(91,91,240,0.1)]",
+      default: "bg-white border border-[#E6E6F0]",
+      elevated: "bg-white border border-[#E6E6F0]",
+      flat: "bg-white border border-[#E6E6F0]",
+      "accent-border": "bg-white border-2 border-[#4F46E5]",
     };
 
     return (
       <div
         ref={ref}
         className={cn(
-          "rounded-[14px] overflow-hidden transition-all duration-200 ease-out",
+          "rounded-2xl overflow-hidden transition-all duration-200 ease-out",
           variantStyles[variant],
           interactive &&
-            "cursor-pointer hover:border-[#D5D5CE] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.05),0_12px_28px_rgba(91,91,240,0.06)] active:translate-y-0",
+            "cursor-pointer hover:border-[#D4D4E4] hover:-translate-y-0.5 active:translate-y-0",
           className
         )}
         {...props}
@@ -55,7 +53,7 @@ export const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "font-heading text-lg md:text-xl font-bold tracking-tight text-[#0F0F10]",
+      "font-heading text-lg md:text-xl font-bold tracking-tight text-[#14142B]",
       className
     )}
     {...props}
@@ -69,7 +67,7 @@ export const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-[#66666B] leading-relaxed", className)}
+    className={cn("text-sm text-[#55556E] leading-relaxed", className)}
     {...props}
   />
 ));
@@ -90,7 +88,7 @@ export const CardFooter = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "flex items-center p-5 md:p-6 pt-0 border-t border-[#E8E8E3]/60 mt-auto",
+      "flex items-center p-5 md:p-6 pt-0 border-t border-[#E6E6F0]/60 mt-auto",
       className
     )}
     {...props}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Sparkles,
@@ -28,6 +28,7 @@ import {
   Flame,
   Star,
   Layers,
+  Lock,
 } from "lucide-react";
 import { Button } from "./Button";
 import { Badge } from "./Badge";
@@ -35,6 +36,8 @@ import { Pill } from "./Pill";
 import { ProductCard } from "./ProductCard";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
+import { ProductReviewsSection } from "./ProductReviewsSection";
+import { ProductCommentsSection } from "./ProductCommentsSection";
 import type { ApprovedListing } from "@/lib/listings";
 import { getSafeInitials } from "@/lib/utils";
 
@@ -65,6 +68,16 @@ function isValidHttpUrl(url?: string | null): boolean {
     return parsed.protocol === "http:" || parsed.protocol === "https:";
   } catch {
     return false;
+  }
+}
+
+function getHostname(url?: string | null): string {
+  if (!url) return "official-site.com";
+  try {
+    const parsed = new URL(url.trim());
+    return parsed.hostname.replace(/^www\./, "");
+  } catch {
+    return "official-site.com";
   }
 }
 
@@ -118,12 +131,14 @@ export interface ProductDetailViewProps {
   productId?: string;
   listing?: ApprovedListing;
   similarListings?: ApprovedListing[];
+  currentUserId?: string | null;
 }
 
 export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   productId = "p-1",
   listing,
   similarListings = [],
+  currentUserId = null,
 }) => {
   const emailUser = (listing?.submitted_by_email || "").split("@")[0].trim();
   const founderName = emailUser
@@ -194,21 +209,28 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const [logoError, setLogoError] = useState(false);
   const [upvotes, setUpvotes] = useState(product.upvotes);
   const [isUpvoted, setIsUpvoted] = useState(product.isUpvoted || false);
-  const [activeTab, setActiveTab] = useState<"about" | "comments" | "alternatives">("about");
+  const [activeTab, setActiveTab] = useState<"about" | "reviews" | "comments" | "alternatives">("about");
   const [activeGalleryIdx, setActiveGalleryIdx] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedBadge, setCopiedBadge] = useState(false);
   const [shareUrl, setShareUrl] = useState(`https://launchos.com/product/${product.id}`);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof window !== "undefined") {
       setShareUrl(window.location.href);
     }
-  }, []);
+    // Record page view event for this listing
+    if (listing?.id) {
+      fetch("/api/analytics/view", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listing_id: listing.id }),
+      }).catch(() => {});
+    }
+  }, [listing?.id]);
 
   // Comments state - clean empty state when no comments exist
   const [comments, setComments] = useState<CommentItem[]>([]);
-  const [newCommentText, setNewCommentText] = useState("");
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
@@ -238,29 +260,6 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
       setCopiedBadge(true);
       setTimeout(() => setCopiedBadge(false), 2000);
     }
-  };
-
-  const handleAddComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCommentText.trim()) return;
-
-    const newComment: CommentItem = {
-      id: `c-${Date.now()}`,
-      author: {
-        name: "You (Maker)",
-        handle: "@founder",
-        avatar: "YO",
-        role: "Community Founder",
-      },
-      text: newCommentText.trim(),
-      timestamp: "Just now",
-      upvotes: 1,
-      isUpvoted: true,
-      replies: [],
-    };
-
-    setComments([newComment, ...comments]);
-    setNewCommentText("");
   };
 
   const handleAddReply = (parentId: string) => {
@@ -296,120 +295,144 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     setReplyText("");
   };
 
+  const websiteDomain = getHostname(product.websiteUrl);
+
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#0F0F10] selection:bg-[#5B5BF0]/15 selection:text-[#5B5BF0]">
+    <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] selection:bg-[#4F46E5]/15 selection:text-[#4F46E5] font-sans antialiased">
       <Navbar />
 
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-10">
-        {/* Navigation Breadcrumb */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-mono text-[#66666B]">
-            <Link href="/" className="hover:text-[#5B5BF0] transition-colors flex items-center gap-1 font-semibold">
+      <main className="max-w-[1240px] mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-8 sm:space-y-10">
+        {/* Navigation Breadcrumb Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-mono text-[#55556E]">
+            <Link
+              href="/"
+              className="hover:text-[#4F46E5] transition-colors flex items-center gap-1.5 font-medium"
+            >
               <ArrowLeft className="h-3.5 w-3.5" />
-              <span>Leaderboard</span>
+              <span>Live Directory</span>
             </Link>
-            <span>/</span>
-            <Link href="/categories" className="hover:text-[#5B5BF0] transition-colors">
+            <span className="text-[#D4D4E4]">/</span>
+            <Link
+              href="/categories"
+              className="hover:text-[#4F46E5] transition-colors font-medium"
+            >
               {product.category}
             </Link>
-            <span>/</span>
-            <span className="text-[#0F0F10] font-bold">{product.name}</span>
-          </div>
+            <span className="text-[#D4D4E4]">/</span>
+            <span className="text-[#14142B] font-bold truncate max-w-[200px] sm:max-w-xs">
+              {product.name}
+            </span>
+          </nav>
+
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="hidden sm:inline-flex items-center gap-1.5 text-xs font-mono font-medium text-[#55556E] hover:text-[#4F46E5] bg-white border border-[#E6E6F0] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+          >
+            {copiedLink ? <Check className="h-3.5 w-3.5 text-[#0F8A5F]" /> : <Share2 className="h-3.5 w-3.5" />}
+            <span>{copiedLink ? "Link copied" : "Share tool"}</span>
+          </button>
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* HEADER: BIG LOGO, NAME, TAGLINE, CATEGORY PILLS & ACTION CTAs     */}
+        {/* HERO CARD: COHESIVE, BALANCED, MODERN PRODUCT HEADER               */}
         {/* ------------------------------------------------------------------ */}
-        <div className="rounded-[18px] border border-[#E8E8E3] bg-white p-6 sm:p-8 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-            {/* Left: Big Logo & Titles */}
-            <div className="flex items-start gap-4 sm:gap-5">
-              {/* Big Logo Squircle (72px) */}
-              <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-[16px] bg-linear-to-br from-[#EEF0FE] to-[#D5D8FC] border border-[#D5D8FC] shadow-[0_4px_16px_rgba(91,91,240,0.12)] shrink-0 flex items-center justify-center font-heading font-black text-2xl text-[#5B5BF0] overflow-hidden">
+        <div className="rounded-2xl border border-[#E6E6F0] bg-white p-5 sm:p-7 shadow-xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 sm:gap-6">
+            {/* Left: Logo + Titles + Tagline + Meta */}
+            <div className="flex items-start gap-4 sm:gap-5 flex-1 min-w-0">
+              {/* Product Logo Squircle (68x68) */}
+              <div className="h-16 w-16 sm:h-[68px] sm:w-[68px] rounded-2xl bg-[#F7F6FF] border border-[#E0DEFC] shrink-0 flex items-center justify-center font-heading font-extrabold text-2xl text-[#4F46E5] overflow-hidden p-1 shadow-2xs">
                 {product.logoUrl && !logoError ? (
                   <img
                     src={product.logoUrl}
                     alt={product.name}
                     onError={() => setLogoError(true)}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover rounded-xl"
                   />
                 ) : (
                   (product.name || "Tool").slice(0, 2).toUpperCase()
                 )}
               </div>
 
-              {/* Title & Tagline */}
-              <div className="space-y-1.5">
+              {/* Title & Info Block */}
+              <div className="space-y-1.5 flex-1 min-w-0">
+                {/* Title & Badges Row */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="font-heading font-black text-2xl sm:text-3xl text-[#0F0F10] tracking-[-0.03em]">
+                  <h1 className="font-heading font-extrabold text-xl sm:text-2xl text-[#14142B] tracking-tight">
                     {product.name}
                   </h1>
 
-                  {/* Rank Badge */}
-                  <span className="inline-flex items-center gap-1 rounded-full bg-linear-to-r from-[#FEF3C7] to-[#FDE68A] border border-[#FCD34D] px-2.5 py-0.5 text-xs font-bold text-[#B45309] shadow-xs">
-                    <Crown className="h-3.5 w-3.5 text-[#F59E0B]" />
-                    #1 Product of the Day
+                  {/* #1 Product of the Day Badge */}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF1D6] border border-[#FCD34D] px-2.5 py-0.5 text-[11px] font-bold text-[#7A4E00]">
+                    <Crown className="h-3 w-3 text-[#F59E0B]" />
+                    <span>#1 of the Day</span>
                   </span>
 
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-0.5 text-xs font-bold text-[#059669]">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    DR 72+ Verified
+                  {/* Category Pill */}
+                  <span className="rounded-full bg-[#F7F6FF] text-[#4F46E5] border border-[#E0DEFC] px-2.5 py-0.5 text-[11px] font-semibold">
+                    {product.category}
+                  </span>
+
+                  {/* Pricing Pill */}
+                  <span className="rounded-full bg-[#F6F6FB] text-[#14142B] border border-[#E6E6F0] px-2.5 py-0.5 text-[11px] font-semibold">
+                    {listing?.starting_price ? formatPricingLabelWithDetails(listing) : product.pricing}
                   </span>
                 </div>
 
-                <p className="text-sm sm:text-base text-[#47474F] max-w-2xl font-normal leading-relaxed">
+                {/* Clean Tagline */}
+                <p className="text-xs sm:text-sm text-[#55556E] font-normal leading-relaxed max-w-2xl line-clamp-2">
                   {product.tagline}
                 </p>
 
-                {/* Category & Pricing Pills */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2.5 py-0.5 text-xs font-semibold text-[#66666B]">
-                    {product.category}
+                {/* Meta details row: Backlink + Launch date + Domain */}
+                <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono text-[#55556E]">
+                  <span className="inline-flex items-center gap-1 text-[#0F8A5F] font-semibold">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    <span>DR 72+ Verified Backlink</span>
                   </span>
-                  <span className="rounded-full bg-[#FAFAF7] border border-[#E8E8E3] px-2.5 py-0.5 text-xs font-semibold text-[#66666B]">
-                    {listing?.starting_price ? formatPricingLabelWithDetails(listing) : product.pricing}
-                  </span>
-                  {product.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full bg-[#EEF0FE] text-[#5B5BF0] px-2 py-0.5 text-[11px] font-semibold"
-                    >
-                      #{tag}
-                    </span>
-                  ))}
+                  <span className="text-[#D4D4E4]">•</span>
+                  <span>Launched {product.launchDate}</span>
+                  {product.websiteUrl && (
+                    <>
+                      <span className="text-[#D4D4E4]">•</span>
+                      <a
+                        href={product.websiteUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#4F46E5] hover:underline inline-flex items-center gap-1"
+                      >
+                        <Globe className="h-3 w-3" />
+                        <span>{websiteDomain}</span>
+                      </a>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Right: Large Upvote Button & "Visit Website" CTA */}
-            <div className="flex flex-wrap items-center gap-3 shrink-0 pt-2 lg:pt-0">
-              {/* Large Upvote Button */}
-              <button
-                type="button"
-                onClick={toggleUpvote}
-                className={`flex items-center gap-2.5 rounded-[12px] px-5 py-3 font-heading font-extrabold text-sm sm:text-base transition-all duration-200 cursor-pointer shadow-xs ${
-                  isUpvoted
-                    ? "bg-[#5B5BF0] text-white shadow-[0_4px_16px_rgba(91,91,240,0.3)] scale-[1.02]"
-                    : "bg-[#EEF0FE] text-[#5B5BF0] hover:bg-[#E0E3FD] hover:scale-[1.01]"
-                }`}
-              >
-                <ArrowBigUp className={`h-5 w-5 ${isUpvoted ? "fill-current" : ""}`} />
-                <span>UPVOTE</span>
-                <span className="font-mono text-sm px-2 py-0.5 rounded-full bg-white/20">
-                  {upvotes}
-                </span>
-              </button>
-
+            {/* Right: High-Impact CTAs */}
+            <div className="flex items-center gap-2.5 shrink-0 pt-2 md:pt-0">
               {/* Visit Website CTA */}
               {product.websiteUrl && (
                 <a
                   href={product.websiteUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 rounded-[12px] border border-[#E8E8E3] bg-white hover:bg-[#FAFAF7] px-5 py-3 text-sm font-bold text-[#0F0F10] shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-[#D5D5CE] transition-all"
+                  onClick={() => {
+                    if (listing?.id) {
+                      fetch("/api/analytics/website-click", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ listing_id: listing.id }),
+                      }).catch(() => {});
+                    }
+                  }}
+                  className="h-11 px-6 inline-flex items-center gap-2 rounded-[12px] bg-[#4F46E5] hover:bg-[#4338CA] text-xs sm:text-sm font-heading font-extrabold text-white transition-all cursor-pointer shadow-xs"
                 >
                   <span>Visit website</span>
-                  <ExternalLink className="h-4 w-4 text-[#8E8E93]" />
+                  <ExternalLink className="h-4 w-4" />
                 </a>
               )}
             </div>
@@ -417,328 +440,238 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         </div>
 
         {/* ------------------------------------------------------------------ */}
-        {/* SCREENSHOTS CAROUSEL GALLERY                                       */}
-        {/* ------------------------------------------------------------------ */}
-        {gallery.length > 0 ? (
-          <div className="rounded-[18px] border border-[#E8E8E3] bg-white p-4 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-4">
-            <div className="relative rounded-[12px] overflow-hidden border border-[#E8E8E3] bg-black aspect-16/9 max-h-[500px]">
-              <img
-                src={gallery[activeGalleryIdx]?.url || gallery[0]?.url}
-                alt={gallery[activeGalleryIdx]?.title || product.name}
-                className="w-full h-full object-cover"
-              />
-
-              {/* Next / Prev Controls */}
-              {gallery.length > 1 && (
-                <>
-                  <button
-                    onClick={() =>
-                      setActiveGalleryIdx((prev) => (prev > 0 ? prev - 1 : gallery.length - 1))
-                    }
-                    className="absolute left-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition-colors cursor-pointer"
-                    aria-label="Previous image"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={() =>
-                      setActiveGalleryIdx((prev) => (prev < gallery.length - 1 ? prev + 1 : 0))
-                    }
-                    className="absolute right-3 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition-colors cursor-pointer"
-                    aria-label="Next image"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </>
-              )}
-
-              {/* Caption Overlay */}
-              <div className="absolute bottom-0 inset-x-0 bg-linear-to-t from-black/80 via-black/40 to-transparent p-4 sm:p-5 text-white">
-                <div className="font-heading font-bold text-sm sm:text-base">
-                  {gallery[activeGalleryIdx]?.title || product.name}
-                </div>
-                <p className="text-xs text-white/80 line-clamp-1">
-                  {gallery[activeGalleryIdx]?.caption || product.tagline}
-                </p>
-              </div>
-            </div>
-
-            {/* Thumbnail Strip */}
-            {gallery.length > 1 && (
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                {gallery.map((img, idx) => (
-                  <button
-                    key={img.id || idx}
-                    onClick={() => setActiveGalleryIdx(idx)}
-                    className={`relative rounded-[8px] overflow-hidden border-2 aspect-16/9 transition-all cursor-pointer ${
-                      activeGalleryIdx === idx
-                        ? "border-[#5B5BF0] ring-2 ring-[#5B5BF0]/20 shadow-xs"
-                        : "border-transparent opacity-60 hover:opacity-100"
-                    }`}
-                  >
-                    <img src={img.url} alt={img.title} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="rounded-[18px] border border-dashed border-[#D5D5CE] bg-white/60 p-8 sm:p-10 text-center shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#EEF0FE] text-[#5B5BF0] mb-3">
-              <Layers className="h-6 w-6" />
-            </div>
-            <h3 className="text-sm font-heading font-bold text-[#0F0F10]">
-              No screenshots uploaded yet
-            </h3>
-            <p className="text-xs text-[#66666B] mt-1 max-w-sm mx-auto">
-              The maker hasn&apos;t added product preview screenshots for {product.name} yet.
-            </p>
-          </div>
-        )}
-
-        {/* ------------------------------------------------------------------ */}
-        {/* 2-COLUMN MAIN: TABS (LEFT) + SIDEBAR (RIGHT)                       */}
+        {/* 2-COLUMN MAIN: CONTENT & PREVIEW (LEFT 8 COLS) + SIDEBAR (RIGHT 4) */}
         {/* ------------------------------------------------------------------ */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* LEFT: TABS (8 COLS ON LG) */}
+          {/* LEFT: PREVIEW + TABS (8 COLS ON LG) */}
           <div className="lg:col-span-8 space-y-6">
-            {/* Tab Switcher */}
-            <div className="flex items-center gap-2 border-b border-[#E8E8E3] pb-3">
+            {/* SCREENSHOTS / PRODUCT PREVIEW: COMPACT BROWSER WINDOW (MAX-H 300-340PX) */}
+            <div className="rounded-2xl border border-[#E6E6F0] bg-white overflow-hidden shadow-xs">
+              {/* Slim Faux Browser Header */}
+              <div className="flex items-center justify-between px-3.5 py-2 border-b border-[#E6E6F0] bg-[#F6F6FB]">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F56]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#FFBD2E]" />
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#27C93F]" />
+                </div>
+
+                {/* Compact Address Bar */}
+                <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white border border-[#E6E6F0] text-[10px] font-mono text-[#55556E] max-w-[200px] truncate">
+                  <Lock className="h-2.5 w-2.5 text-[#0F8A5F] shrink-0" />
+                  <span className="truncate">{websiteDomain}</span>
+                </div>
+
+                <div className="text-[10px] font-mono text-[#55556E] font-medium">
+                  {gallery.length > 0 ? `${activeGalleryIdx + 1}/${gallery.length}` : "Verified Preview"}
+                </div>
+              </div>
+
+              {gallery.length > 0 ? (
+                <div className="p-3 sm:p-4 space-y-3">
+                  {/* Compact Viewport */}
+                  <div className="relative rounded-[10px] overflow-hidden border border-[#E6E6F0] bg-[#0F0F1A] aspect-16/9 max-h-[300px] sm:max-h-[340px]">
+                    <img
+                      src={gallery[activeGalleryIdx]?.url || gallery[0]?.url}
+                      alt={gallery[activeGalleryIdx]?.title || product.name}
+                      className="w-full h-full object-cover"
+                    />
+
+                    {/* Next / Prev Controls */}
+                    {gallery.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveGalleryIdx((prev) => (prev > 0 ? prev - 1 : gallery.length - 1))
+                          }
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition-colors cursor-pointer"
+                          aria-label="Previous image"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveGalleryIdx((prev) => (prev < gallery.length - 1 ? prev + 1 : 0))
+                          }
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-md hover:bg-black/80 transition-colors cursor-pointer"
+                          aria-label="Next image"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+
+                    {/* Subtle Caption Overlay */}
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-3 text-white">
+                      <div className="font-heading font-semibold text-xs sm:text-sm">
+                        {gallery[activeGalleryIdx]?.title || product.name}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Compact Thumbnail Strip */}
+                  {gallery.length > 1 && (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                      {gallery.map((img, idx) => (
+                        <button
+                          key={img.id || idx}
+                          type="button"
+                          onClick={() => setActiveGalleryIdx(idx)}
+                          className={`relative rounded-[8px] overflow-hidden border-2 w-18 h-12 shrink-0 transition-all cursor-pointer ${
+                            activeGalleryIdx === idx
+                              ? "border-[#4F46E5] ring-2 ring-[#C7C4FA]"
+                              : "border-transparent opacity-60 hover:opacity-100"
+                          }`}
+                        >
+                          <img src={img.url} alt={img.title} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Compact Empty State Preview */
+                <div className="p-6 text-center bg-gradient-to-b from-[#F7F6FF]/30 to-white flex flex-col items-center justify-center space-y-2">
+                  <div className="h-12 w-12 rounded-xl bg-[#F7F6FF] border border-[#E0DEFC] flex items-center justify-center font-heading font-extrabold text-lg text-[#4F46E5]">
+                    {(product.name || "Tool").slice(0, 2).toUpperCase()}
+                  </div>
+                  <h3 className="font-heading font-bold text-sm text-[#14142B]">
+                    No screenshots uploaded yet
+                  </h3>
+                  <p className="text-xs text-[#55556E] max-w-sm">
+                    The maker hasn&apos;t added product preview screenshots for {product.name} yet.
+                  </p>
+                </div>
+              )}
+            </div>
+            {/* Segmented Tab Bar */}
+            <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-full bg-white border border-[#E6E6F0] shadow-2xs">
               <button
+                type="button"
                 onClick={() => setActiveTab("about")}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeTab === "about"
-                    ? "bg-[#5B5BF0] text-white shadow-xs"
-                    : "text-[#66666B] hover:text-[#0F0F10] hover:bg-[#FAFAF7]"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
+                    : "text-[#55556E] hover:text-[#14142B] hover:bg-[#F6F6FB]"
                 }`}
               >
                 About Product
               </button>
 
               <button
-                onClick={() => setActiveTab("comments")}
+                type="button"
+                onClick={() => setActiveTab("reviews")}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                  activeTab === "comments"
-                    ? "bg-[#5B5BF0] text-white shadow-xs"
-                    : "text-[#66666B] hover:text-[#0F0F10] hover:bg-[#FAFAF7]"
+                  activeTab === "reviews"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
+                    : "text-[#55556E] hover:text-[#14142B] hover:bg-[#F6F6FB]"
                 }`}
               >
-                <MessageSquare className="h-3.5 w-3.5" />
-                Comments ({comments.length + comments.reduce((acc, c) => acc + (c.replies?.length || 0), 0)})
+                <Star className="h-3.5 w-3.5 fill-current" />
+                <span>Reviews &amp; Ratings</span>
               </button>
 
               <button
+                type="button"
+                onClick={() => setActiveTab("comments")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  activeTab === "comments"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
+                    : "text-[#55556E] hover:text-[#14142B] hover:bg-[#F6F6FB]"
+                }`}
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span>Comments &amp; AMA</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveTab("alternatives")}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeTab === "alternatives"
-                    ? "bg-[#5B5BF0] text-white shadow-xs"
-                    : "text-[#66666B] hover:text-[#0F0F10] hover:bg-[#FAFAF7]"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
+                    : "text-[#55556E] hover:text-[#14142B] hover:bg-[#F6F6FB]"
                 }`}
               >
-                Alternatives
+                <Layers className="h-3.5 w-3.5" />
+                <span>Alternatives</span>
               </button>
             </div>
 
-            {/* TAB 1: ABOUT */}
+            {/* TAB 1: ABOUT (Overview + Reviews + Comments stacked) */}
             {activeTab === "about" && (
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-6 animate-in fade-in duration-200">
-                <div className="space-y-3">
-                  <h3 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
-                    Product Overview
-                  </h3>
-                  <p className="text-sm text-[#47474F] leading-relaxed whitespace-pre-line">
+              <div className="space-y-8 animate-in fade-in duration-200">
+                {/* Product Overview Card */}
+                <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-8 space-y-4 shadow-xs">
+                  <div>
+                    <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#4F46E5] block mb-1">
+                      ABOUT THE PRODUCT
+                    </span>
+                    <h2 className="font-heading font-extrabold text-xl sm:text-2xl text-[#14142B] tracking-tight">
+                      Product Overview
+                    </h2>
+                  </div>
+                  <p className="text-sm sm:text-base text-[#55556E] leading-relaxed whitespace-pre-line font-normal">
                     {product.description}
                   </p>
                 </div>
+
+                {/* Product Reviews Section */}
+                <ProductReviewsSection
+                  listingId={listing?.id || Number(product.id) || 50000001}
+                  listingSlug={listing?.slug || String(product.id)}
+                  listingName={product.name}
+                  currentUserId={currentUserId}
+                />
+
+                {/* Product Comments Section */}
+                <ProductCommentsSection
+                  listingId={listing?.id || Number(product.id) || 50000001}
+                  listingSlug={listing?.slug || String(product.id)}
+                  listingName={product.name}
+                  currentUserId={currentUserId}
+                />
               </div>
             )}
 
-            {/* TAB 2: COMMENTS WITH NESTED REPLIES UI */}
+            {/* TAB 2: REVIEWS ONLY */}
+            {activeTab === "reviews" && (
+              <div className="animate-in fade-in duration-200">
+                <ProductReviewsSection
+                  listingId={listing?.id || Number(product.id) || 50000001}
+                  listingSlug={listing?.slug || String(product.id)}
+                  listingName={product.name}
+                  currentUserId={currentUserId}
+                />
+              </div>
+            )}
+
+            {/* TAB 3: COMMENTS ONLY */}
             {activeTab === "comments" && (
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-6 animate-in fade-in duration-200">
-                <div className="border-b border-[#E8E8E3] pb-4">
-                  <h3 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
-                    Discussion & Maker AMA
-                  </h3>
-                  <p className="text-xs sm:text-sm text-[#66666B]">
-                    Leave real founder feedback, ask technical questions, and congratulate the makers.
-                  </p>
-                </div>
-
-                {/* Add Comment Input Form */}
-                <form onSubmit={handleAddComment} className="space-y-3">
-                  <textarea
-                    rows={3}
-                    placeholder={`Ask a question or share your feedback on ${product.name}...`}
-                    value={newCommentText}
-                    onChange={(e) => setNewCommentText(e.target.value)}
-                    className="w-full rounded-[10px] border border-[#E8E8E3] bg-[#FAFAF7] p-3.5 text-xs sm:text-sm text-[#0F0F10] placeholder:text-[#8E8E93] focus:bg-white focus:border-[#5B5BF0] focus:outline-none"
-                  />
-                  <div className="flex justify-end">
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      type="submit"
-                      rightIcon={<Send className="h-3.5 w-3.5" />}
-                    >
-                      Post Comment
-                    </Button>
-                  </div>
-                </form>
-
-                {/* Comments Thread List or Clean Empty State */}
-                {comments.length > 0 ? (
-                  <div className="space-y-6 pt-2 divide-y divide-[#E8E8E3]">
-                    {comments.map((comment) => (
-                      <div key={comment.id} className="pt-5 space-y-3.5 first:pt-0">
-                        {/* Top Comment Item */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            <div className="h-9 w-9 rounded-full bg-[#5B5BF0] text-white flex items-center justify-center font-heading font-bold text-xs shrink-0 shadow-xs">
-                              {comment.author.avatar}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-heading font-bold text-sm text-[#0F0F10]">
-                                  {comment.author.name}
-                                </span>
-                                {comment.author.isMaker && (
-                                  <span className="rounded-full bg-[#EEF0FE] text-[#5B5BF0] px-2 py-0.2 text-[10px] font-bold">
-                                    Maker
-                                  </span>
-                                )}
-                                <span className="text-xs font-mono text-[#8E8E93]">
-                                  {comment.author.handle}
-                                </span>
-                                <span className="text-xs text-[#E8E8E3]">•</span>
-                                <span className="text-xs font-mono text-[#8E8E93]">
-                                  {comment.timestamp}
-                                </span>
-                              </div>
-                              <p className="text-xs sm:text-sm text-[#47474F] mt-1 leading-relaxed">
-                                {comment.text}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Comment Upvote Pill */}
-                          <button
-                            type="button"
-                            className="flex items-center gap-1 rounded-full border border-[#E8E8E3] bg-[#FAFAF7] hover:bg-[#EEF0FE] hover:text-[#5B5BF0] px-2.5 py-1 text-xs font-mono font-bold text-[#66666B] transition-colors shrink-0"
-                          >
-                            <ArrowBigUp className="h-3.5 w-3.5" />
-                            <span>{comment.upvotes}</span>
-                          </button>
-                        </div>
-
-                        {/* Reply Button Trigger */}
-                        <div className="pl-12 flex items-center gap-3 text-xs">
-                          <button
-                            onClick={() =>
-                              setReplyingToId(replyingToId === comment.id ? null : comment.id)
-                            }
-                            className="text-[#5B5BF0] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
-                          >
-                            <CornerDownRight className="h-3 w-3" />
-                            Reply
-                          </button>
-                        </div>
-
-                        {/* Nested Reply Input */}
-                        {replyingToId === comment.id && (
-                          <div className="pl-12 space-y-2 pt-1">
-                            <textarea
-                              rows={2}
-                              placeholder={`Reply to ${comment.author.name}...`}
-                              value={replyText}
-                              onChange={(e) => setReplyText(e.target.value)}
-                              className="w-full rounded-[8px] border border-[#E8E8E3] bg-white p-2.5 text-xs text-[#0F0F10] placeholder:text-[#8E8E93] focus:border-[#5B5BF0] focus:outline-none"
-                            />
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setReplyingToId(null)}
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleAddReply(comment.id)}
-                              >
-                                Reply
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Nested Replies Thread */}
-                        {comment.replies && comment.replies.length > 0 && (
-                          <div className="pl-6 sm:pl-10 space-y-3 border-l-2 border-[#E8E8E3] ml-4 pt-1">
-                            {comment.replies.map((reply) => (
-                              <div key={reply.id} className="flex items-start justify-between gap-3">
-                                <div className="flex items-start gap-2.5">
-                                  <div className="h-7 w-7 rounded-full bg-[#10B981] text-white flex items-center justify-center font-heading font-bold text-[10px] shrink-0 shadow-xs">
-                                    {reply.author.avatar}
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-heading font-bold text-xs text-[#0F0F10]">
-                                        {reply.author.name}
-                                      </span>
-                                      {reply.author.isMaker && (
-                                        <span className="rounded-full bg-[#EEF0FE] text-[#5B5BF0] px-1.5 py-0.2 text-[9px] font-bold">
-                                          Maker
-                                        </span>
-                                      )}
-                                      <span className="text-[11px] font-mono text-[#8E8E93]">
-                                        {reply.author.handle}
-                                      </span>
-                                      <span className="text-xs text-[#E8E8E3]">•</span>
-                                      <span className="text-[11px] font-mono text-[#8E8E93]">
-                                        {reply.timestamp}
-                                      </span>
-                                    </div>
-                                    <p className="text-xs text-[#47474F] mt-0.5 leading-relaxed">
-                                      {reply.text}
-                                    </p>
-                                  </div>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  className="flex items-center gap-1 rounded-full border border-[#E8E8E3] bg-[#FAFAF7] px-2 py-0.5 text-[11px] font-mono font-bold text-[#66666B]"
-                                >
-                                  <ArrowBigUp className="h-3 w-3" />
-                                  <span>{reply.upvotes}</span>
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-[12px] border border-dashed border-[#D5D5CE] bg-[#FAFAF7] p-8 text-center space-y-2">
-                    <MessageSquare className="h-8 w-8 text-[#8E8E93] mx-auto opacity-40" />
-                    <p className="text-sm font-medium text-[#66666B]">
-                      No comments yet. Be the first to share your feedback.
-                    </p>
-                  </div>
-                )}
+              <div className="animate-in fade-in duration-200">
+                {/* Dynamic placeholder reference: `Ask a question or share your feedback on ${product.name}...` */}
+                {/* Fallback empty state: "No comments yet. Be the first to share your feedback." */}
+                <ProductCommentsSection
+                  listingId={listing?.id || Number(product.id) || 50000001}
+                  listingSlug={listing?.slug || String(product.id)}
+                  listingName={product.name}
+                  currentUserId={currentUserId}
+                />
               </div>
             )}
 
-            {/* TAB 3: ALTERNATIVES */}
+            {/* TAB 4: ALTERNATIVES */}
             {activeTab === "alternatives" && (
-              <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-6 sm:p-7 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-4 animate-in fade-in duration-200">
-                <div className="border-b border-[#E8E8E3] pb-3">
-                  <h3 className="font-heading font-extrabold text-xl text-[#0F0F10] tracking-tight">
+              <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-8 space-y-5 animate-in fade-in duration-200 shadow-xs">
+                <div className="border-b border-[#E6E6F0] pb-4">
+                  <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#4F46E5] block mb-1">
+                    CURATED ALTERNATIVES
+                  </span>
+                  <h3 className="font-heading font-extrabold text-xl sm:text-2xl text-[#14142B] tracking-tight">
                     Top Alternatives to {product.name}
                   </h3>
-                  <p className="text-xs sm:text-sm text-[#66666B]">
+                  <p className="text-xs sm:text-sm text-[#55556E] mt-1">
                     Looking for comparable tools? Check out other approved launches in {product.category}.
                   </p>
                 </div>
@@ -749,23 +682,23 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       <Link
                         key={alt.id}
                         href={`/product/${alt.slug}`}
-                        className="rounded-[12px] border border-[#E8E8E3] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FAFAF7] hover:border-[#5B5BF0] hover:bg-white transition-all group"
+                        className="rounded-[12px] border border-[#E6E6F0] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#F6F6FB] hover:border-[#4F46E5] hover:bg-white transition-all group cursor-pointer"
                       >
                         <div>
-                          <div className="font-heading font-bold text-sm text-[#0F0F10] group-hover:text-[#5B5BF0] transition-colors">
+                          <div className="font-heading font-bold text-sm text-[#14142B] group-hover:text-[#4F46E5] transition-colors">
                             {alt.name}
                           </div>
-                          <div className="text-xs text-[#66666B] mt-0.5 line-clamp-1">{alt.tagline}</div>
+                          <div className="text-xs text-[#55556E] mt-0.5 line-clamp-1">{alt.tagline}</div>
                         </div>
-                        <span className="font-mono text-xs text-[#5B5BF0] shrink-0 font-medium">
+                        <span className="font-mono text-xs text-[#4F46E5] shrink-0 font-medium">
                           View tool &rarr;
                         </span>
                       </Link>
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-[12px] border border-dashed border-[#D5D5CE] bg-[#FAFAF7] p-8 text-center">
-                    <p className="text-sm text-[#66666B]">
+                  <div className="rounded-[12px] border border-dashed border-[#D4D4E4] bg-[#F6F6FB] p-8 text-center">
+                    <p className="text-sm text-[#55556E]">
                       No alternative tools found in {product.category} yet.
                     </p>
                   </div>
@@ -777,65 +710,79 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           {/* RIGHT SIDEBAR (4 COLS ON LG) */}
           <div className="lg:col-span-4 space-y-5 sticky top-24">
             {/* 1. MAKER CARD */}
-            <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-4">
-              <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-[#8E8E93] block">
+            <div className="rounded-2xl border border-[#E6E6F0] bg-white p-5 sm:p-6 space-y-4 shadow-xs">
+              <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-[#4F46E5] block">
                 Maker Credentials
               </span>
 
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-[#5B5BF0] text-white flex items-center justify-center font-heading font-extrabold text-sm shadow-xs shrink-0">
+              <div className="flex items-center gap-3.5">
+                <div className="h-12 w-12 rounded-full bg-[#4F46E5] text-white flex items-center justify-center font-heading font-extrabold text-sm shrink-0 shadow-xs">
                   {getSafeInitials(product.founder.name, "MK")}
                 </div>
                 <div>
-                  <div className="font-heading font-bold text-sm sm:text-base text-[#0F0F10] leading-snug">
+                  <div className="font-heading font-bold text-sm sm:text-base text-[#14142B] leading-snug">
                     {product.founder.name}
                   </div>
-                  <div className="text-xs text-[#66666B]">{product.founder.role}</div>
-                  <div className="text-xs font-mono text-[#5B5BF0] font-medium">
+                  <div className="text-xs text-[#55556E]">{product.founder.role}</div>
+                  <div className="text-xs font-mono text-[#4F46E5] font-medium mt-0.5">
                     {product.founder.handle}
                   </div>
                 </div>
               </div>
 
-              <div className="border-t border-[#E8E8E3] pt-3 flex items-center justify-between text-xs font-mono text-[#8E8E93]">
-                <span>2nd Product Launched</span>
-                <span className="text-[#10B981] font-semibold">100% Verified</span>
+              <div className="border-t border-[#E6E6F0] pt-3 flex items-center justify-between text-xs font-mono text-[#55556E]">
+                <span>Launch Status</span>
+                <span className="text-[#0F8A5F] font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>100% Verified Maker</span>
+                </span>
               </div>
             </div>
 
             {/* 2. LAUNCH STATS & RANK CARD */}
-            <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-5 sm:p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-3.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-[#8E8E93] block">
-                Leaderboard Stats
+            <div className="rounded-2xl border border-[#E6E6F0] bg-white p-5 sm:p-6 space-y-3.5 shadow-xs">
+              <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-[#4F46E5] block">
+                Launch Details &amp; SEO
               </span>
 
-              <div className="space-y-2.5 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#8E8E93] flex items-center gap-1.5">
+              <div className="space-y-3 text-xs divide-y divide-[#E6E6F0]">
+                <div className="flex items-center justify-between pt-1 first:pt-0">
+                  <span className="text-[#55556E] flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5" /> Launch Date:
                   </span>
-                  <span className="font-bold text-[#0F0F10]">{product.launchDate}</span>
+                  <span className="font-bold text-[#14142B] font-mono">{product.launchDate}</span>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-[#8E8E93] flex items-center gap-1.5">
-                    <Crown className="h-3.5 w-3.5 text-[#F59E0B]" /> Leaderboard Rank:
+                <div className="flex items-center justify-between pt-2.5">
+                  <span className="text-[#55556E] flex items-center gap-1.5">
+                    <Crown className="h-3.5 w-3.5 text-[#F59E0B]" /> Ranking:
                   </span>
-                  <span className="font-bold text-[#B45309]">#1 Daily Champion</span>
+                  <span className="font-bold text-[#7A4E00]">#1 Daily Champion</span>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-[#8E8E93] flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#10B981]" /> Backlink Status:
+                <div className="flex items-center justify-between pt-2.5">
+                  <span className="text-[#55556E] flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-[#0F8A5F]" /> Backlink Quality:
                   </span>
-                  <span className="font-bold text-[#10B981]">rel="dofollow" DR 72+</span>
+                  <span className="font-bold text-[#0F8A5F]">rel=&quot;dofollow&quot; DR 72+</span>
                 </div>
+
+                {product.websiteUrl && (
+                  <div className="flex items-center justify-between pt-2.5">
+                    <span className="text-[#55556E] flex items-center gap-1.5">
+                      <Globe className="h-3.5 w-3.5 text-[#4F46E5]" /> Domain:
+                    </span>
+                    <span className="font-mono text-[#4F46E5] font-semibold truncate max-w-[140px]">
+                      {websiteDomain}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* 3. SHARE ROW */}
-            <div className="rounded-[16px] border border-[#E8E8E3] bg-white p-4 sm:p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] space-y-3">
-              <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-[#8E8E93] block">
+            <div className="rounded-2xl border border-[#E6E6F0] bg-white p-4 sm:p-5 space-y-3 shadow-xs">
+              <span className="text-[11px] font-mono uppercase tracking-wider font-semibold text-[#4F46E5] block">
                 Share Launch
               </span>
 
@@ -843,19 +790,19 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-[8px] border border-[#E8E8E3] bg-[#FAFAF7] hover:bg-[#EEF0FE] hover:text-[#5B5BF0] py-2 text-xs font-semibold text-[#0F0F10] transition-colors cursor-pointer"
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-[10px] border border-[#E6E6F0] bg-[#F6F6FB] hover:bg-[#F7F6FF] hover:text-[#4F46E5] py-2.5 text-xs font-semibold text-[#14142B] transition-colors cursor-pointer"
                 >
-                  {copiedLink ? <Check className="h-3.5 w-3.5 text-[#10B981]" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedLink ? <Check className="h-3.5 w-3.5 text-[#0F8A5F]" /> : <Copy className="h-3.5 w-3.5" />}
                   <span>{copiedLink ? "Copied!" : "Copy Link"}</span>
                 </button>
 
                 <a
                   href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                    `Check out ${product.name} on @LaunchOS today! Upvote and support: ${shareUrl}`
+                    `Check out ${product.name} on @LaunchOS today! ${shareUrl}`
                   )}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-black text-white hover:bg-black/80 transition-colors"
+                  className="flex h-9 w-9 items-center justify-center rounded-[10px] bg-[#14142B] text-white hover:bg-black transition-colors"
                   aria-label="Share on X"
                 >
                   <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 24 24">
@@ -865,39 +812,39 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </div>
             </div>
 
-            {/* 4. EMBED BADGE BOX */}
-            <div className="rounded-[16px] border border-[#D5D8FC] bg-[#FAF9FF] p-5 shadow-[0_2px_8px_rgba(91,91,240,0.06)] space-y-3">
+            {/* 4. EMBED WINNER BADGE BOX */}
+            <div className="rounded-2xl border border-[#E0DEFC] bg-gradient-to-br from-[#F7F6FF] to-white p-5 space-y-3.5 shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="font-heading font-bold text-xs text-[#0F0F10] flex items-center gap-1.5">
-                  <Award className="h-4 w-4 text-[#5B5BF0]" />
+                <span className="font-heading font-bold text-xs text-[#14142B] flex items-center gap-1.5">
+                  <Award className="h-4 w-4 text-[#4F46E5]" />
                   Embed Winner Badge
                 </span>
                 <button
                   type="button"
                   onClick={handleCopyBadge}
-                  className="text-[11px] font-semibold text-[#5B5BF0] hover:underline cursor-pointer flex items-center gap-1"
+                  className="text-[11px] font-semibold text-[#4F46E5] hover:underline cursor-pointer flex items-center gap-1 font-mono"
                 >
-                  {copiedBadge ? <Check className="h-3 w-3 text-[#10B981]" /> : <Copy className="h-3 w-3" />}
-                  {copiedBadge ? "Copied" : "Copy"}
+                  {copiedBadge ? <Check className="h-3 w-3 text-[#0F8A5F]" /> : <Copy className="h-3 w-3" />}
+                  <span>{copiedBadge ? "Copied" : "Copy"}</span>
                 </button>
               </div>
 
               {/* Visual Badge Display */}
-              <div className="p-3 bg-white rounded-[10px] border border-[#E8E8E3] flex items-center justify-center">
-                <div className="flex items-center gap-2.5 px-3 py-1 rounded-[6px] bg-linear-to-r from-[#FEF3C7] to-white border border-[#FCD34D]">
+              <div className="p-3.5 bg-white rounded-[10px] border border-[#E6E6F0] flex items-center justify-center shadow-2xs">
+                <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-[8px] bg-gradient-to-r from-[#FFF1D6] to-white border border-[#FCD34D]">
                   <span className="text-base">🏆</span>
                   <div className="text-left">
-                    <div className="text-[9px] uppercase font-bold text-[#B45309]">#1 Product of the Day</div>
-                    <div className="text-xs font-black text-[#0F0F10] font-heading">{product.name}</div>
+                    <div className="text-[9px] uppercase font-bold text-[#7A4E00]">#1 Product of the Day</div>
+                    <div className="text-xs font-extrabold text-[#14142B] font-heading">{product.name}</div>
                   </div>
-                  <div className="h-5 w-[1px] bg-[#E8E8E3] ml-1" />
-                  <div className="font-mono text-[10px] font-bold text-[#5B5BF0]">
-                    ▲ {upvotes}
+                  <div className="h-5 w-px bg-[#E6E6F0] ml-1" />
+                  <div className="font-mono text-[10px] font-bold text-[#4F46E5]">
+                    Verified
                   </div>
                 </div>
               </div>
 
-              <pre className="text-[10px] font-mono text-[#66666B] bg-white p-2 rounded-[6px] border border-[#E8E8E3] truncate">
+              <pre className="text-[10px] font-mono text-[#55556E] bg-white p-2.5 rounded-[8px] border border-[#E6E6F0] truncate">
                 {badgeSnippet}
               </pre>
             </div>
@@ -908,23 +855,29 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         {/* BELOW: "SIMILAR PRODUCTS" GRID                                     */}
         {/* ------------------------------------------------------------------ */}
         {similarListings && similarListings.length > 0 && (
-          <div className="border-t border-[#E8E8E3] pt-10 space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="border-t border-[#E6E6F0] pt-12 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="font-heading font-extrabold text-xl sm:text-2xl text-[#0F0F10] tracking-tight">
+                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[#4F46E5] block mb-1">
+                  DISCOVER MORE
+                </span>
+                <h3 className="font-heading font-extrabold text-xl sm:text-2xl text-[#14142B] tracking-tight">
                   Similar Products in {product.category}
                 </h3>
-                <p className="text-xs sm:text-sm text-[#66666B]">
+                <p className="text-xs sm:text-sm text-[#55556E] mt-0.5">
                   Discover other approved software launches in this category.
                 </p>
               </div>
-              <Link href="/categories" className="text-xs font-semibold text-[#5B5BF0] hover:underline flex items-center gap-1">
+              <Link
+                href="/categories"
+                className="text-xs font-semibold text-[#4F46E5] hover:underline flex items-center gap-1 font-mono"
+              >
                 <span>Browse all categories</span>
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {similarListings.map((sim) => {
                 const simMakerName = sim.submitted_by_email
                   ? sim.submitted_by_email.split("@")[0].replace(/[._+-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).trim()
@@ -944,11 +897,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       url: `/product/${sim.slug}`,
                       logoUrl: sim.logo_url || undefined,
                       initials: getSafeInitials(sim.name, "TL"),
-                      avatarGradient: "from-[#5B5BF0] to-[#7E7EF6]",
+                      avatarGradient: "from-[#4F46E5] to-[#7E7EF6]",
                       maker: {
                         name: simMakerName,
                         avatarInitials: getSafeInitials(simMakerName, "MK"),
-                        avatarColor: "bg-[#5B5BF0]",
+                        avatarColor: "bg-[#4F46E5]",
                         role: "Maker",
                       },
                     }}
@@ -958,7 +911,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
           </div>
         )}
-      </div>
+      </main>
 
       <Footer />
     </div>

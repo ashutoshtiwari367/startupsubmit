@@ -175,7 +175,7 @@ export async function getSeoConfig(): Promise<SeoConfig> {
             {
               title: "Create Maker Account",
               path: "/signup",
-              note: "Join LaunchOS community to upvote, review, and launch products.",
+              note: "Join LaunchOS community to review, discover, and launch products.",
             },
           ],
         },

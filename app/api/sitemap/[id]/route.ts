@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(
   _req: Request,
-  context: { params: Promise<{ id: string }> | { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const params = await Promise.resolve(context.params);
   const rawId = (params?.id || "").replace(/\.xml$/i, "").trim();

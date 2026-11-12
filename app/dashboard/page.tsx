@@ -8,11 +8,13 @@ import { isEmailAllowlisted } from "@/lib/admin-auth";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/Button";
+import { DashboardAnalytics } from "@/components/DashboardAnalytics";
+import { getDashboardAnalytics } from "@/lib/analytics";
 import { ShieldCheck, Plus, Mail, Hash, LogOut } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export function resolveCustomerDisplayName(params: {
+function resolveCustomerDisplayName(params: {
   profileFullName?: string | null;
   metaFullName?: string | null;
   metaName?: string | null;
@@ -103,24 +105,29 @@ export default async function DashboardPage() {
 
   const isAdmin = isEmailAllowlisted(user.email);
 
+  const initialAnalytics = await getDashboardAnalytics({
+    timeRange: "30d",
+    filterByEmail: isAdmin ? null : customerEmail,
+  });
+
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#0F0F10]">
+    <div className="min-h-screen bg-[#F6F6FB] text-[#14142B]">
       <Navbar />
 
       <main className="max-w-[1100px] mx-auto px-4 sm:px-6 py-10 space-y-8">
         {/* Top Customer Identity Banner */}
-        <div className="rounded-[18px] border border-[#E8E8E3] bg-white p-6 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#EEF0FE] px-3 py-1 text-xs font-mono font-bold text-[#5B5BF0]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#F7F6FF] px-3 py-1 text-xs font-mono font-bold text-[#4F46E5]">
               <Hash className="h-3.5 w-3.5" />
               <span>Customer ID: #{profile?.cust_id_ext}</span>
             </div>
-            <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-[#0F0F10]">
+            <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-[#14142B]">
               Welcome, {customerName}!
             </h1>
-            <div className="flex items-center gap-4 text-xs text-[#66666B] font-mono">
+            <div className="flex items-center gap-4 text-xs text-[#55556E] font-mono">
               <span className="inline-flex items-center gap-1.5">
-                <Mail className="h-3.5 w-3.5 text-[#8E8E93]" />
+                <Mail className="h-3.5 w-3.5 text-[#55556E]" />
                 {customerEmail}
               </span>
             </div>
@@ -132,7 +139,7 @@ export default async function DashboardPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  leftIcon={<ShieldCheck className="h-4 w-4 text-[#059669]" />}
+                  leftIcon={<ShieldCheck className="h-4 w-4 text-[#0F8A5F]" />}
                 >
                   Admin Queue
                 </Button>
@@ -160,25 +167,34 @@ export default async function DashboardPage() {
           </div>
         </div>
 
+        {/* Analytics Section */}
+        <section className="space-y-4">
+          <DashboardAnalytics
+            initialData={initialAnalytics}
+            isAdmin={isAdmin}
+            userEmail={customerEmail}
+          />
+        </section>
+
         {/* Customer's Submitted Tools */}
-        <section className="rounded-[18px] border border-[#E8E8E3] bg-white p-6 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] space-y-4">
-          <div className="flex items-center justify-between border-b border-[#E8E8E3] pb-4">
+        <section className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-8 space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E6E6F0] pb-4">
             <div>
-              <h2 className="font-heading font-extrabold text-lg text-[#0F0F10]">
+              <h2 className="font-heading font-extrabold text-lg text-[#14142B]">
                 Your Submitted Tools
               </h2>
-              <p className="text-xs text-[#66666B]">
+              <p className="text-xs text-[#55556E]">
                 Tools submitted with {customerEmail}
               </p>
             </div>
-            <span className="font-mono text-xs font-bold text-[#5B5BF0]">
+            <span className="font-mono text-xs font-bold text-[#4F46E5]">
               {myListings?.length || 0} total
             </span>
           </div>
 
           {!myListings || myListings.length === 0 ? (
             <div className="py-8 text-center space-y-3">
-              <p className="text-sm text-[#66666B]">
+              <p className="text-sm text-[#55556E]">
                 You haven&apos;t submitted any tools yet.
               </p>
               <Link href="/submit">
@@ -188,7 +204,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-[#E8E8E3]">
+            <div className="divide-y divide-[#E6E6F0]">
               {myListings.map((item) => (
                 <div
                   key={item.id}
@@ -196,23 +212,23 @@ export default async function DashboardPage() {
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-[#0F0F10]">
+                      <span className="font-bold text-sm text-[#14142B]">
                         {item.name}
                       </span>
-                      <span className="font-mono text-xs text-[#8E8E93]">
+                      <span className="font-mono text-xs text-[#55556E]">
                         (ID: {item.id})
                       </span>
                     </div>
-                    <p className="text-xs text-[#66666B]">{item.tagline}</p>
+                    <p className="text-xs text-[#55556E]">{item.tagline}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase ${
                         item.status === "approved"
-                          ? "bg-[#ECFDF5] text-[#059669]"
+                          ? "bg-[#ECFDF5] text-[#0F8A5F]"
                           : item.status === "rejected"
                           ? "bg-[#FEF2F2] text-[#DC2626]"
-                          : "bg-[#FEF3C7] text-[#D97706]"
+                          : "bg-[#FFF1D6] text-[#7A4E00]"
                       }`}
                     >
                       {item.status}
@@ -225,13 +241,13 @@ export default async function DashboardPage() {
         </section>
 
         {/* Customer's Launch Plan Purchases & Payment History */}
-        <section className="rounded-[18px] border border-[#E8E8E3] bg-white p-6 sm:p-8 shadow-[0_2px_12px_rgba(0,0,0,0.04)] space-y-4">
-          <div className="flex items-center justify-between border-b border-[#E8E8E3] pb-4">
+        <section className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-8 space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E6E6F0] pb-4">
             <div>
-              <h2 className="font-heading font-extrabold text-lg text-[#0F0F10]">
+              <h2 className="font-heading font-extrabold text-lg text-[#14142B]">
                 Launch Plan Purchases &amp; Billing History
               </h2>
-              <p className="text-xs text-[#66666B]">
+              <p className="text-xs text-[#55556E]">
                 Verified Razorpay launch tier purchases for your account
               </p>
             </div>
@@ -244,12 +260,12 @@ export default async function DashboardPage() {
 
           {!myPayments || myPayments.length === 0 ? (
             <div className="py-6 text-center space-y-2">
-              <p className="text-xs sm:text-sm text-[#66666B]">
+              <p className="text-xs sm:text-sm text-[#55556E]">
                 No paid launch plans purchased yet.
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-[#E8E8E3]">
+            <div className="divide-y divide-[#E6E6F0]">
               {myPayments.map((pay) => (
                 <div
                   key={pay.id}
@@ -257,24 +273,24 @@ export default async function DashboardPage() {
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-[#0F0F10] uppercase">
+                      <span className="font-bold text-sm text-[#14142B] uppercase">
                         {pay.plan_id} Tier
                       </span>
-                      <span className="font-mono text-xs text-[#8E8E93]">
+                      <span className="font-mono text-xs text-[#55556E]">
                         (Payment #{pay.id})
                       </span>
                     </div>
-                    <p className="text-xs text-[#66666B] font-mono">
+                    <p className="text-xs text-[#55556E] font-mono">
                       Order: {pay.razorpay_order_id} • {pay.currency} {pay.amount}
                     </p>
                   </div>
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold uppercase ${
                       pay.status === "paid"
-                        ? "bg-[#ECFDF5] text-[#059669]"
+                        ? "bg-[#ECFDF5] text-[#0F8A5F]"
                         : pay.status === "failed"
                         ? "bg-[#FEF2F2] text-[#DC2626]"
-                        : "bg-[#FEF3C7] text-[#D97706]"
+                        : "bg-[#FFF1D6] text-[#7A4E00]"
                     }`}
                   >
                     {pay.status}
