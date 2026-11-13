@@ -67,7 +67,6 @@ export async function ensureMediaBucket(): Promise<string> {
         "image/jpeg",
         "image/jpg",
         "image/webp",
-        "image/svg+xml",
         "image/gif",
       ],
     });

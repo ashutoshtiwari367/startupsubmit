@@ -34,8 +34,9 @@ export const WinnersPageView: React.FC = () => {
       .then((res) => res.json())
       .then((data) => {
         if (data.ok && data.listings && data.listings.length > 0) {
+          const sorted = [...data.listings].sort((a: any, b: any) => (b.upvotes || 0) - (a.upvotes || 0));
           setDynamicWinners(
-            data.listings.map((l: any, idx: number) => {
+            sorted.map((l: any, idx: number) => {
               const rank = (idx % 3) + 1;
               return {
                 id: l.id,
@@ -56,7 +57,7 @@ export const WinnersPageView: React.FC = () => {
                     ? "from-[#F1F5F9] to-[#E2E8F0] text-[#475569] border-[#CBD5E1]"
                     : "from-[#FFF7ED] to-[#FFEDD5] text-[#9A3412] border-[#FDBA74]",
                 votes: l.upvotes || 380 - idx * 25,
-                date: "Nov 9, 2026",
+                date: "Leaderboard Winner",
                 founder: l.author || "Maker",
                 founderHandle: `@${(l.slug || "maker").replace(/[^a-zA-Z0-9]/g, "")}`,
                 url: `/product/${l.slug || l.id}`,
@@ -177,7 +178,7 @@ export const WinnersPageView: React.FC = () => {
             Daily & Weekly Winners
           </h1>
           <p className="text-base text-[#55556E] leading-relaxed">
-            Every top 3 product earns an official embeddable winner badge and a permanent high-authority dofollow backlink (DR 72+).
+            Every top 3 product earns an official embeddable winner badge and permanent directory spotlight.
           </p>
 
           {/* Timeframe Filter Pills */}
@@ -242,11 +243,6 @@ export const WinnersPageView: React.FC = () => {
                     {w.rank === 1 && <Crown className="h-3.5 w-3.5 text-[#7A4E00]" />}
                     {w.placeLabel}
                   </span>
-
-                  <span className="text-xs font-mono font-bold text-[#0F8A5F] flex items-center gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    DR 72+ Indexed
-                  </span>
                 </div>
 
                 {/* Product Name & Tagline */}
@@ -274,8 +270,8 @@ export const WinnersPageView: React.FC = () => {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Dofollow Link:</span>
-                    <span className="text-[#0F8A5F] truncate max-w-[140px] font-bold">
+                    <span>Website:</span>
+                    <span className="text-[#4F46E5] truncate max-w-[140px] font-bold">
                       {w.backlinkDomain}
                     </span>
                   </div>
@@ -341,7 +337,6 @@ export const WinnersPageView: React.FC = () => {
                     <div className="text-xs font-bold text-[#4F46E5]">
                       ★ Winner
                     </div>
-                    <div className="text-[10px] font-mono text-[#0F8A5F]">rel="dofollow"</div>
                   </div>
 
                   <Link href={item.url}>

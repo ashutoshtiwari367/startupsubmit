@@ -309,18 +309,23 @@ export function getTimeRangeStartDate(range: TimeRangeFilter): Date | null {
 export async function getDashboardAnalytics(params: {
   timeRange?: TimeRangeFilter;
   filterByEmail?: string | null;
+  listingId?: number | null;
 }): Promise<AnalyticsSummary> {
   const timeRange = params.timeRange || "30d";
   const startDate = getTimeRangeStartDate(timeRange);
   const startIso = startDate ? startDate.toISOString() : null;
 
-  // 1. Fetch listings (with optional email filter)
+  // 1. Fetch listings (with optional email or specific listing filter)
   let listingsQuery = db
     .from("listings")
     .select("id, name, slug, status, submitted_by_email, created_at");
 
   if (params.filterByEmail) {
     listingsQuery = listingsQuery.eq("submitted_by_email", params.filterByEmail.toLowerCase().trim());
+  }
+
+  if (params.listingId && Number.isFinite(params.listingId)) {
+    listingsQuery = listingsQuery.eq("id", params.listingId);
   }
 
   const { data: listings } = await listingsQuery;
@@ -460,7 +465,8 @@ export async function getDashboardAnalytics(params: {
   }
 
   // 5. Construct Top Performing Listings
-  const topListings = approvedListings
+  const targetListings = params.listingId ? safeListings : approvedListings;
+  const topListings = targetListings
     .map((l) => {
       const v = listingViewsMap.get(l.id) || 0;
       const c = listingClicksMap.get(l.id) || 0;

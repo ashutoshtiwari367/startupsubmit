@@ -128,7 +128,7 @@ export default function AdminLoginPage() {
             rightIcon={<ArrowRight className="h-4 w-4" />}
             className="w-full font-bold shadow-[0_2px_10px_rgba(91,91,240,0.25)]"
           >
-            {loading ? "Verifying Credentials..." : "Sign In to Admin Queue"}
+            {loading ? "Verifying Credentials..." : "Admin Sign In"}
           </Button>
         </form>
       </div>

@@ -3,6 +3,13 @@ import { cache } from "react";
 import { publicDb } from "@/lib/db";
 import type { PricingModel, ListingStatus } from "@/types/db";
 
+function sanitizePublicMakerAlias(email: unknown): string {
+  const raw = String(email || "").trim();
+  if (!raw) return "";
+  // Strip @domain so personal founder emails never leak into public RSC payloads
+  return raw.includes("@") ? raw.split("@")[0].trim() : raw;
+}
+
 export interface ApprovedListingCategory {
   id: number;
   slug: string;
@@ -73,6 +80,11 @@ export const getApprovedListingBySlug = cache(
           logo_url,
           category_id,
           pricing_model,
+          starting_price,
+          currency,
+          billing_period,
+          listing_plan,
+          listing_plan_price,
           status,
           submitted_by_email,
           created_at,
@@ -155,7 +167,7 @@ export const getApprovedListingBySlug = cache(
             ? Number((data as any).listing_plan_price)
             : 0,
         status: data.status as ListingStatus,
-        submitted_by_email: String(data.submitted_by_email),
+        submitted_by_email: sanitizePublicMakerAlias(data.submitted_by_email),
         created_at: String(data.created_at),
         updated_at: String(data.updated_at),
         approved_at: data.approved_at ? String(data.approved_at) : null,
@@ -198,6 +210,11 @@ export async function getSimilarApprovedListings(
         logo_url,
         category_id,
         pricing_model,
+        starting_price,
+        currency,
+        billing_period,
+        listing_plan,
+        listing_plan_price,
         status,
         submitted_by_email,
         created_at,
@@ -278,7 +295,7 @@ export async function getSimilarApprovedListings(
               ? Number((item as any).listing_plan_price)
               : 0,
           status: item.status as ListingStatus,
-          submitted_by_email: String(item.submitted_by_email),
+          submitted_by_email: sanitizePublicMakerAlias(item.submitted_by_email),
           created_at: String(item.created_at),
           updated_at: String(item.updated_at),
           approved_at: item.approved_at ? String(item.approved_at) : null,

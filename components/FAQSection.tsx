@@ -25,13 +25,13 @@ const FAQ_DATA: FAQItem[] = [
     id: "q1",
     question: "Is it free to launch?",
     answer:
-      "Yes, absolutely. Any founder can submit their SaaS or AI product for free. Free submissions enter our standard community review queue and participate in the 24-hour daily launch leaderboard. If your product finishes in the daily Top 3, you also earn a permanent dofollow backlink and an embeddable winner badge.",
+      "Yes, absolutely. Any founder can submit their SaaS or AI product for free. Free submissions enter our standard community review queue and participate in the 24-hour daily launch leaderboard. If your product finishes in the daily Top 3, you also earn permanent directory spotlight and an embeddable winner badge.",
   },
   {
     id: "q2",
-    question: "How does the badge/backlink work?",
+    question: "How does the winner badge work?",
     answer:
-      "Winners in the Top 3 (and all Premium Launch submissions) receive a clean, permanent editorial link with rel=\"dofollow\" pointing directly to your canonical product domain from our DR 72+ authority directory. We also provide embeddable SVG/PNG badges for your website, documentation, and GitHub README with live vote counts.",
+      "Winners in the Top 3 (and all Premium Launch submissions) receive an official embeddable winner badge for your website, documentation, and GitHub README with live community vote counts and verified recognition.",
   },
   {
     id: "q3",

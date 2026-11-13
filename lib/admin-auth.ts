@@ -39,40 +39,13 @@ export function isEmailAllowlisted(
 /**
  * Verifies a Supabase Auth access token on the server via db.auth.getUser(token)
  * and confirms the authenticated user's email is in ADMIN_EMAILS.
+ * Strictly verifies the cryptographic signature with Supabase; never trusts unverified JWT payloads.
  */
 export async function verifySupabaseAdminToken(
   accessToken: string | undefined | null
 ): Promise<AuthenticatedAdmin> {
   if (!accessToken || typeof accessToken !== "string") {
     return { isAdmin: false, email: null, userId: null };
-  }
-
-  // 1. Inspect cryptographically structured Supabase Auth JWT payload
-  try {
-    const parts = accessToken.split(".");
-    if (parts.length === 3) {
-      const payload = JSON.parse(
-        Buffer.from(parts[1], "base64url").toString("utf8")
-      );
-      const email =
-        typeof payload?.email === "string"
-          ? payload.email.trim().toLowerCase()
-          : null;
-      const isNotExpired =
-        typeof payload?.exp === "number"
-          ? payload.exp * 1000 > Date.now()
-          : true;
-
-      if (email && isNotExpired && isEmailAllowlisted(email)) {
-        return {
-          isAdmin: true,
-          email,
-          userId: typeof payload?.sub === "string" ? payload.sub : `admin_${email}`,
-        };
-      }
-    }
-  } catch {
-    // Fallback to db.auth.getUser
   }
 
   try {

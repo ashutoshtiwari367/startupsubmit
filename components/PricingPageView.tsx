@@ -46,7 +46,7 @@ export const PricingPageView: React.FC = () => {
                 100% Risk-Free 30-Day Money-Back Guarantee
               </h3>
               <p className="text-xs sm:text-sm text-[#55556E] max-w-xl">
-                If your submission is rejected by our editorial safety guidelines, or your dofollow backlink isn&apos;t indexed within 30 days, we issue a full unconditional refund.
+                If your submission is rejected by our editorial safety guidelines, or you are not satisfied with your launch within 30 days, we issue a full unconditional refund.
               </p>
             </div>
           </div>
@@ -141,7 +141,7 @@ export const PricingPageView: React.FC = () => {
                   </tr>
                   <tr>
                     <td className="py-3.5 px-5 font-medium text-[#14142B]">
-                      Guaranteed DR 72+ Dofollow Backlink
+                      Guaranteed Directory Link
                     </td>
                     <td className="py-3.5 px-4 text-center text-[#55556E] text-xs">
                       Top 3 Only

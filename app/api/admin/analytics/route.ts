@@ -19,9 +19,16 @@ export async function GET(req: NextRequest) {
       ? (rawRange as TimeRangeFilter)
       : "30d";
 
+    const listingIdParam = searchParams.get("listingId");
+    const listingId =
+      listingIdParam && !isNaN(Number(listingIdParam))
+        ? Number(listingIdParam)
+        : null;
+
     const data = await getDashboardAnalytics({
       timeRange,
       filterByEmail: null, // Full directory scope
+      listingId,
     });
 
     return NextResponse.json({

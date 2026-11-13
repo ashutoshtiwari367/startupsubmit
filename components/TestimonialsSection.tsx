@@ -75,9 +75,9 @@ const TWEETS_DATA: TweetCardData[] = [
     avatarText: "AR",
     avatarBg: "bg-[#4F46E5]",
     quote:
-      "Launched our developer tool on LaunchOS yesterday. Ended up at #1 Product of the Day — woke up to 1,400+ targeted visitors, 48 signups, and our DR 72 dofollow backlink is already indexed in Google Search Console! 🚀",
+      "Launched our developer tool on LaunchOS yesterday. Ended up at #1 Product of the Day — woke up to 1,400+ targeted visitors, 48 signups, and our tool is already indexed in Google Search Console! 🚀",
     highlightTag: "+1,400 visitors",
-    statsTag: "DR 72 Dofollow",
+    statsTag: "Verified Link",
     date: "2 days ago",
   },
   {
@@ -243,17 +243,16 @@ export const TestimonialsSection: React.FC = () => {
             </span>
           </div>
 
-          {/* STAT 3: DR 72+ */}
+          {/* STAT 3: 24h Review SLA */}
           <div className="flex flex-col items-center text-center px-2 pt-4 md:pt-0">
             <span className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-5xl text-[#4F46E5] tracking-tight">
-              DR {counts.dr}
-              <span>+</span>
+              24h
             </span>
             <span className="mt-1 text-xs sm:text-sm font-bold text-[#14142B]">
-              Domain Rating
+              Review SLA
             </span>
             <span className="mt-0.5 text-[11px] font-mono text-[#55556E]">
-              Ahrefs authority score
+              Fast editorial turnaround
             </span>
           </div>
 

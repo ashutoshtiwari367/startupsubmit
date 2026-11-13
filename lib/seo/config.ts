@@ -128,9 +128,12 @@ export async function getSeoConfig(): Promise<SeoConfig> {
       disallow: [
         "/admin",
         "/admin/",
+        "/admin/*",
         "/dashboard",
         "/dashboard/",
+        "/dashboard/*",
         "/api/admin/",
+        "/api/admin/*",
         "/auth/callback",
       ],
     },

@@ -18,6 +18,12 @@ export async function PATCH(req: NextRequest, props: RouteProps) {
 
     const { id } = await props.params;
     const commentId = Number(id);
+    if (!Number.isInteger(commentId) || commentId <= 0) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid comment ID." },
+        { status: 400 }
+      );
+    }
     const body = await req.json().catch(() => ({}));
     const status = body.status; // 'approved' | 'hidden' | 'rejected' | 'pending'
 
@@ -50,6 +56,12 @@ export async function DELETE(req: NextRequest, props: RouteProps) {
 
     const { id } = await props.params;
     const commentId = Number(id);
+    if (!Number.isInteger(commentId) || commentId <= 0) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid comment ID." },
+        { status: 400 }
+      );
+    }
 
     await deleteListingComment({
       userId: "",

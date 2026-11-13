@@ -2018,5 +2018,59 @@ describe("Authoritative Server Validation & Adversarial Cases (lib/validation.ts
     const parsedFree = submitListingSchema.safeParse(validFreeNoPrice);
     assert.equal(parsedFree.success, true, "Free software does not require starting_price or billing_period");
   });
+
+  it("enforces 7-day Featured header window, newest-first (#1) ordering, and Premium -> Just Listed -> Free homepage section sequence", async () => {
+    const {
+      getFeaturedWindowState,
+      normalizeDirectoryPlan,
+      FEATURED_PLACEMENT_DAYS,
+    } = await import("../config/site.ts");
+
+    assert.equal(FEATURED_PLACEMENT_DAYS, 7);
+    assert.equal(normalizeDirectoryPlan("paid"), "premium");
+    assert.equal(normalizeDirectoryPlan("one_time"), "featured");
+    assert.equal(normalizeDirectoryPlan("freemium"), "free");
+
+    const nowMs = Date.parse("2026-11-13T12:00:00.000Z");
+    const day3Ago = "2026-11-10T12:00:00.000Z";
+    const day8Ago = "2026-11-05T11:59:59.000Z";
+
+    const activeState = getFeaturedWindowState("featured", day3Ago, day3Ago, nowMs);
+    assert.equal(activeState.isFeaturedActive, true, "Featured listing within 7 days must be active");
+    assert.equal(activeState.featuredDaysRemaining, 4, "Must calculate 4 days remaining after 3 days");
+
+    const expiredState = getFeaturedWindowState("featured", day8Ago, day8Ago, nowMs);
+    assert.equal(expiredState.isFeaturedActive, false, "Featured listing after 7 days must expire from header");
+    assert.equal(expiredState.featuredDaysRemaining, 0);
+
+    const premiumState = getFeaturedWindowState("premium", day3Ago, day3Ago, nowMs);
+    assert.equal(premiumState.isFeaturedActive, false, "Non-featured plans must not enter featured header window");
+
+    const apiSource = fs.readFileSync(
+      path.join(__dirname, "..", "app", "api", "listings", "route.ts"),
+      "utf8"
+    );
+    assert.ok(
+      apiSource.includes('.order("approved_at", { ascending: false, nullsFirst: false })') &&
+        apiSource.includes("featured,") &&
+        apiSource.includes("premium,") &&
+        apiSource.includes("justListed,") &&
+        apiSource.includes("free,"),
+      "GET /api/listings must sort newest-approved first and return featured, premium, justListed, and free arrays"
+    );
+
+    const launchingSource = fs.readFileSync(
+      path.join(__dirname, "..", "components", "LaunchingNowSection.tsx"),
+      "utf8"
+    );
+    const premiumPos = launchingSource.indexOf('id="premium-launches"');
+    const justListedPos = launchingSource.indexOf('id="just-listed"');
+    assert.ok(
+      premiumPos > -1 &&
+        justListedPos > premiumPos &&
+        !launchingSource.includes('id="free-launches"'),
+      "LaunchingNowSection must render clean Premium -> Just Listed sequence (no separate Free section)"
+    );
+  });
 });
 

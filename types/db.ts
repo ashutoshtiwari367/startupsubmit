@@ -29,6 +29,7 @@ export interface Database {
           slug: string;
           name: string;
           description: string | null;
+          parent_id: number | null;
           created_at: string;
         };
         Insert: {
@@ -36,6 +37,7 @@ export interface Database {
           slug: string;
           name: string;
           description?: string | null;
+          parent_id?: number | null;
           created_at?: string;
         };
         Update: {
@@ -43,6 +45,7 @@ export interface Database {
           slug?: string;
           name?: string;
           description?: string | null;
+          parent_id?: number | null;
           created_at?: string;
         };
         Relationships: [];
@@ -67,6 +70,7 @@ export interface Database {
           listing_plan_price?: number;
           status: ListingStatus;
           submitted_by_email: string;
+          upvotes_count?: number;
           created_at: string;
           updated_at: string;
           approved_at: string | null;
@@ -90,6 +94,7 @@ export interface Database {
           listing_plan_price?: number;
           status?: ListingStatus;
           submitted_by_email: string;
+          upvotes_count?: number;
           created_at?: string;
           updated_at?: string;
           approved_at?: string | null;
@@ -113,6 +118,7 @@ export interface Database {
           listing_plan_price?: number;
           status?: ListingStatus;
           submitted_by_email?: string;
+          upvotes_count?: number;
           created_at?: string;
           updated_at?: string;
           approved_at?: string | null;
@@ -383,6 +389,47 @@ export interface Database {
           }
         ];
       };
+      listing_analytics_daily: {
+        Row: {
+          id: number;
+          listing_id: number;
+          event_date: string;
+          total_views: number;
+          unique_views: number;
+          website_clicks: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: never;
+          listing_id: number;
+          event_date?: string;
+          total_views?: number;
+          unique_views?: number;
+          website_clicks?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: never;
+          listing_id?: number;
+          event_date?: string;
+          total_views?: number;
+          unique_views?: number;
+          website_clicks?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "listing_analytics_daily_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       listing_reviews: {
         Row: {
           id: number;
@@ -557,6 +604,116 @@ export interface Database {
             columns: ["comment_id"];
             isOneToOne: false;
             referencedRelation: "listing_comments";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      category_suggestions: {
+        Row: {
+          id: string;
+          suggested_name: string;
+          suggested_slug: string;
+          suggested_by: string | null;
+          listing_id: number | null;
+          status: "pending" | "approved" | "rejected";
+          admin_note: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          resolved_category_id: number | null;
+          action_type: "create_new" | "add_to_existing" | "rename_existing" | "reject" | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          suggested_name: string;
+          suggested_slug: string;
+          suggested_by?: string | null;
+          listing_id?: number | null;
+          status?: "pending" | "approved" | "rejected";
+          admin_note?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          resolved_category_id?: number | null;
+          action_type?: "create_new" | "add_to_existing" | "rename_existing" | "reject" | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          suggested_name?: string;
+          suggested_slug?: string;
+          suggested_by?: string | null;
+          listing_id?: number | null;
+          status?: "pending" | "approved" | "rejected";
+          admin_note?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          resolved_category_id?: number | null;
+          action_type?: "create_new" | "add_to_existing" | "rename_existing" | "reject" | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      category_audit_logs: {
+        Row: {
+          id: number;
+          category_id: number | null;
+          suggestion_id: string | null;
+          action: string;
+          performed_by: string | null;
+          old_values: Json | null;
+          new_values: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          category_id?: number | null;
+          suggestion_id?: string | null;
+          action: string;
+          performed_by?: string | null;
+          old_values?: Json | null;
+          new_values?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
+          category_id?: number | null;
+          suggestion_id?: string | null;
+          action?: string;
+          performed_by?: string | null;
+          old_values?: Json | null;
+          new_values?: Json | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      listing_upvotes: {
+        Row: {
+          id: number;
+          listing_id: number;
+          user_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: never;
+          listing_id: number;
+          user_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: never;
+          listing_id?: number;
+          user_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "listing_upvotes_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "listings";
             referencedColumns: ["id"];
           }
         ];

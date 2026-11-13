@@ -54,7 +54,13 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
       .sort((a, b) => {
         if (sortBy === "comments") return b.commentsCount - a.commentsCount;
         if (sortBy === "name") return a.name.localeCompare(b.name);
-        return 0;
+        const weight = (plan?: string) =>
+          plan === "featured" ? 2 : plan === "premium" ? 1 : 0;
+        const planDiff = weight(b.listingPlan) - weight(a.listingPlan);
+        if (planDiff !== 0) return planDiff;
+        const aTs = Date.parse(a.approvedAt || "") || 0;
+        const bTs = Date.parse(b.approvedAt || "") || 0;
+        return bTs - aTs;
       });
   }, [tools, searchQuery, pricingFilter, sortBy]);
 
@@ -121,7 +127,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
                 </h1>
 
                 <p className="text-xs sm:text-sm text-[#55556E] leading-relaxed max-w-2xl pt-1">
-                  {category.description}. Discover community-ranked tools, verified maker launches, and dofollow backlinks for top software.
+                  {category.description}. Discover community-ranked tools, verified maker launches, and curated resources for top software.
                 </p>
               </div>
             </div>
@@ -151,9 +157,9 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
               </span>
             </div>
             <div className="bg-[#F6F6FB] rounded-xl p-3 border border-[#E6E6F0]">
-              <span className="text-[#55556E] block text-[11px]">Backlink Authority</span>
+              <span className="text-[#55556E] block text-[11px]">Directory Link</span>
               <span className="font-bold text-[#0F8A5F] text-sm mt-0.5 block">
-                DR 72+ Dofollow
+                Verified
               </span>
             </div>
             <div className="bg-[#F6F6FB] rounded-xl p-3 border border-[#E6E6F0]">
@@ -383,7 +389,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
                 </li>
                 <li className="flex items-center gap-1.5">
                   <span className="text-[#0F8A5F] font-bold">✓</span>
-                  <span>Dofollow backlink for top 3 tools</span>
+                  <span>Featured spotlight for top 3 tools</span>
                 </li>
               </ul>
 

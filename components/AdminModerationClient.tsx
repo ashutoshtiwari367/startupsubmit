@@ -20,8 +20,10 @@ import {
   Check,
   X,
   Flag,
+  PanelLeftOpen,
 } from "lucide-react";
 import { Button } from "./Button";
+import { AdminSidebar } from "./AdminSidebar";
 
 interface ReviewItem {
   id: number | string;
@@ -75,6 +77,7 @@ export function AdminModerationClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [actionFeedback, setActionFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isPending, startTransition] = useTransition();
 
   const fetchReviews = async () => {
@@ -219,39 +222,54 @@ export function AdminModerationClient() {
   });
 
   return (
-    <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] font-sans antialiased">
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-[#E6E6F0] px-4 sm:px-8 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin"
-            className="flex items-center gap-1.5 text-xs font-mono font-medium text-[#55556E] hover:text-[#4F46E5] bg-[#F6F6FB] px-3 py-1.5 rounded-lg border border-[#E6E6F0] transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Listing Queue</span>
-          </Link>
-          <div className="h-4 w-px bg-[#E6E6F0]" />
-          <div className="flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-[#4F46E5]" />
-            <h1 className="font-heading font-extrabold text-base sm:text-lg text-[#14142B]">
-              Moderation Center
-            </h1>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] flex flex-col lg:flex-row antialiased font-sans">
+      {/* ─── UNIFIED LIGHT SIDEBAR ─── */}
+      <AdminSidebar
+        currentRoute="moderation"
+        isOpen={sidebarOpen}
+        onToggleOpen={() => setSidebarOpen((prev) => !prev)}
+      />
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              if (activeTab === "reviews") fetchReviews();
-              if (activeTab === "comments") fetchComments();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-[#55556E] hover:text-[#14142B] bg-[#F6F6FB] hover:bg-[#E6E6F0] transition-colors cursor-pointer"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-[#4F46E5]" : ""}`} />
-            <span>Refresh</span>
-          </button>
-        </div>
-      </header>
+      {/* ─── MAIN CONTENT CANVAS ─── */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Top Header */}
+        <header className="sticky top-0 z-20 bg-white/85 backdrop-blur-md border-b border-[#E6E6F0] px-4 sm:px-8 py-3.5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-xl border border-[#E6E6F0] bg-[#F6F6FB] text-[#55556E] hover:text-[#14142B] lg:hidden"
+            >
+              <PanelLeftOpen className="h-5 w-5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2 text-xs text-[#71717A] mb-1">
+                <span>LaunchOS</span>
+                <span>/</span>
+                <span className="text-[#55556E]">Admin</span>
+                <span>/</span>
+                <span className="text-[#4F46E5] font-semibold">Moderation Center</span>
+              </div>
+              <h1 className="font-heading font-extrabold text-base sm:text-lg text-[#14142B] flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5 text-[#4F46E5]" />
+                <span>Reviews &amp; Comments Moderation</span>
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (activeTab === "reviews") fetchReviews();
+                if (activeTab === "comments") fetchComments();
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-heading font-semibold text-[#55556E] hover:text-[#14142B] bg-[#F6F6FB] hover:bg-[#E6E6F0] transition-colors cursor-pointer border border-[#E6E6F0]"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-[#4F46E5]" : ""}`} />
+              <span>Refresh</span>
+            </button>
+          </div>
+        </header>
 
       {/* Main Container */}
       <div className="max-w-[1240px] mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
@@ -586,6 +604,7 @@ export function AdminModerationClient() {
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

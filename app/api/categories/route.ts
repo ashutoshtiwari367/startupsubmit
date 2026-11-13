@@ -45,10 +45,22 @@ const DEFAULT_CATEGORIES = [
  */
 export async function GET() {
   try {
-    const { data, error } = await db
+    let queryRes: any = await db
       .from("categories")
-      .select("id, slug, name, description, created_at")
+      .select("id, slug, name, description, parent_id, created_at")
       .order("name", { ascending: true });
+
+    if (
+      queryRes.error &&
+      (queryRes.error.message.includes("parent_id") || queryRes.error.code === "42703")
+    ) {
+      queryRes = await db
+        .from("categories")
+        .select("id, slug, name, description, created_at")
+        .order("name", { ascending: true });
+    }
+
+    const { data, error } = queryRes;
 
     if (error) {
       console.warn("[/api/categories] Supabase query notice:", error.message);

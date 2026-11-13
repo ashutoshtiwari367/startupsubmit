@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/Badge";
 import {
@@ -57,15 +57,42 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const [upvoted, setUpvoted] = useState(product.isUpvoted || false);
   const [count, setCount] = useState(product.upvotes);
   const [isBouncing, setIsBouncing] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const handleUpvoteClick = (e: React.MouseEvent) => {
+  useEffect(() => {
+    setUpvoted(product.isUpvoted || false);
+    setCount(product.upvotes);
+  }, [product.isUpvoted, product.upvotes]);
+
+  const handleUpvoteClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const nextState = !upvoted;
-    setUpvoted(nextState);
-    setCount((prev) => (nextState ? prev + 1 : prev - 1));
-    setIsBouncing(true);
-    setTimeout(() => setIsBouncing(false), 250);
-    onUpvoteToggle?.(product.id, nextState);
+    if (isUpdating) return;
+    setIsUpdating(true);
+
+    try {
+      const res = await fetch(`/api/listings/${product.id}/upvote`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (res.status === 401 || data.requiresAuth) {
+        const nextUrl = typeof window !== "undefined" ? window.location.pathname : "/";
+        window.location.href = `/login?next=${encodeURIComponent(nextUrl)}`;
+        return;
+      }
+
+      if (data.ok) {
+        setUpvoted(data.isUpvoted);
+        setCount(data.upvotesCount);
+        setIsBouncing(true);
+        setTimeout(() => setIsBouncing(false), 250);
+        onUpvoteToggle?.(product.id, data.isUpvoted);
+      }
+    } catch {
+      // Ignore network errors
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const handleLinkClick = (e: React.MouseEvent) => {
@@ -163,20 +190,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     </div>
   );
 
-  // Common Action Button Render
+  // Common Action Button Render (Authenticated Upvote Button)
   const renderUpvoteButton = (buttonSize = "w-13 h-15") => (
-    <a
-      href={product.url}
-      onClick={handleLinkClick}
-      aria-label={`View ${product.name}`}
+    <button
+      type="button"
+      onClick={handleUpvoteClick}
+      disabled={isUpdating}
+      aria-label={`Upvote ${product.name}, currently ${count} upvotes`}
       className={cn(
-        "group/btn relative flex flex-col items-center justify-center rounded-[11px] border border-[#E6E6F0] bg-[#F6F6FB] hover:bg-[#EEEDFC] hover:border-[#4F46E5]/40 text-[#4F46E5] transition-all duration-200 select-none cursor-pointer active:scale-95 shrink-0 font-bold text-xs",
-        buttonSize
+        "group/btn relative flex flex-col items-center justify-center rounded-[11px] border transition-all duration-200 select-none cursor-pointer active:scale-95 shrink-0 font-bold text-xs p-1",
+        buttonSize,
+        upvoted
+          ? "bg-[#F7F6FF] text-[#4F46E5] border-[#4F46E5] ring-1 ring-[#4F46E5]"
+          : "border-[#E6E6F0] bg-white hover:bg-[#F6F6FB] hover:border-[#D4D4E4] text-[#14142B]"
       )}
     >
-      <span>View</span>
-      <span className="text-[11px]">&rarr;</span>
-    </a>
+      <ChevronUp
+        className={cn(
+          "h-4 w-4 transition-transform duration-200",
+          upvoted ? "text-[#4F46E5]" : "text-[#55556E] group-hover/btn:text-[#4F46E5]",
+          isBouncing && "-translate-y-1 scale-110",
+          !upvoted && "group-hover/btn:-translate-y-0.5"
+        )}
+      />
+      <span
+        className={cn(
+          "text-xs font-mono font-bold leading-tight",
+          upvoted ? "text-[#4F46E5]" : "text-[#14142B]"
+        )}
+      >
+        {count}
+      </span>
+    </button>
   );
 
   // ==========================================

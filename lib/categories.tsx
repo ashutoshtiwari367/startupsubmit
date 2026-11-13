@@ -417,6 +417,8 @@ export interface CategoryToolItem {
   logoUrl?: string;
   websiteUrl: string;
   isVerified?: boolean;
+  listingPlan?: "free" | "premium" | "featured";
+  approvedAt?: string;
   founder?: {
     name: string;
     role?: string;

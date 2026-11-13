@@ -47,10 +47,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSubmitClick }) => 
 
           <div>
             <div className="font-heading font-extrabold text-3xl sm:text-4xl text-[#14142B] tracking-tight">
-              DR 72+
+              24h
             </div>
             <div className="text-xs text-[#55556E] mt-1 font-medium">
-              Domain rating
+              Review turnaround
             </div>
           </div>
 

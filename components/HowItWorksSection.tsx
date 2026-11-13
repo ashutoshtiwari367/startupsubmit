@@ -18,9 +18,9 @@ export const HowItWorksSection: React.FC = () => {
     },
     {
       number: "3",
-      title: "Win a badge and backlink",
+      title: "Win a badge and spotlight",
       description:
-        "Top 3 daily products get a dofollow backlink and a winner badge for their site.",
+        "Top 3 daily products get featured spotlight and a winner badge for their site.",
     },
   ];
 

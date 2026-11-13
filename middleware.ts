@@ -4,8 +4,6 @@ import { publicEnv } from "@/lib/env/publicEnv";
 
 const DEFAULT_SUPABASE_URL = publicEnv.supabaseUrl;
 const DEFAULT_SUPABASE_ANON_KEY = publicEnv.supabaseAnonKey;
-const DEFAULT_SUPABASE_SERVICE_ROLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRiYXR0dGN6eWtscWF4Z2JxbGtlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5NDIxMDk3MCwiZXhwIjoyMTA5Nzg2OTcwfQ.CH-0bhEHyz_QCDJdKY7EDm5Yoq8Mbfr8ZH7ndIO8O2U";
 const DEFAULT_ADMIN_EMAILS = "vinay.olis3@gmail.com";
 const ADMIN_COOKIE_NAME = "launchpad_admin_session";
 
@@ -20,8 +18,9 @@ function getAllowlistedEmails(): Set<string> {
 }
 
 /**
- * Verifies a direct Bearer / admin cookie JWT against Supabase Auth
+ * Verifies a direct Bearer / admin cookie JWT cryptographically against Supabase Auth
  * and confirms their email is in ADMIN_EMAILS.
+ * Never trusts unverified base64-decoded JWT claims.
  */
 async function verifyDirectAdminToken(req: NextRequest): Promise<string | null> {
   const token =
@@ -35,36 +34,13 @@ async function verifyDirectAdminToken(req: NextRequest): Promise<string | null> 
 
   const allowlist = getAllowlistedEmails();
 
-  // 1. Fast decode & verify expiration + email from JWT payload
-  try {
-    const parts = token.split(".");
-    if (parts.length === 3) {
-      const payloadJson = Buffer.from(parts[1], "base64url").toString("utf8");
-      const payload = JSON.parse(payloadJson);
-      const email =
-        typeof payload?.email === "string"
-          ? payload.email.trim().toLowerCase()
-          : null;
-      const isNotExpired =
-        typeof payload?.exp === "number"
-          ? payload.exp * 1000 > Date.now()
-          : true;
-
-      if (email && isNotExpired && allowlist.has(email)) {
-        return email;
-      }
-    }
-  } catch {
-    // Fall through to server-side fetch below
-  }
-
   const supabaseUrl =
     process.env.SUPABASE_URL ||
     process.env.NEXT_PUBLIC_SUPABASE_URL ||
     DEFAULT_SUPABASE_URL;
   const apiKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    DEFAULT_SUPABASE_SERVICE_ROLE_KEY;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    DEFAULT_SUPABASE_ANON_KEY;
 
   try {
     const res = await fetch(`${supabaseUrl}/auth/v1/user`, {

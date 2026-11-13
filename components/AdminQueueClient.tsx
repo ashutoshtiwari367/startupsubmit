@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useOptimistic, useState, useTransition } from "react";
+import React, { useOptimistic, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import {
+  FolderPlus,
   ShieldCheck,
   ShieldAlert,
   Check,
@@ -30,6 +31,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { approveListing, rejectListing } from "@/app/admin/actions";
+import { AdminSidebar } from "@/components/AdminSidebar";
 import type { PricingModel, ListingStatus, BigIntId } from "@/types/db";
 
 export interface QueueScreenshot {
@@ -119,6 +121,18 @@ export function AdminQueueClient({
   const [expandedItemId, setExpandedItemId] = useState<BigIntId | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam === "approved") {
+        setCurrentTab("approved");
+      } else if (tabParam === "pending") {
+        setCurrentTab("pending");
+      }
+    }
+  }, []);
+
   // Optimistic state: removes the item immediately from the pending queue when Approve/Reject is clicked
   const [optimisticListings, removeOptimisticListing] = useOptimistic(
     listings,
@@ -189,15 +203,6 @@ export function AdminQueueClient({
     });
   }
 
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/admin/session", { method: "DELETE" });
-    } catch {
-      // Ignore
-    }
-    window.location.href = "/admin/login";
-  };
-
   // Determine active dataset based on current tab
   const activeDataset =
     currentTab === "pending" ? optimisticListings : approvedListings;
@@ -219,251 +224,26 @@ export function AdminQueueClient({
   });
 
   return (
-    <div className="min-h-screen bg-[#0E0E10] text-[#ECECF1] flex flex-col lg:flex-row antialiased font-sans">
-      {/* ─── SIDEBAR (ChatGPT Style) ─── */}
-      <aside
-        className={`${
-          sidebarOpen ? "w-72" : "w-0 lg:w-20"
-        } transition-all duration-300 ease-in-out shrink-0 bg-[#171717] border-r border-[#262626] flex flex-col justify-between overflow-hidden relative z-30`}
-      >
-        <div className="p-4 space-y-6">
-          {/* Brand Header */}
-          <div className="flex items-center justify-between">
-            <Link
-              href="/admin"
-              className="flex items-center gap-3 overflow-hidden group"
-            >
-              <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-[#5B5BF0] to-[#818CF8] flex items-center justify-center text-white shrink-0 shadow-[0_2px_10px_rgba(91,91,240,0.35)]">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              {sidebarOpen && (
-                <div className="min-w-0">
-                  <div className="font-bold text-sm text-white tracking-tight flex items-center gap-1.5">
-                    <span>LaunchOS</span>
-                    <span className="text-[10px] uppercase font-mono px-1.5 py-0.2 bg-[#5B5BF0]/20 text-[#818CF8] rounded border border-[#5B5BF0]/30 font-semibold">
-                      Admin
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#A1A1AA] truncate">
-                    Moderation Suite
-                  </p>
-                </div>
-              )}
-            </Link>
-
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-1.5 rounded-lg text-[#A1A1AA] hover:text-white hover:bg-[#262626] transition-colors"
-              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              {sidebarOpen ? (
-                <PanelLeftClose className="h-4 w-4" />
-              ) : (
-                <PanelLeftOpen className="h-4 w-4" />
-              )}
-            </button>
-          </div>
-
-          {/* New Submission Button */}
-          {sidebarOpen ? (
-            <Link
-              href="/submit"
-              target="_blank"
-              className="flex items-center justify-center gap-2 w-full py-2.5 px-3 rounded-xl bg-[#262626] hover:bg-[#303030] border border-[#383838] text-xs font-semibold text-white transition-all shadow-sm"
-            >
-              <Sparkles className="h-4 w-4 text-[#818CF8]" />
-              <span>Submit New Tool</span>
-              <ExternalLink className="h-3 w-3 text-[#71717A] ml-auto" />
-            </Link>
-          ) : (
-            <Link
-              href="/submit"
-              target="_blank"
-              className="flex items-center justify-center w-10 h-10 mx-auto rounded-xl bg-[#262626] hover:bg-[#303030] text-white"
-              title="Submit New Tool"
-            >
-              <Sparkles className="h-4 w-4 text-[#818CF8]" />
-            </Link>
-          )}
-
-          {/* Navigation Links */}
-          <nav className="space-y-1">
-            <div className="px-2 py-1 text-[10px] font-semibold tracking-wider uppercase text-[#71717A]">
-              {sidebarOpen && "Directory Management"}
-            </div>
-
-            {/* Pending Queue Tab Button */}
-            <button
-              type="button"
-              onClick={() => setCurrentTab("pending")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                currentTab === "pending"
-                  ? "bg-[#262626] text-white border border-[#383838] shadow-sm"
-                  : "text-[#A1A1AA] hover:text-white hover:bg-[#212121]"
-              }`}
-            >
-              <Inbox
-                className={`h-4 w-4 shrink-0 ${
-                  currentTab === "pending" ? "text-[#818CF8]" : "text-[#71717A]"
-                }`}
-              />
-              {sidebarOpen && <span>Pending Queue</span>}
-              {sidebarOpen && (
-                <span className="ml-auto px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono text-[11px] font-bold">
-                  {optimisticListings.length}
-                </span>
-              )}
-            </button>
-
-            {/* Approved Tools Tab Button */}
-            <button
-              type="button"
-              onClick={() => setCurrentTab("approved")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                currentTab === "approved"
-                  ? "bg-[#262626] text-white border border-[#383838] shadow-sm"
-                  : "text-[#A1A1AA] hover:text-white hover:bg-[#212121]"
-              }`}
-            >
-              <CheckCircle
-                className={`h-4 w-4 shrink-0 ${
-                  currentTab === "approved" ? "text-[#10B981]" : "text-[#71717A]"
-                }`}
-              />
-              {sidebarOpen && <span>Approved Tools</span>}
-              {sidebarOpen && (
-                <span className="ml-auto px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono text-[11px] font-bold">
-                  {approvedListings.length}
-                </span>
-              )}
-            </button>
-
-            {/* Reviews & Comments Moderation */}
-            <Link
-              href="/admin/moderation"
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-[#A1A1AA] hover:text-white hover:bg-[#212121] transition-all"
-            >
-              <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
-              {sidebarOpen && <span>Reviews &amp; Comments</span>}
-            </Link>
-
-            <Link
-              href="/"
-              target="_blank"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[#A1A1AA] hover:text-white hover:bg-[#212121] text-xs font-medium transition-colors"
-            >
-              <Globe className="h-4 w-4 shrink-0 text-[#71717A]" />
-              {sidebarOpen && <span>Live Directory</span>}
-              {sidebarOpen && (
-                <ExternalLink className="h-3 w-3 text-[#52525B] ml-auto" />
-              )}
-            </Link>
-
-            <Link
-              href="/categories"
-              target="_blank"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[#A1A1AA] hover:text-white hover:bg-[#212121] text-xs font-medium transition-colors"
-            >
-              <Layers className="h-4 w-4 shrink-0 text-[#71717A]" />
-              {sidebarOpen && <span>Categories</span>}
-              {sidebarOpen && (
-                <ExternalLink className="h-3 w-3 text-[#52525B] ml-auto" />
-              )}
-            </Link>
-
-            <div className="pt-4 px-2 py-1 text-[10px] font-semibold tracking-wider uppercase text-[#71717A]">
-              {sidebarOpen && "SEO & Sitemaps"}
-            </div>
-
-            <Link
-              href="/sitemap.xml"
-              target="_blank"
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-[#A1A1AA] hover:text-white hover:bg-[#212121] text-xs font-medium transition-colors"
-            >
-              <FileCode className="h-4 w-4 shrink-0 text-[#10B981]" />
-              {sidebarOpen && <span>Root Sitemap Index</span>}
-            </Link>
-
-            <Link
-              href="/sitemap/0.xml"
-              target="_blank"
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-[#A1A1AA] hover:text-white hover:bg-[#212121] text-xs font-medium transition-colors"
-            >
-              <FileText className="h-4 w-4 shrink-0 text-[#3B82F6]" />
-              {sidebarOpen && <span>Chunk 0: Static &amp; Cats</span>}
-            </Link>
-
-            <Link
-              href="/sitemap/1.xml"
-              target="_blank"
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-[#A1A1AA] hover:text-white hover:bg-[#212121] text-xs font-medium transition-colors"
-            >
-              <Laptop className="h-4 w-4 shrink-0 text-[#8B5CF6]" />
-              {sidebarOpen && <span>Chunk 1: Approved Tools</span>}
-            </Link>
-
-            <Link
-              href="/llms.txt"
-              target="_blank"
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-[#A1A1AA] hover:text-white hover:bg-[#212121] text-xs font-medium transition-colors"
-            >
-              <Sparkles className="h-4 w-4 shrink-0 text-amber-400" />
-              {sidebarOpen && <span>AI Endpoint (/llms.txt)</span>}
-            </Link>
-
-            <Link
-              href="/robots.txt"
-              target="_blank"
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-[#A1A1AA] hover:text-white hover:bg-[#212121] text-xs font-medium transition-colors"
-            >
-              <FileText className="h-4 w-4 shrink-0 text-[#71717A]" />
-              {sidebarOpen && <span>Robots.txt</span>}
-            </Link>
-          </nav>
-        </div>
-
-        {/* User Profile & Logout */}
-        <div className="p-3 border-t border-[#262626] bg-[#121212]">
-          <div className="flex items-center justify-between gap-3 p-2 rounded-xl bg-[#1A1A1A] border border-[#2B2B2B]">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-[#5B5BF0] to-[#EC4899] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-inner">
-                VO
-              </div>
-              {sidebarOpen && (
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-white truncate">
-                    vinay.olis3@gmail.com
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-[#10B981]">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                    <span>Verified Admin</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="p-1.5 rounded-lg text-[#A1A1AA] hover:text-[#EF4444] hover:bg-[#262626] transition-colors shrink-0"
-              title="Sign Out"
-            >
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </aside>
+    <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] flex flex-col lg:flex-row antialiased font-sans">
+      {/* ─── UNIFIED LIGHT SIDEBAR ─── */}
+      <AdminSidebar
+        currentRoute={currentTab}
+        pendingQueueCount={optimisticListings.length}
+        approvedQueueCount={approvedListings.length}
+        onTabChange={(tab) => setCurrentTab(tab)}
+        isOpen={sidebarOpen}
+        onToggleOpen={() => setSidebarOpen(!sidebarOpen)}
+      />
 
       {/* ─── MAIN CONTENT CANVAS ─── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-20 bg-[#121212]/90 backdrop-blur border-b border-[#262626] px-4 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <header className="sticky top-0 z-20 bg-white/85 backdrop-blur-md border-b border-[#E6E6F0] px-4 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-xl border border-[#2B2B2B] bg-[#1A1A1A] text-[#A1A1AA] hover:text-white lg:hidden"
+              className="p-2 rounded-xl border border-[#E6E6F0] bg-[#F6F6FB] text-[#55556E] hover:text-[#14142B] lg:hidden"
             >
               <PanelLeftOpen className="h-5 w-5" />
             </button>
@@ -471,23 +251,23 @@ export function AdminQueueClient({
               <div className="flex items-center gap-2 text-xs text-[#71717A] mb-1">
                 <span>LaunchOS</span>
                 <span>/</span>
-                <span className="text-[#A1A1AA]">Admin</span>
+                <span className="text-[#55556E]">Admin</span>
                 <span>/</span>
-                <span className="text-[#818CF8] font-medium capitalize">
+                <span className="text-[#4F46E5] font-semibold capitalize">
                   {currentTab === "pending" ? "Pending Queue" : "Approved Directory"}
                 </span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-heading font-extrabold text-[#14142B] tracking-tight flex items-center gap-2.5">
                 <span>
                   {currentTab === "pending"
                     ? "Pending Moderation Queue"
                     : "Approved & Published Tools"}
                 </span>
                 <span
-                  className={`text-xs px-2.5 py-0.5 rounded-full font-semibold font-mono border ${
+                  className={`text-xs px-2.5 py-0.5 rounded-full font-bold font-mono border ${
                     currentTab === "pending"
-                      ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                      : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      ? "bg-amber-100 text-amber-800 border-amber-200"
+                      : "bg-emerald-100 text-emerald-800 border-emerald-200"
                   }`}
                 >
                   {currentTab === "pending"
@@ -507,7 +287,7 @@ export function AdminQueueClient({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search tools, slugs, emails..."
-                className="w-full h-9 rounded-xl border border-[#2B2B2B] bg-[#1A1A1A] pl-10 pr-3.5 text-xs text-white placeholder:text-[#71717A] focus:border-[#5B5BF0] focus:outline-none"
+                className="w-full h-9 rounded-xl border border-[#E6E6F0] bg-white pl-10 pr-3.5 text-xs text-[#14142B] placeholder:text-[#94A3B8] focus:border-[#4F46E5] focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/10 shadow-2xs"
               />
             </div>
           </div>
@@ -519,24 +299,24 @@ export function AdminQueueClient({
           {actionFeedback && (
             <div
               role="status"
-              className={`p-4 rounded-xl border text-sm flex items-center justify-between shadow-lg ${
+              className={`p-4 rounded-xl border text-sm flex items-center justify-between shadow-2xs ${
                 actionFeedback.type === "success"
-                  ? "bg-[#064E3B]/40 border-[#059669]/50 text-[#A7F3D0]"
-                  : "bg-[#7F1D1D]/40 border-[#DC2626]/50 text-[#FECACA]"
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : "bg-rose-50 border-rose-200 text-rose-900"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 {actionFeedback.type === "success" ? (
-                  <CheckCircle2 className="h-5 w-5 text-[#34D399]" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
                 ) : (
-                  <AlertCircle className="h-5 w-5 text-[#F87171]" />
+                  <AlertCircle className="h-5 w-5 text-rose-600 shrink-0" />
                 )}
                 <span className="font-medium">{actionFeedback.text}</span>
               </div>
               <button
                 type="button"
                 onClick={() => setActionFeedback(null)}
-                className="text-xs underline opacity-80 hover:opacity-100 ml-4 font-semibold"
+                className="text-xs underline opacity-80 hover:opacity-100 ml-4 font-semibold cursor-pointer"
               >
                 Dismiss
               </button>
@@ -544,20 +324,26 @@ export function AdminQueueClient({
           )}
 
           {/* Tab Switcher & Pricing Filters Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#262626] pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E6E6F0] pb-4">
             {/* View Switcher Tabs */}
-            <div className="inline-flex rounded-xl bg-[#1A1A1A] p-1 border border-[#2B2B2B]">
+            <div className="inline-flex rounded-xl bg-white p-1 border border-[#E6E6F0] shadow-2xs">
               <button
                 type="button"
                 onClick={() => setCurrentTab("pending")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-heading font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   currentTab === "pending"
-                    ? "bg-[#2B2B2B] text-white shadow-sm"
-                    : "text-[#A1A1AA] hover:text-white"
+                    ? "bg-[#4F46E5] text-white shadow-2xs"
+                    : "text-[#55556E] hover:text-[#14142B]"
                 }`}
               >
                 <span>Pending Review</span>
-                <span className="px-1.5 py-0.2 rounded-md bg-amber-500/20 text-amber-300 text-[10px] font-mono">
+                <span
+                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold ${
+                    currentTab === "pending"
+                      ? "bg-white/20 text-white"
+                      : "bg-amber-100 text-amber-800"
+                  }`}
+                >
                   {optimisticListings.length}
                 </span>
               </button>
@@ -565,14 +351,20 @@ export function AdminQueueClient({
               <button
                 type="button"
                 onClick={() => setCurrentTab("approved")}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-heading font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   currentTab === "approved"
-                    ? "bg-[#2B2B2B] text-white shadow-sm"
-                    : "text-[#A1A1AA] hover:text-white"
+                    ? "bg-[#4F46E5] text-white shadow-2xs"
+                    : "text-[#55556E] hover:text-[#14142B]"
                 }`}
               >
                 <span>Approved Listings</span>
-                <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-mono">
+                <span
+                  className={`px-1.5 py-0.5 rounded-md text-[10px] font-mono font-bold ${
+                    currentTab === "approved"
+                      ? "bg-white/20 text-white"
+                      : "bg-emerald-100 text-emerald-800"
+                  }`}
+                >
                   {approvedListings.length}
                 </span>
               </button>
@@ -580,8 +372,8 @@ export function AdminQueueClient({
 
             {/* Pricing Model Filter Chips */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
-              <span className="text-xs text-[#71717A] font-semibold uppercase flex items-center gap-1.5 mr-1">
-                <Filter className="h-3.5 w-3.5" />
+              <span className="text-xs text-[#55556E] font-semibold uppercase flex items-center gap-1.5 mr-1">
+                <Filter className="h-3.5 w-3.5 text-[#71717A]" />
                 <span>Pricing:</span>
               </span>
               {["all", "free", "freemium", "paid", "one_time"].map((model) => (
@@ -589,10 +381,10 @@ export function AdminQueueClient({
                   key={model}
                   type="button"
                   onClick={() => setPricingFilter(model)}
-                  className={`px-3 py-1 rounded-lg text-xs font-medium capitalize transition-all ${
+                  className={`px-3 py-1 rounded-lg text-xs font-heading font-semibold capitalize transition-all cursor-pointer ${
                     pricingFilter === model
-                      ? "bg-[#5B5BF0] text-white shadow-[0_2px_8px_rgba(91,91,240,0.3)] font-bold"
-                      : "bg-[#1A1A1A] text-[#A1A1AA] hover:text-white hover:bg-[#262626] border border-[#2B2B2B]"
+                      ? "bg-[#4F46E5] text-white shadow-xs font-bold"
+                      : "bg-white text-[#55556E] hover:text-[#14142B] hover:bg-[#F8FAFC] border border-[#E6E6F0]"
                   }`}
                 >
                   {model === "one_time" ? "One-Time" : model}
@@ -603,20 +395,20 @@ export function AdminQueueClient({
 
           {/* List Cards */}
           {filteredListings.length === 0 ? (
-            <div className="rounded-2xl border border-[#262626] bg-[#141414] p-12 text-center space-y-3">
-              <div className="h-12 w-12 rounded-2xl bg-[#1F1F1F] border border-[#2B2B2B] flex items-center justify-center mx-auto text-[#71717A]">
+            <div className="rounded-2xl border border-[#E6E6F0] bg-white p-12 text-center space-y-3 shadow-xs">
+              <div className="h-12 w-12 rounded-2xl bg-[#EEF2FF] border border-[#E0E7FF] flex items-center justify-center mx-auto text-[#4F46E5]">
                 {currentTab === "pending" ? (
                   <Inbox className="h-6 w-6" />
                 ) : (
                   <CheckCircle className="h-6 w-6 text-[#10B981]" />
                 )}
               </div>
-              <h3 className="text-base font-bold text-white">
+              <h3 className="text-base font-heading font-bold text-[#14142B]">
                 {currentTab === "pending"
                   ? "All caught up! No pending submissions."
                   : "No approved listings match this filter."}
               </h3>
-              <p className="text-xs text-[#71717A] max-w-sm mx-auto">
+              <p className="text-xs text-[#55556E] max-w-sm mx-auto">
                 {searchQuery || pricingFilter !== "all"
                   ? "No listings matched your active search or pricing filter. Try clearing the filter."
                   : currentTab === "pending"
@@ -639,7 +431,7 @@ export function AdminQueueClient({
                 return (
                   <article
                     key={item.id}
-                    className="rounded-2xl border border-[#262626] bg-[#171717] hover:border-[#333333] transition-all shadow-md overflow-hidden p-5 sm:p-6 space-y-4"
+                    className="rounded-2xl border border-[#E6E6F0] bg-white hover:border-[#CBD5E1] transition-all shadow-xs hover:shadow-md p-5 sm:p-6 space-y-4"
                   >
                     {/* Header Row: Logo, Name, Meta Pills & Actions */}
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -648,50 +440,50 @@ export function AdminQueueClient({
                           <img
                             src={safeLogo}
                             alt={`${item.name} logo`}
-                            className="w-14 h-14 rounded-2xl object-cover border border-[#333333] bg-[#0E0E10] shrink-0 shadow-sm"
+                            className="w-14 h-14 rounded-2xl object-cover border border-[#E6E6F0] bg-[#F8FAFC] shrink-0 shadow-2xs"
                             loading="lazy"
                           />
                         ) : (
-                          <div className="w-14 h-14 rounded-2xl border border-[#2B2B2B] bg-[#1F1F1F] flex items-center justify-center text-[10px] text-[#71717A] shrink-0 font-medium">
+                          <div className="w-14 h-14 rounded-2xl border border-[#E6E6F0] bg-[#F8FAFC] flex items-center justify-center text-[10px] text-[#71717A] shrink-0 font-medium">
                             No Logo
                           </div>
                         )}
 
                         <div className="min-w-0 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="text-lg font-bold text-white tracking-tight truncate">
+                            <h2 className="text-lg font-heading font-extrabold text-[#14142B] tracking-tight truncate">
                               {item.name}
                             </h2>
 
                             {isApprovedItem ? (
-                              <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold flex items-center gap-1">
+                              <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold flex items-center gap-1">
                                 <CheckCircle className="h-3 w-3" />
                                 <span>Published &amp; Indexed</span>
                               </span>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] font-bold flex items-center gap-1">
+                              <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-bold flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 <span>Pending Review</span>
                               </span>
                             )}
 
                             {item.reference_code && (
-                              <span className="px-2 py-0.5 rounded-md bg-[#5B5BF0]/15 text-[#818CF8] border border-[#5B5BF0]/30 text-[11px] font-mono font-semibold">
+                              <span className="px-2 py-0.5 rounded-md bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF] text-[11px] font-mono font-semibold">
                                 Ref: {item.reference_code}
                               </span>
                             )}
 
-                            <span className="px-2 py-0.5 rounded-md bg-[#262626] text-[#D4D4D8] border border-[#333333] text-[11px] font-medium">
+                            <span className="px-2 py-0.5 rounded-md bg-[#F8FAFC] text-[#55556E] border border-[#E6E6F0] text-[11px] font-medium">
                               {resolveCategoryLabel(item)}
                             </span>
 
                             <span
                               className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase ${
                                 item.pricing_model === "free"
-                                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                   : item.pricing_model === "freemium"
-                                  ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
-                                  : "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                                  ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                  : "bg-purple-100 text-purple-800 border border-purple-200"
                               }`}
                             >
                               {item.pricing_model}
@@ -707,7 +499,15 @@ export function AdminQueueClient({
                             </span>
 
                             {/* Directory Listing Plan Badge */}
-                            <span className="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase bg-[#5B5BF0]/15 text-[#818CF8] border border-[#5B5BF0]/30">
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[11px] font-bold uppercase ${
+                                item.listing_plan === "featured"
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300 font-extrabold"
+                                  : item.listing_plan === "premium"
+                                  ? "bg-[#EEF2FF] text-[#4F46E5] border border-[#E0E7FF]"
+                                  : "bg-slate-100 text-slate-700 border border-slate-200"
+                              }`}
+                            >
                               {item.listing_plan === "featured"
                                 ? "Featured ($49)"
                                 : item.listing_plan === "premium"
@@ -716,20 +516,20 @@ export function AdminQueueClient({
                             </span>
                           </div>
 
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-[#71717A]">
-                            <span className="font-mono text-[#A1A1AA]">
-                              slug: <strong className="text-white">{item.slug}</strong>
+                          <div className="flex flex-wrap items-center gap-3 text-xs text-[#55556E]">
+                            <span className="font-mono text-[#71717A]">
+                              slug: <strong className="text-[#14142B]">{item.slug}</strong>
                             </span>
                             <span>•</span>
                             <span>
                               By:{" "}
-                              <strong className="text-[#D4D4D8]">
+                              <strong className="text-[#14142B]">
                                 {item.submitted_by_email}
                               </strong>
                             </span>
                             <span>•</span>
                             <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
+                              <Clock className="h-3 w-3 text-[#71717A]" />
                               <span>
                                 {isApprovedItem && item.approved_at
                                   ? `Approved: ${new Date(
@@ -751,17 +551,17 @@ export function AdminQueueClient({
                             <Link
                               href={`/product/${item.slug}`}
                               target="_blank"
-                              className="px-3.5 py-2 rounded-xl bg-[#262626] hover:bg-[#303030] border border-[#383838] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                              className="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F8FAFC] border border-[#E6E6F0] text-[#14142B] text-xs font-heading font-bold transition-all flex items-center gap-1.5 shadow-2xs"
                             >
                               <span>View Public Page</span>
-                              <ExternalLink className="h-3.5 w-3.5 text-[#818CF8]" />
+                              <ExternalLink className="h-3.5 w-3.5 text-[#4F46E5]" />
                             </Link>
 
                             <button
                               type="button"
                               disabled={isRowBusy}
                               onClick={() => handleModeration(item, "reject")}
-                              className="px-3 py-2 rounded-xl border border-[#7F1D1D]/70 bg-[#450A0A]/40 text-[#F87171] hover:bg-[#7F1D1D]/60 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                              className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-heading font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                               title="Revoke approval / unpublish listing"
                             >
                               <X className="h-4 w-4" />
@@ -774,7 +574,7 @@ export function AdminQueueClient({
                               type="button"
                               disabled={isRowBusy}
                               onClick={() => handleModeration(item, "reject")}
-                              className="px-3.5 py-2 rounded-xl border border-[#7F1D1D]/70 bg-[#450A0A]/40 text-[#F87171] hover:bg-[#7F1D1D]/60 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                              className="px-3.5 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-heading font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                             >
                               <X className="h-4 w-4" />
                               <span>Reject</span>
@@ -784,7 +584,7 @@ export function AdminQueueClient({
                               type="button"
                               disabled={isRowBusy}
                               onClick={() => handleModeration(item, "approve")}
-                              className="px-4 py-2 rounded-xl bg-[#059669] hover:bg-[#10B981] text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-[0_2px_10px_rgba(5,150,105,0.3)] disabled:opacity-50"
+                              className="px-4 py-2 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white text-xs font-heading font-bold transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 cursor-pointer"
                             >
                               {isRowBusy ? (
                                 <RefreshCw className="h-4 w-4 animate-spin" />
@@ -799,12 +599,12 @@ export function AdminQueueClient({
                     </div>
 
                     {/* Tagline & Descriptions */}
-                    <div className="bg-[#121212] rounded-xl p-4 border border-[#222222] space-y-2">
-                      <div className="text-sm font-semibold text-white">
+                    <div className="bg-[#F8FAFC] rounded-xl p-4 border border-[#E6E6F0] space-y-2">
+                      <div className="text-sm font-heading font-bold text-[#14142B]">
                         {item.tagline}
                       </div>
 
-                      <p className="text-xs text-[#A1A1AA] leading-relaxed">
+                      <p className="text-xs text-[#55556E] leading-relaxed">
                         {item.description_short}
                       </p>
 
@@ -815,7 +615,7 @@ export function AdminQueueClient({
                             onClick={() =>
                               setExpandedItemId(isExpanded ? null : item.id)
                             }
-                            className="text-[11px] font-semibold text-[#818CF8] hover:text-[#A5B4FC] flex items-center gap-1 mt-1 transition-colors"
+                            className="text-[11px] font-heading font-semibold text-[#4F46E5] hover:text-[#4338CA] flex items-center gap-1 mt-1 transition-colors cursor-pointer"
                           >
                             <span>
                               {isExpanded ? "Hide Full Copy" : "Read Full Copy"}
@@ -828,7 +628,7 @@ export function AdminQueueClient({
                           </button>
 
                           {isExpanded && (
-                            <div className="mt-2 pt-2 border-t border-[#262626] text-xs text-[#D4D4D8] leading-relaxed whitespace-pre-wrap">
+                            <div className="mt-2 pt-2 border-t border-[#E6E6F0] text-xs text-[#334155] leading-relaxed whitespace-pre-wrap">
                               {item.description_long}
                             </div>
                           )}
@@ -843,7 +643,7 @@ export function AdminQueueClient({
                           href={safeWebsite}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-xs text-[#818CF8] hover:text-[#A5B4FC] font-medium"
+                          className="inline-flex items-center gap-1.5 text-xs text-[#4F46E5] hover:text-[#4338CA] font-medium"
                         >
                           <ExternalLink className="h-3.5 w-3.5" />
                           <span className="truncate max-w-xs">{safeWebsite}</span>
@@ -867,7 +667,7 @@ export function AdminQueueClient({
                                 key={shot.id}
                                 type="button"
                                 onClick={() => setPreviewImage(safeShot)}
-                                className="relative rounded-lg overflow-hidden border border-[#333333] hover:border-[#818CF8] transition-all shrink-0 group"
+                                className="relative rounded-lg overflow-hidden border border-[#E6E6F0] hover:border-[#4F46E5] transition-all shrink-0 group cursor-pointer"
                               >
                                 <img
                                   src={safeShot}
@@ -898,16 +698,16 @@ export function AdminQueueClient({
           role="dialog"
           aria-modal="true"
           onClick={() => setPreviewImage(null)}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative max-w-4xl max-h-[90vh] bg-[#18181B] rounded-2xl border border-[#333333] overflow-hidden shadow-2xl p-2"
+            className="relative max-w-4xl max-h-[90vh] bg-white rounded-2xl border border-[#E6E6F0] overflow-hidden shadow-2xl p-2"
           >
             <button
               type="button"
               onClick={() => setPreviewImage(null)}
-              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/90 transition-colors"
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors cursor-pointer"
             >
               <X className="h-5 w-5" />
             </button>

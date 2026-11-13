@@ -4,13 +4,12 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { signOut } from "@/app/auth/actions";
-import { isEmailAllowlisted } from "@/lib/admin-auth";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/Button";
 import { DashboardAnalytics } from "@/components/DashboardAnalytics";
 import { getDashboardAnalytics } from "@/lib/analytics";
-import { ShieldCheck, Plus, Mail, Hash, LogOut } from "lucide-react";
+import { Plus, Mail, Hash, LogOut } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -89,25 +88,36 @@ export default async function DashboardPage() {
 
   const customerEmail = profile?.email || user.email || "";
 
-  // Fetch tools submitted by this authenticated customer's email
-  const { data: myListings } = await db
-    .from("listings")
-    .select("id, slug, name, tagline, status, pricing_model, created_at")
-    .eq("submitted_by_email", customerEmail)
-    .order("created_at", { ascending: false });
-
   // Fetch customer's Launch Plan payment history (strictly by server-verified user.id)
   const { data: myPayments } = await db
     .from("payments")
-    .select("id, plan_id, amount, currency, status, razorpay_order_id, paid_at, created_at")
+    .select("id, plan_id, listing_id, amount, currency, status, razorpay_order_id, paid_at, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  const isAdmin = isEmailAllowlisted(user.email);
+  const linkedListingIds = (myPayments || [])
+    .map((p) => p.listing_id)
+    .filter((id): id is number => Number.isFinite(id) && (id as number) > 0);
 
+  // Fetch tools submitted by this authenticated customer's email OR linked to their payments
+  let listingsQuery = db
+    .from("listings")
+    .select("id, slug, name, tagline, status, pricing_model, created_at");
+
+  if (linkedListingIds.length > 0) {
+    listingsQuery = listingsQuery.or(
+      `submitted_by_email.eq.${customerEmail.toLowerCase().trim()},id.in.(${linkedListingIds.join(",")})`
+    );
+  } else {
+    listingsQuery = listingsQuery.eq("submitted_by_email", customerEmail);
+  }
+
+  const { data: myListings } = await listingsQuery.order("created_at", { ascending: false });
+
+  // Fetch initial customer analytics strictly scoped to customer's own tools
   const initialAnalytics = await getDashboardAnalytics({
     timeRange: "30d",
-    filterByEmail: isAdmin ? null : customerEmail,
+    filterByEmail: customerEmail,
   });
 
   return (
@@ -134,17 +144,6 @@ export default async function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {isAdmin && (
-              <Link href="/admin/queue">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={<ShieldCheck className="h-4 w-4 text-[#0F8A5F]" />}
-                >
-                  Admin Queue
-                </Button>
-              </Link>
-            )}
             <Link href="/submit">
               <Button
                 variant="primary"
@@ -167,11 +166,11 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Analytics Section */}
+        {/* Analytics Section (Clean maker analytics scoped to user's tools) */}
         <section className="space-y-4">
           <DashboardAnalytics
             initialData={initialAnalytics}
-            isAdmin={isAdmin}
+            isAdmin={false}
             userEmail={customerEmail}
           />
         </section>

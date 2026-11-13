@@ -268,21 +268,14 @@ CREATE TABLE IF NOT EXISTS public.payments (
 
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
+-- Hardened: Revoke direct client-side insert/update/delete.
+-- Payment order creation and verification MUST strictly happen server-side via backend API + service_role.
+REVOKE INSERT, UPDATE, DELETE ON public.payments FROM anon, authenticated;
+
 CREATE POLICY "Users can view own payments"
   ON public.payments
   FOR SELECT
   USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own payments"
-  ON public.payments
-  FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own payments"
-  ON public.payments
-  FOR UPDATE
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Service role full access on payments"
   ON public.payments

@@ -113,10 +113,10 @@ export const LatestWinnersSection: React.FC<LatestWinnersSectionProps> = ({
           <p className="mt-1.5 text-base text-[#55556E] leading-relaxed flex items-center gap-1.5">
             <span className="inline-flex items-center gap-1 font-medium text-[#14142B]">
               <Sparkles className="h-3.5 w-3.5 text-[#4F46E5]" />
-              Winners get a badge + dofollow backlink
+              Winners get a badge + permanent spotlight
             </span>
             <span className="text-[#55556E] hidden md:inline">
-              (DA 74 authority indexing guaranteed)
+              (Top community ranked products)
             </span>
           </p>
         </div>

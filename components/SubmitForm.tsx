@@ -16,6 +16,7 @@ import {
   Loader2,
   RefreshCw,
   ChevronDown,
+  Lock,
 } from "lucide-react";
 import { Button } from "./Button";
 import { Navbar } from "./Navbar";
@@ -35,6 +36,12 @@ interface SubmittedListingResponse {
   slug: string;
   status: ListingStatus;
   category_id: number | string;
+  custom_category?: string | null;
+  category_suggestion?: {
+    submitted: boolean;
+    message: string;
+    suggested_name: string;
+  } | null;
   pricing_model: PricingModel;
   starting_price?: number | null;
   currency?: string;
@@ -118,7 +125,11 @@ export function useCategories() {
   return { categories, loading, error };
 }
 
-export const SubmitForm: React.FC = () => {
+export interface SubmitFormProps {
+  initialEmail?: string;
+}
+
+export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => {
   const { categories, loading: loadingCategories, error: categoriesError } =
     useCategories();
 
@@ -147,10 +158,38 @@ export const SubmitForm: React.FC = () => {
       tagline: "",
       description_short: "",
       description_long: "",
-      submitted_by_email: "",
+      submitted_by_email: initialEmail || "",
       company_website_hp: "",
     },
   });
+
+  useEffect(() => {
+    if (initialEmail) {
+      setValue("submitted_by_email", initialEmail);
+    }
+  }, [initialEmail, setValue]);
+
+  // Check for any unused paid payment credits on this account
+  interface UnusedPaymentItem {
+    id: number;
+    plan_id: string;
+    amount: number;
+    currency: string;
+  }
+  const [unusedPayments, setUnusedPayments] = useState<UnusedPaymentItem[]>([]);
+
+  useEffect(() => {
+    if (initialEmail) {
+      fetch("/api/payments/unused")
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data?.ok && Array.isArray(data.unusedPayments)) {
+            setUnusedPayments(data.unusedPayments);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialEmail]);
 
   // Auto-select first category once loaded from /api/categories
   const watchedCategoryId = watch("category_id") || "";
@@ -180,6 +219,9 @@ export const SubmitForm: React.FC = () => {
   const watchedStartingPrice = watch("starting_price");
   const watchedBillingPeriod = watch("billing_period") || "monthly";
   const watchedListingPlan = watch("listing_plan") || "free";
+  const matchedUnusedPayment = unusedPayments.find(
+    (p) => p.plan_id.toLowerCase() === watchedListingPlan.toLowerCase()
+  );
 
   // File upload states (Logo required + Screenshots max 5)
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -387,6 +429,7 @@ export const SubmitForm: React.FC = () => {
         ...data.listing,
         listing_plan: data.listing?.listing_plan || values.listing_plan || "free",
         listing_plan_price: data.listing?.listing_plan_price ?? values.listing_plan_price ?? 0,
+        category_suggestion: data.category_suggestion,
       });
       if (data.event?.event_name) {
         setEmittedEventName(data.event.event_name);
@@ -423,8 +466,59 @@ export const SubmitForm: React.FC = () => {
     const selectedPlan = selectedListingPlan;
 
     if (selectedPlan && selectedPlan.price > 0) {
+      // 1. If user already has a verified unused paid credit for this plan, apply it directly with zero charge!
+      if (matchedUnusedPayment) {
+        setIsPaymentProcessing(true);
+        try {
+          await submitListingToApi(values, matchedUnusedPayment.id);
+        } finally {
+          setIsPaymentProcessing(false);
+        }
+        return;
+      }
+
       setIsPaymentProcessing(true);
       try {
+        // 2. Pre-flight Validation: Verify all fields, categories & uploads BEFORE opening Razorpay!
+        // Guarantees zero payment deduction on invalid submissions or storage errors.
+        const preflightFormData = new FormData();
+        preflightFormData.append("name", values.name);
+        preflightFormData.append("tagline", values.tagline);
+        preflightFormData.append("description_short", values.description_short);
+        preflightFormData.append("description_long", values.description_long);
+        preflightFormData.append("category_id", values.category_id);
+        if (values.custom_category) preflightFormData.append("custom_category", values.custom_category);
+        preflightFormData.append("pricing_model", values.pricing_model);
+        if (values.starting_price !== null && values.starting_price !== undefined) {
+          preflightFormData.append("starting_price", String(values.starting_price));
+        }
+        preflightFormData.append("currency", values.currency || "USD");
+        if (values.billing_period) preflightFormData.append("billing_period", values.billing_period);
+        preflightFormData.append("listing_plan", values.listing_plan || "free");
+        preflightFormData.append("listing_plan_price", String(values.listing_plan_price || 0));
+        preflightFormData.append("submitted_by_email", values.submitted_by_email);
+        if (values.website_url) preflightFormData.append("website_url", values.website_url);
+        if (logoFile) preflightFormData.append("logo", logoFile);
+        for (const file of screenshotFiles) {
+          preflightFormData.append("screenshots", file);
+        }
+
+        const preflightRes = await fetch("/api/listings?preflight=true", {
+          method: "POST",
+          body: preflightFormData,
+        });
+
+        const preflightData = await preflightRes.json();
+        if (!preflightRes.ok || !preflightData.ok) {
+          setIsPaymentProcessing(false);
+          setServerBannerError(
+            preflightData.message || "Please fix validation errors before proceeding to payment."
+          );
+          if (preflightData.errors?.logo) setLogoError(preflightData.errors.logo);
+          if (preflightData.errors?.screenshots) setScreenshotsError(preflightData.errors.screenshots);
+          return;
+        }
+
         const orderRes = await fetch("/api/payments/create-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -897,25 +991,45 @@ export const SubmitForm: React.FC = () => {
 
                 {/* Row 6: Your email */}
                 <div>
-                  <label
-                    htmlFor="field-email"
-                    className="block text-xs font-semibold text-[#14142B] mb-1.5"
-                  >
-                    Your email <span className="text-[#DC2626]">*</span>
-                  </label>
-                  <input
-                    id="field-email"
-                    type="email"
-                    placeholder="maker@writepro.ai"
-                    {...register("submitted_by_email")}
-                    className={`w-full h-11 rounded-xl border bg-white px-3.5 text-sm text-[#14142B] placeholder:text-[#8A8AA3] focus:outline-none transition-all ${
-                      errors.submitted_by_email
-                        ? "border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"
-                        : "border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15"
-                    }`}
-                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label
+                      htmlFor="field-email"
+                      className="block text-xs font-semibold text-[#14142B]"
+                    >
+                      Your email <span className="text-[#DC2626]">*</span>
+                    </label>
+                    {initialEmail && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-mono text-[#4F46E5] bg-[#EEF2FF] px-2 py-0.5 rounded-md border border-[#E0E7FF] font-semibold">
+                        <Lock className="h-3 w-3" />
+                        Locked to signed-in account
+                      </span>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      id="field-email"
+                      type="email"
+                      readOnly={Boolean(initialEmail)}
+                      placeholder="maker@writepro.ai"
+                      {...register("submitted_by_email")}
+                      className={`w-full h-11 rounded-xl border px-3.5 text-sm transition-all ${
+                        initialEmail
+                          ? "bg-[#F8F9FC] text-[#55556E] border-[#D4D4E4] cursor-not-allowed select-none font-medium pr-10"
+                          : errors.submitted_by_email
+                          ? "bg-white text-[#14142B] border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20 focus:outline-none"
+                          : "bg-white text-[#14142B] border-[#D4D4E4] hover:border-[#B9B9CF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15 focus:outline-none"
+                      }`}
+                    />
+                    {initialEmail && (
+                      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-[#71717A]">
+                        <Lock className="h-4 w-4" />
+                      </div>
+                    )}
+                  </div>
                   <p className="mt-1.5 text-xs text-[#55556E]">
-                    Only used for review updates. Never shown publicly.
+                    {initialEmail
+                      ? `Locked to ${initialEmail}. This listing will be automatically credited to your account.`
+                      : "Only used for review updates. Never shown publicly."}
                   </p>
                   {errors.submitted_by_email && (
                     <p className="mt-1 text-xs text-[#DC2626]">
@@ -1486,7 +1600,7 @@ export const SubmitForm: React.FC = () => {
                         </li>
                         <li className="flex items-center gap-1.5">
                           <span className="text-[#0F8A5F] font-bold">✓</span>
-                          <span>Permanent dofollow backlink</span>
+                          <span>Permanent directory spotlight</span>
                         </li>
                       </>
                     ) : (
@@ -1508,11 +1622,24 @@ export const SubmitForm: React.FC = () => {
                   </ul>
                 </div>
 
+                {/* Unused Paid Credit Available Alert */}
+                {matchedUnusedPayment && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 space-y-1">
+                    <div className="font-bold flex items-center gap-1.5 text-emerald-900">
+                      <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                      <span>Verified Paid Credit Available (#{matchedUnusedPayment.id})</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed">
+                      You have an active, verified {matchedUnusedPayment.plan_id.toUpperCase()} payment credit on your account. You will <strong>not</strong> be charged again — submitting will automatically claim your existing credit!
+                    </p>
+                  </div>
+                )}
+
                 {/* Due Today */}
                 <div className="flex items-center justify-between pt-2 border-t border-[#F1F1F8]">
                   <span className="text-sm font-medium text-[#55556E]">Due today</span>
                   <span className="text-2xl font-extrabold text-[#14142B]">
-                    {selectedListingPlan?.formattedPrice || "$0"}
+                    {matchedUnusedPayment ? "$0 (Paid Credit)" : selectedListingPlan?.formattedPrice || "$0"}
                   </span>
                 </div>
 
@@ -1532,6 +1659,8 @@ export const SubmitForm: React.FC = () => {
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Submitting...</span>
                     </>
+                  ) : matchedUnusedPayment ? (
+                    <span>Submit &amp; Apply Credit (#{matchedUnusedPayment.id}) →</span>
                   ) : selectedListingPlan && selectedListingPlan.price > 0 ? (
                     <span>Pay {selectedListingPlan.formattedPrice} and submit →</span>
                   ) : (
@@ -1564,6 +1693,22 @@ export const SubmitForm: React.FC = () => {
                 Your tool has been saved with <strong className="text-[#14142B]">pending</strong> status. It will go live after admin approval.
               </p>
             </div>
+
+            {(submittedResult.custom_category || submittedResult.category_suggestion) && (
+              <div className="rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] p-4 text-left space-y-1 text-xs">
+                <div className="flex items-center gap-2 text-[#0F8A5F] font-bold">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>
+                    Category Suggestion:{" "}
+                    {submittedResult.custom_category ||
+                      submittedResult.category_suggestion?.suggested_name}
+                  </span>
+                </div>
+                <p className="text-[#065F46] leading-relaxed">
+                  Your category suggestion has been submitted successfully. It will become available after admin review.
+                </p>
+              </div>
+            )}
 
             <div className="rounded-xl bg-[#F6F6FB] border border-[#E6E6F0] p-4 text-left space-y-2.5 text-xs">
               <div className="flex justify-between">

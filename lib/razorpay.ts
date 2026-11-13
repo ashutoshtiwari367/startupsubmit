@@ -75,6 +75,33 @@ export function getRazorpayClient() {
 }
 
 /**
+ * Constant-time HMAC-SHA256 verification helper to prevent timing side-channel attacks.
+ */
+function verifyHmacSha256(
+  payload: string,
+  signature: string,
+  secret: string
+): boolean {
+  if (!secret || !payload || !signature) {
+    return false;
+  }
+
+  const generatedSignature = crypto
+    .createHmac("sha256", secret)
+    .update(payload)
+    .digest("hex");
+
+  const expectedBuf = Buffer.from(generatedSignature, "utf8");
+  const receivedBuf = Buffer.from(String(signature).trim(), "utf8");
+
+  if (expectedBuf.length !== receivedBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(expectedBuf, receivedBuf);
+}
+
+/**
  * Verifies Razorpay HMAC-SHA256 payment signature using constant-time comparison
  * (`crypto.timingSafeEqual`) to prevent timing side-channel attacks.
  */
@@ -88,22 +115,26 @@ export function verifyRazorpaySignature(
     secretOverride ??
     (serverSecrets.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET || "");
 
-  if (!secret || !orderId || !paymentId || !signature) {
+  if (!orderId || !paymentId) {
     return false;
   }
 
-  const generatedSignature = crypto
-    .createHmac("sha256", secret)
-    .update(`${orderId}|${paymentId}`)
-    .digest("hex");
+  return verifyHmacSha256(`${orderId}|${paymentId}`, signature, secret);
+}
 
-  const expectedBuf = Buffer.from(generatedSignature, "utf8");
-  const receivedBuf = Buffer.from(String(signature).trim(), "utf8");
+/**
+ * Verifies Razorpay server-to-server webhook signature (X-Razorpay-Signature)
+ * using constant-time comparison against the raw request body.
+ */
+export function verifyRazorpayWebhookSignature(
+  rawBody: string,
+  signature: string,
+  secretOverride?: string
+): boolean {
+  const secret =
+    secretOverride ??
+    (serverSecrets.razorpayWebhookSecret || process.env.RAZORPAY_WEBHOOK_SECRET || "");
 
-  if (expectedBuf.length !== receivedBuf.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(expectedBuf, receivedBuf);
+  return verifyHmacSha256(rawBody, signature, secret);
 }
 

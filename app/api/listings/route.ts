@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, ensureMediaBucket } from "@/lib/db";
+import { createClient } from "@/lib/supabase/server";
 import {
   checkHoneypotAndMinSubmitTime,
   validateSubmissionServer,
@@ -8,6 +9,19 @@ import {
 import { generateUniqueSlug, toBaseSlug } from "@/lib/slug";
 import { emitListingSubmitted } from "@/lib/events";
 import { checkListingSubmissionRateLimit } from "@/lib/ratelimit";
+import {
+  getFeaturedWindowState,
+  normalizeDirectoryPlan,
+} from "@/config/site";
+import {
+  getOrCreateFallbackOtherCategory,
+  createCategorySuggestion,
+} from "@/lib/category-suggestions";
+import {
+  getUserUpvotedListingIds,
+  getListingUpvoteCountsMap,
+  getListingUpvoteState,
+} from "@/lib/upvotes";
 
 const NUMERIC_ID_REGEX = /^\d+$/;
 
@@ -37,36 +51,14 @@ async function verifyCategoryExists(
   const trimmed = categoryInput.trim();
   if (!trimmed) return null;
 
-  // Handle "Other" custom category: resolve or create in public.categories
+  // Handle "Other" custom category: resolve to static fallback container in public.categories
+  // Custom user categories are NEVER directly inserted into public.categories!
   if (trimmed.toLowerCase() === "other") {
     const customName = String(customCategoryInput || "").trim();
     if (customName.length < 2) return null;
 
-    const customSlug = toBaseSlug(customName);
-    const { data: existingBySlug } = await db
-      .from("categories")
-      .select("id")
-      .eq("slug", customSlug)
-      .maybeSingle();
-
-    if (existingBySlug?.id) {
-      return Number(existingBySlug.id);
-    }
-
-    const { data: createdCategory } = await db
-      .from("categories")
-      .upsert(
-        {
-          slug: customSlug,
-          name: customName,
-          description: "Custom user-submitted category",
-        },
-        { onConflict: "slug" }
-      )
-      .select("id")
-      .single();
-
-    return createdCategory?.id ? Number(createdCategory.id) : null;
+    const fallbackCategory = await getOrCreateFallbackOtherCategory();
+    return fallbackCategory.id;
   }
 
   if (NUMERIC_ID_REGEX.test(trimmed)) {
@@ -127,7 +119,28 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      return NextResponse.json({ ok: true, listing: data });
+      let userId: string | null = null;
+      try {
+        const supabase = await createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user?.id) userId = user.id;
+      } catch {}
+
+      const upvoteState = await getListingUpvoteState({
+        listingId: Number(data.id),
+        userId,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        listing: {
+          ...data,
+          upvotes: 42 + upvoteState.upvotesCount,
+          isUpvoted: upvoteState.isUpvoted,
+        },
+      });
     }
 
     let query = db
@@ -136,10 +149,11 @@ export async function GET(req: NextRequest) {
         `id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, starting_price, currency, billing_period, listing_plan, status, submitted_by_email, created_at, approved_at, categories(id, slug, name), listing_screenshots(id, url, position)`
       )
       .eq("status", "approved")
+      .order("approved_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
 
     if (featuredParam === "true") {
-      query = query.eq("listing_plan", "featured");
+      query = query.in("listing_plan", ["featured", "one_time"]);
     }
 
     if (categoryId && NUMERIC_ID_REGEX.test(categoryId)) {
@@ -156,7 +170,32 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const mapped = (data || []).map((l: any, index: number) => {
+    // Check optional authenticated user session
+    let sessionUserId: string | null = null;
+    try {
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user?.id) sessionUserId = user.id;
+    } catch {}
+
+    const fetchedIds = (data || []).map((l: any) => Number(l.id)).filter(Boolean);
+    const [userUpvotedSet, upvoteCountsMap] = await Promise.all([
+      sessionUserId ? getUserUpvotedListingIds(sessionUserId) : Promise.resolve(new Set<number>()),
+      fetchedIds.length > 0 ? getListingUpvoteCountsMap(fetchedIds) : Promise.resolve(new Map<number, number>()),
+    ]);
+
+    const nowMs = Date.now();
+    // Sort newest-approved (or newest-created fallback) strictly first (#1)
+    const sortedRows = [...(data || [])].sort((a: any, b: any) => {
+      const aTs = Date.parse(a.approved_at || a.created_at || "") || 0;
+      const bTs = Date.parse(b.approved_at || b.created_at || "") || 0;
+      if (bTs !== aTs) return bTs - aTs;
+      return Number(b.id || 0) - Number(a.id || 0);
+    });
+
+    const allMapped = sortedRows.map((l: any, index: number) => {
       const categoryName = (l.categories as any)?.name || "SaaS";
       const categorySlug = (l.categories as any)?.slug || "saas";
       const initials = (l.name || "TL").slice(0, 2).toUpperCase();
@@ -165,7 +204,17 @@ export async function GET(req: NextRequest) {
         ? emailUser.replace(/[._+-]+/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()).trim()
         : "Maker";
 
-      const baseUpvotes = Math.max(384 - index * 32, 42);
+      const dynamicDbVotes = upvoteCountsMap.get(Number(l.id)) || Number(l.upvotes_count || 0);
+      const baseUpvotes = Math.max(384 - index * 32, 42) + dynamicDbVotes;
+      const isUpvoted = userUpvotedSet.has(Number(l.id));
+
+      const listingPlan = normalizeDirectoryPlan(l.listing_plan);
+      const featuredWindow = getFeaturedWindowState(
+        l.listing_plan,
+        l.approved_at,
+        l.created_at,
+        nowMs
+      );
 
       return {
         id: String(l.id),
@@ -179,16 +228,33 @@ export async function GET(req: NextRequest) {
         pricing: l.pricing_model,
         startingPrice: l.starting_price,
         billingPeriod: l.billing_period,
-        listingPlan: l.listing_plan,
+        listingPlan,
+        isFeaturedActive: featuredWindow.isFeaturedActive,
+        featuredUntil: featuredWindow.featuredUntil,
+        featuredDaysRemaining: featuredWindow.featuredDaysRemaining,
+        approvedAt: l.approved_at || l.created_at,
+        createdAt: l.created_at,
         author,
         upvotes: baseUpvotes,
+        isUpvoted,
         rank: index + 1,
         commentsCount: Math.max(31 - index * 3, 2),
       };
     });
 
-    const featured = mapped.filter((item) => item.listingPlan === "featured");
-    const podium = mapped.slice(0, 3).map((item, idx) => ({
+    const mapped =
+      featuredParam === "true"
+        ? allMapped.filter((item) => item.isFeaturedActive)
+        : allMapped;
+
+    const featured = mapped.filter((item) => item.isFeaturedActive);
+    const premium = mapped.filter((item) => item.listingPlan === "premium");
+    const free = mapped.filter((item) => item.listingPlan === "free");
+    const justListed = mapped;
+
+    // Podium Champions: Top 3 by live community upvotes
+    const sortedByUpvotes = [...mapped].sort((a, b) => b.upvotes - a.upvotes);
+    const podium = sortedByUpvotes.slice(0, 3).map((item, idx) => ({
       ...item,
       rank: (idx + 1) as 1 | 2 | 3,
       rankLabel: idx === 0 ? "1st place" : idx === 1 ? "2nd place" : "3rd place",
@@ -206,7 +272,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       ok: true,
       listings: mapped,
-      featured: featured.length > 0 ? featured : mapped.slice(0, 3),
+      featured,
+      premium,
+      justListed,
+      free,
       podium,
       regular,
     });
@@ -410,6 +479,17 @@ export async function POST(req: NextRequest) {
 
     // 3. Upload Logo and Screenshots Server-Side to Storage
     const bucketName = await ensureMediaBucket();
+
+    // Preflight Check: If client requested validation-only, return success now without saving media or rows
+    const isPreflight = req.nextUrl.searchParams.get("preflight") === "true";
+    if (isPreflight) {
+      return NextResponse.json({
+        ok: true,
+        preflight: true,
+        message: "Preflight validation passed. Form and media are valid.",
+      });
+    }
+
     const timestamp = Date.now();
     const baseSlugForMedia = toBaseSlug(validData.name);
 
@@ -475,13 +555,77 @@ export async function POST(req: NextRequest) {
       screenshotUrls.push(ssPublicData.publicUrl);
     }
 
-    // 4. Generate Unique Slug & Insert Listing (ID starts at 50000000 automatically)
+    // Get optional authenticated user session for ownership validation & suggestion attribution
+    const supabase = await createClient();
+    const {
+      data: { user: sessionUser },
+    } = await supabase.auth.getUser().catch(() => ({ data: { user: null } }));
+
+    // 4. Authoritative Server-Side Verification for Directory Listing Plans
+    // Strictly blocks malicious frontend manipulation where an attacker requests "premium" or "featured" without paying
+    const requestedListingPlan = String(validData.listing_plan || "free").toLowerCase();
+    let verifiedListingPlan: "free" | "premium" | "featured" = "free";
+    let verifiedListingPlanPrice = 0;
+    let verifiedPaymentRecordId: number | null = null;
+
+    if (requestedListingPlan === "premium" || requestedListingPlan === "featured") {
+      const rawPaymentRecordId = rawFields.payment_record_id;
+      const numericPaymentId = Number(rawPaymentRecordId);
+
+      if (Number.isInteger(numericPaymentId) && numericPaymentId > 0) {
+        // Verify caller's authenticated Supabase session so attackers cannot guess sequential payment IDs (IDOR)
+        const user = sessionUser;
+
+        // Look up payment record securely using service_role
+        const { data: paymentRecord } = await db
+          .from("payments")
+          .select("id, plan_id, listing_id, status, user_id, payer_email, amount, currency")
+          .eq("id", numericPaymentId)
+          .maybeSingle();
+
+        const isOwner =
+          Boolean(user) &&
+          Boolean(paymentRecord) &&
+          (paymentRecord!.user_id === user!.id ||
+            (!paymentRecord!.user_id &&
+              Boolean(user!.email) &&
+              paymentRecord!.payer_email?.toLowerCase() === user!.email?.toLowerCase()));
+
+        // Must be owned by caller, paid, match requested plan, and NOT already claimed by another listing
+        if (
+          isOwner &&
+          paymentRecord &&
+          paymentRecord.status === "paid" &&
+          paymentRecord.plan_id === requestedListingPlan &&
+          (paymentRecord.listing_id === null || paymentRecord.listing_id === undefined)
+        ) {
+          verifiedListingPlan = requestedListingPlan as "premium" | "featured";
+          verifiedListingPlanPrice = requestedListingPlan === "featured" ? 49 : 29;
+          verifiedPaymentRecordId = paymentRecord.id;
+        } else {
+          // If payment was not owned by caller, not verified, or already used, fallback to free
+          verifiedListingPlan = "free";
+          verifiedListingPlanPrice = 0;
+        }
+      } else {
+        // Paid plan requested but no valid payment_record_id provided -> Fallback to free
+        verifiedListingPlan = "free";
+        verifiedListingPlanPrice = 0;
+      }
+    }
+
+    // 4.1 Generate Unique Slug & Insert Listing (ID starts at 50000000 automatically)
     const takenInRetry: string[] = [];
     let insertedListing = null;
     let lastDbError: { code?: string; message?: string } | null = null;
 
     for (let attempt = 0; attempt < 5; attempt++) {
       const candidateSlug = await generateUniqueSlug(validData.name, takenInRetry);
+
+      // If caller is authenticated, ALWAYS authoritatively lock and enforce their account email
+      const authoritativeEmail = sessionUser?.email
+        ? sessionUser.email.toLowerCase().trim()
+        : validData.submitted_by_email.toLowerCase().trim();
 
       const insertPayload: Record<string, unknown> = {
         name: validData.name,
@@ -496,10 +640,10 @@ export async function POST(req: NextRequest) {
         starting_price: validData.starting_price ?? null,
         currency: validData.currency || "USD",
         billing_period: validData.billing_period ?? null,
-        listing_plan: validData.listing_plan || "free",
-        listing_plan_price: validData.listing_plan_price || 0,
+        listing_plan: verifiedListingPlan,
+        listing_plan_price: verifiedListingPlanPrice,
         status: "pending",
-        submitted_by_email: validData.submitted_by_email,
+        submitted_by_email: authoritativeEmail,
       };
 
       if (validData.custom_category) {
@@ -566,20 +710,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4.5. Link Verified Payment Record to Listing (if paid tier submission)
-    const rawPaymentRecordId = rawFields.payment_record_id;
-    if (
-      rawPaymentRecordId !== undefined &&
-      rawPaymentRecordId !== null &&
-      String(rawPaymentRecordId).trim() !== ""
-    ) {
-      const numericPaymentId = Number(rawPaymentRecordId);
-      if (Number.isInteger(numericPaymentId) && numericPaymentId > 0) {
-        await db
-          .from("payments")
-          .update({ listing_id: insertedListing.id })
-          .eq("id", numericPaymentId);
-      }
+    // 4.5. Link Verified Payment Record to Listing (atomic claim with .is("listing_id", null))
+    if (verifiedPaymentRecordId) {
+      await db
+        .from("payments")
+        .update({ listing_id: insertedListing.id })
+        .eq("id", verifiedPaymentRecordId)
+        .is("listing_id", null);
     }
 
     // 5. Insert Screenshot Rows into listing_screenshots
@@ -605,7 +742,38 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 6. Emit Event: listing_submitted (server-side after successful submission)
+    // 6. Record Category Suggestion if user chose "Other" (User NEVER writes to public.categories)
+    let categorySuggestionResult: {
+      submitted: boolean;
+      message: string;
+      suggested_name: string;
+    } | null = null;
+
+    if (
+      validData.category_id.trim().toLowerCase() === "other" &&
+      validData.custom_category
+    ) {
+      try {
+        await createCategorySuggestion({
+          suggestedName: validData.custom_category,
+          suggestedBy: sessionUser?.id || null,
+          listingId: insertedListing.id,
+        });
+        categorySuggestionResult = {
+          submitted: true,
+          message:
+            "Your category suggestion has been submitted successfully. It will become available after admin review.",
+          suggested_name: validData.custom_category.trim(),
+        };
+      } catch (suggErr: unknown) {
+        console.warn(
+          "[api/listings] Category suggestion recording notice:",
+          suggErr instanceof Error ? suggErr.message : suggErr
+        );
+      }
+    }
+
+    // 7. Emit Event: listing_submitted (server-side after successful submission)
     const eventResult = await emitListingSubmitted({
       listing_id: insertedListing.id,
       name: insertedListing.name,
@@ -617,8 +785,8 @@ export async function POST(req: NextRequest) {
       starting_price: validData.starting_price ?? null,
       currency: validData.currency || "USD",
       billing_period: validData.billing_period ?? null,
-      listing_plan: validData.listing_plan || "free",
-      listing_plan_price: validData.listing_plan_price || 0,
+      listing_plan: verifiedListingPlan,
+      listing_plan_price: verifiedListingPlanPrice,
       website_url: insertedListing.website_url,
       status: insertedListing.status,
       submitted_at: insertedListing.created_at,
@@ -631,10 +799,11 @@ export async function POST(req: NextRequest) {
         message: "Tool submitted successfully and is pending admin review.",
         listing: {
           ...insertedListing,
-          listing_plan: insertedListing.listing_plan || validData.listing_plan || "free",
-          listing_plan_price: insertedListing.listing_plan_price ?? validData.listing_plan_price ?? 0,
+          listing_plan: insertedListing.listing_plan || verifiedListingPlan,
+          listing_plan_price: insertedListing.listing_plan_price ?? verifiedListingPlanPrice,
           screenshots: screenshotUrls,
         },
+        category_suggestion: categorySuggestionResult,
         event: eventResult,
       },
       { status: 201 }

@@ -24,22 +24,16 @@ export async function GET(req: NextRequest) {
       ? (rawRange as TimeRangeFilter)
       : "30d";
 
-    const isAdmin = isEmailAllowlisted(user.email);
-    const scope = searchParams.get("scope"); // "all" | "mine"
-
-    // If admin and requested scope="all", show all directory analytics.
-    // Otherwise filter by this maker's email.
-    const filterByEmail = isAdmin && scope === "all" ? null : user.email;
-
+    // Customer dashboard analytics strictly scopes to the authenticated user's submitted tools
     const data = await getDashboardAnalytics({
       timeRange,
-      filterByEmail,
+      filterByEmail: user.email,
     });
 
     return NextResponse.json({
       ok: true,
       analytics: data,
-      isAdmin,
+      isAdmin: false,
     });
   } catch (err: any) {
     return NextResponse.json(

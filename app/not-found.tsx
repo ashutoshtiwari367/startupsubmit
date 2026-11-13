@@ -81,7 +81,7 @@ export default function NotFound() {
                 <span>Launch Pricing</span>
               </div>
               <p className="text-[11px] text-[#55556E] mt-1 line-clamp-1">
-                One-time plans & DR 72+ backlinks
+                One-time plans & curated directory
               </p>
             </Link>
           </div>

@@ -10,6 +10,7 @@ import {
 } from "@/lib/categories";
 import { publicDb } from "@/lib/db";
 import { getSiteUrl } from "@/lib/seo";
+import { normalizeDirectoryPlan } from "@/config/site";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -81,6 +82,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         starting_price,
         currency,
         billing_period,
+        listing_plan,
+        approved_at,
+        created_at,
         categories!inner (
           id,
           slug,
@@ -88,35 +92,42 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         )
       `)
       .eq("categories.slug", category.slug)
-      .eq("status", "approved");
+      .eq("status", "approved")
+      .order("approved_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false });
 
     if (dbListings && dbListings.length > 0) {
-      dbToolItems = dbListings.map((item: any) => ({
-        id: `db-${item.id}`,
-        name: item.name,
-        slug: item.slug,
-        tagline: item.tagline,
-        description: item.description_short,
-        category: category.name,
-        pricingModel: (item.pricing_model === "free"
-          ? "Free"
-          : item.pricing_model === "freemium"
-          ? "Freemium"
-          : "Paid") as "Free" | "Freemium" | "Paid",
-        priceDisplay:
-          item.starting_price && item.starting_price > 0
-            ? `$${item.starting_price}/${item.billing_period === "yearly" ? "yr" : "mo"}`
-            : item.pricing_model === "free"
-            ? "100% Free"
-            : undefined,
-        upvotes: 120,
-        commentsCount: 8,
-        initials: (item.name || "TL").slice(0, 2).toUpperCase(),
-        logoBg: "bg-[#4F46E5] text-white",
-        logoUrl: item.logo_url,
-        websiteUrl: item.website_url,
-        isVerified: true,
-      }));
+      dbToolItems = dbListings.map((item: any) => {
+        const listingPlan = normalizeDirectoryPlan(item.listing_plan);
+        return {
+          id: `db-${item.id}`,
+          name: item.name,
+          slug: item.slug,
+          tagline: item.tagline,
+          description: item.description_short,
+          category: category.name,
+          pricingModel: (item.pricing_model === "free"
+            ? "Free"
+            : item.pricing_model === "freemium"
+            ? "Freemium"
+            : "Paid") as "Free" | "Freemium" | "Paid",
+          priceDisplay:
+            item.starting_price && item.starting_price > 0
+              ? `$${item.starting_price}/${item.billing_period === "yearly" ? "yr" : "mo"}`
+              : item.pricing_model === "free"
+              ? "100% Free"
+              : undefined,
+          upvotes: 120,
+          commentsCount: 8,
+          initials: (item.name || "TL").slice(0, 2).toUpperCase(),
+          logoBg: "bg-[#4F46E5] text-white",
+          logoUrl: item.logo_url,
+          websiteUrl: item.website_url,
+          isVerified: listingPlan === "premium" || listingPlan === "featured",
+          listingPlan,
+          approvedAt: item.approved_at || item.created_at,
+        };
+      });
     }
   } catch (err) {
     console.warn(`[CategoryPage] Error querying DB listings for ${category.slug}:`, err);

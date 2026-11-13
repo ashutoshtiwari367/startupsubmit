@@ -22,6 +22,14 @@ export async function PATCH(
 
   try {
     const { id } = await context.params;
+    const listingId = Number(id);
+    if (!Number.isInteger(listingId) || listingId <= 0) {
+      return NextResponse.json(
+        { ok: false, message: "Invalid listing ID." },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
     const action =
       typeof body?.action === "string" ? body.action.trim().toLowerCase() : "";
@@ -53,7 +61,7 @@ export async function PATCH(
     const { data: updatedListing, error } = await db
       .from("listings")
       .update(updatePayload)
-      .eq("id", Number(id))
+      .eq("id", listingId)
       .select(
         "id, slug, name, tagline, description_short, description_long, website_url, logo_url, category_id, pricing_model, status, submitted_by_email, created_at, updated_at, approved_at"
       )

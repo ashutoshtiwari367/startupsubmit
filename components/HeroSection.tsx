@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 
 export interface FeaturedItem {
   id: string;
@@ -13,6 +12,9 @@ export interface FeaturedItem {
   tagline: string;
   upvotes: number;
   isHighlighted?: boolean;
+  isFeaturedActive?: boolean;
+  featuredDaysRemaining?: number;
+  listingPlan?: string;
   logoBg?: string;
   logoUrl?: string;
 }
@@ -23,52 +25,305 @@ export interface HeroSectionProps {
   initialFeatured?: FeaturedItem[];
 }
 
+const FALLBACK_FEATURED: FeaturedItem[] = [
+  {
+    id: "f-1",
+    slug: "cortex-ai",
+    name: "Cortex AI",
+    initials: "CA",
+    category: "AI Agents",
+    tagline: "Autonomous customer success agents for modern B2B SaaS teams.",
+    upvotes: 386,
+    isHighlighted: true,
+    logoBg: "bg-[#14142B] text-white",
+    logoUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-2",
+    slug: "vector-flow",
+    name: "VectorFlow",
+    initials: "VF",
+    category: "Developer Tools",
+    tagline: "Instant vector database deployment with zero cold starts.",
+    upvotes: 276,
+    logoBg: "bg-[#F7F6FF] text-[#4F46E5]",
+    logoUrl: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-3",
+    slug: "prism-studio",
+    name: "Prism Studio",
+    initials: "PS",
+    category: "Design",
+    tagline: "Turn design system tokens into production React code.",
+    upvotes: 231,
+    logoBg: "bg-[#ECFDF5] text-[#0F8A5F]",
+    logoUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-4",
+    slug: "supaship",
+    name: "Supaship",
+    initials: "SS",
+    category: "Building Products",
+    tagline: "Ship your Next.js SaaS in days. Auth, Stripe and DB ready.",
+    upvotes: 412,
+    logoBg: "bg-[#14142B] text-white",
+    logoUrl: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-5",
+    slug: "aether-db",
+    name: "AetherDB",
+    initials: "AD",
+    category: "Developer Tools",
+    tagline: "Serverless Postgres with instant branching.",
+    upvotes: 345,
+    logoBg: "bg-[#F7F6FF] text-[#4F46E5]",
+    logoUrl: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-6",
+    slug: "agent-flow",
+    name: "AgentFlow",
+    initials: "AF",
+    category: "AI Agents",
+    tagline: "Visual canvas for multi-agent workflows.",
+    upvotes: 298,
+    isHighlighted: true,
+    logoBg: "bg-[#14142B] text-white",
+    logoUrl: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-7",
+    slug: "pulse-grid",
+    name: "PulseGrid",
+    initials: "PG",
+    category: "Monitoring",
+    tagline: "Minimalist server health and cron monitoring for indie teams.",
+    upvotes: 189,
+    logoBg: "bg-[#ECFDF5] text-[#0F8A5F]",
+    logoUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-8",
+    slug: "prompt-smith",
+    name: "PromptSmith",
+    initials: "PS",
+    category: "Artificial Intelligence",
+    tagline: "Automated prompt regression testing and cost optimization.",
+    upvotes: 141,
+    logoBg: "bg-[#F7F6FF] text-[#4F46E5]",
+    logoUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-9",
+    slug: "trace-kit",
+    name: "TraceKit",
+    initials: "TK",
+    category: "Developer Tools",
+    tagline: "Distributed OpenTelemetry logging with zero-instrumentation config.",
+    upvotes: 114,
+    logoBg: "bg-[#14142B] text-white",
+    logoUrl: "https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=200&h=200&fit=crop&q=80",
+  },
+  {
+    id: "f-10",
+    slug: "seo-engine",
+    name: "SEOEngine",
+    initials: "SE",
+    category: "SEO",
+    tagline: "Programmatic keyword clustering and landing page generation.",
+    upvotes: 85,
+    logoBg: "bg-[#F7F6FF] text-[#4F46E5]",
+    logoUrl: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=200&h=200&fit=crop&q=80",
+  },
+];
+
 export const HeroSection: React.FC<HeroSectionProps> = ({
   onSubmitClick,
   onBrowseClick,
   initialFeatured = [],
 }) => {
-  const [featuredProducts, setFeaturedProducts] = useState<FeaturedItem[]>(initialFeatured);
+  const [featuredProducts, setFeaturedProducts] = useState<FeaturedItem[]>(
+    initialFeatured.length >= 10 ? initialFeatured : FALLBACK_FEATURED
+  );
   const [isLoading, setIsLoading] = useState(initialFeatured.length === 0);
 
   useEffect(() => {
-    fetch("/api/listings?featured=true&limit=3")
+    fetch("/api/listings?limit=60")
       .then((res) => res.json())
       .then((data) => {
-        if (data.ok && data.featured && data.featured.length > 0) {
-          setFeaturedProducts(
-            data.featured.slice(0, 3).map((item: any, idx: number) => ({
-              id: item.id,
+        if (data.ok) {
+          const activeFeaturedPool = Array.isArray(data.featured) ? data.featured : [];
+          const premiumPool = Array.isArray(data.premium) ? data.premium : [];
+          const freePool = Array.isArray(data.free) ? data.free : [];
+          const listingsPool = Array.isArray(data.listings) ? data.listings : [];
+
+          // 1. Active 7-day Featured listings come first (newest approved = #1 first place).
+          // 2. Expired featured (>7 days) rotate out of the header; remaining slots (if <10)
+          //    backfill with newest Premium -> Free -> non-expired approved listings.
+          const seenIds = new Set<string>();
+          const combined: any[] = [];
+
+          for (const item of activeFeaturedPool) {
+            const itemId = String(item.id);
+            if (!seenIds.has(itemId)) {
+              seenIds.add(itemId);
+              combined.push(item);
+            }
+            if (combined.length >= 10) break;
+          }
+
+          if (combined.length < 10) {
+            for (const item of [...premiumPool, ...freePool, ...listingsPool]) {
+              if (item.listingPlan === "featured" && !item.isFeaturedActive) {
+                continue; // 7-day header window expired — rotate out of header slots
+              }
+              const itemId = String(item.id);
+              if (!seenIds.has(itemId)) {
+                seenIds.add(itemId);
+                combined.push(item);
+              }
+              if (combined.length >= 10) break;
+            }
+          }
+
+          if (combined.length > 0) {
+            const mappedCombined: FeaturedItem[] = combined.map((item: any, idx: number) => ({
+              id: String(item.id),
               slug: item.slug,
               name: item.name,
               initials: item.initials || item.name.slice(0, 2).toUpperCase(),
-              category: item.category,
-              tagline: item.tagline,
-              upvotes: item.upvotes || 250,
-              isHighlighted: idx === 0,
+              category: item.category || "SaaS",
+              tagline: item.tagline || "",
+              upvotes: item.upvotes || 200,
+              isHighlighted: Boolean(item.isFeaturedActive) || idx === 0 || idx === 5,
+              isFeaturedActive: Boolean(item.isFeaturedActive),
+              featuredDaysRemaining: Number(item.featuredDaysRemaining || 0),
+              listingPlan: item.listingPlan || "free",
               logoBg:
-                idx === 0
+                idx % 3 === 0
                   ? "bg-[#14142B] text-white"
-                  : idx === 1
+                  : idx % 3 === 1
                   ? "bg-[#F7F6FF] text-[#4F46E5]"
                   : "bg-[#ECFDF5] text-[#0F8A5F]",
               logoUrl: item.logoUrl,
-            }))
-          );
+            }));
+
+            // Keep 5 left + 5 right symmetry if DB has fewer than 10 eligible listings
+            if (mappedCombined.length < 10) {
+              for (const fb of FALLBACK_FEATURED) {
+                if (mappedCombined.length >= 10) break;
+                if (!seenIds.has(fb.id)) {
+                  mappedCombined.push(fb);
+                }
+              }
+            }
+
+            setFeaturedProducts(mappedCombined);
+          }
         }
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
   }, []);
 
+  // Split into exact 5 left cards and 5 right cards
+  const leftProducts = featuredProducts.slice(0, 5);
+  const rightProducts = featuredProducts.slice(5, 10);
+
+  const renderProductCard = (p: FeaturedItem, isFirst: boolean = false) => (
+    <Link
+      key={p.id}
+      href={`/product/${p.slug || p.id}`}
+      className={`group rounded-xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 transition-all cursor-pointer block border ${
+        p.isHighlighted || isFirst
+          ? "border-[#4F46E5] bg-[#F7F6FF]/40 hover:bg-[#F7F6FF] shadow-2xs"
+          : "border-[#E6E6F0] bg-white hover:border-[#D4D4E4] hover:bg-[#F6F6FB]/80 shadow-[0_1px_2px_rgba(20,20,43,0.02)]"
+      }`}
+    >
+      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        {/* Logo Squircle */}
+        <div
+          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${p.logoBg || "bg-[#14142B] text-white"} font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden shadow-2xs`}
+        >
+          {p.logoUrl ? (
+            <img src={p.logoUrl} alt={p.name} className="w-full h-full object-cover" />
+          ) : (
+            p.initials
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-xs sm:text-sm text-[#14142B] group-hover:text-[#4F46E5] transition-colors truncate">
+              {p.name}
+            </span>
+            {p.isFeaturedActive && (
+              <span className="rounded-md bg-[#FFF1D6] text-[#7A4E00] text-[9px] font-bold px-1.5 py-0.5 shrink-0 uppercase tracking-wide">
+                Featured{p.featuredDaysRemaining ? ` · ${p.featuredDaysRemaining}d` : ""}
+              </span>
+            )}
+            <span className="rounded-md bg-[#F1F1F8] text-[#55556E] text-[10px] font-medium px-1.5 py-0.5 shrink-0">
+              {p.category}
+            </span>
+          </div>
+          <p className="text-[11px] text-[#55556E] truncate mt-0.5 leading-snug">
+            {p.tagline}
+          </p>
+        </div>
+      </div>
+
+      {/* View CTA */}
+      <div className="rounded-lg bg-[#F6F6FB] group-hover:bg-[#EEEDFC] text-[#4F46E5] text-[11px] font-semibold px-2 py-1 transition-colors shrink-0 flex items-center gap-0.5">
+        <span>View</span>
+        <span className="text-[10px]">&rarr;</span>
+      </div>
+    </Link>
+  );
+
   return (
-    <section className="relative w-full bg-white py-12 md:py-[72px] lg:py-20 border-b border-[#E6E6F0]">
-      <div className="max-w-[1240px] mx-auto px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-          {/* LEFT COLUMN: HERO HEADLINE & ACTIONS (7 COLS) */}
-          <div className="lg:col-span-7 space-y-6">
+    <section className="relative w-full bg-white py-10 md:py-14 lg:py-16 border-b border-[#E6E6F0]">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 items-center">
+          {/* ======================================================== */}
+          {/* 1. LEFT COLUMN: 5 FEATURED CARDS (3 COLS ON DESKTOP)     */}
+          {/* ======================================================== */}
+          <div className="order-2 lg:order-1 lg:col-span-3">
+            <div className="rounded-2xl border border-[#E6E6F0] bg-white p-3.5 sm:p-4 shadow-[0_8px_30px_rgba(20,20,43,0.04)] space-y-2.5">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-1 border-b border-[#F1F1F8]">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs sm:text-sm text-[#14142B]">
+                    Featured Today
+                  </span>
+                  <span className="rounded-full bg-[#FFF1D6] text-[#7A4E00] text-[9px] font-bold px-2 py-0.5 tracking-wide uppercase">
+                    SPONSORED
+                  </span>
+                </div>
+                <Link
+                  href="/pricing"
+                  className="text-[11px] font-semibold text-[#4F46E5] hover:underline"
+                >
+                  Promote &rarr;
+                </Link>
+              </div>
+
+              {/* 5 Cards List */}
+              <div className="space-y-2">
+                {leftProducts.map((p, idx) => renderProductCard(p, idx === 0))}
+              </div>
+            </div>
+          </div>
+
+          {/* ======================================================== */}
+          {/* 2. CENTER COLUMN: HERO HEADLINE & ACTIONS (6 COLS)       */}
+          {/* ======================================================== */}
+          <div className="order-1 lg:order-2 lg:col-span-6 text-center space-y-6 px-2 sm:px-4">
             {/* Pill badge: • 30,000+ founders launch here */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#E6E6F0] bg-white px-3.5 py-1.5">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#E6E6F0] bg-white px-3.5 py-1.5 shadow-2xs">
               <span className="h-2 w-2 rounded-full bg-[#0F8A5F] animate-pulse" />
               <span className="text-xs font-medium text-[#55556E]">
                 30,000+ founders launch here
@@ -76,21 +331,21 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </div>
 
             {/* Main H1 Heading */}
-            <h1 className="font-heading font-extrabold text-4xl sm:text-5xl lg:text-[56px] leading-[1.08] tracking-[-0.035em] text-[#14142B]">
+            <h1 className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-[46px] xl:text-[52px] leading-[1.1] tracking-[-0.035em] text-[#14142B] max-w-2xl mx-auto">
               Launch your product.
               <br />
               Get seen. Get{" "}
-              <span className="text-[#4F46E5]">backlinks.</span>
+              <span className="text-[#4F46E5]">users.</span>
             </h1>
 
             {/* Subtitle */}
-            <p className="text-sm sm:text-base text-[#55556E] leading-relaxed max-w-xl">
-              Daily launches, curated directories, and a high-authority dofollow
-              backlink for top featured products.
+            <p className="text-sm sm:text-base text-[#55556E] leading-relaxed max-w-lg mx-auto">
+              Daily launches, curated directories, and verified discovery
+              for top featured products.
             </p>
 
             {/* Action CTA Buttons */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
               <button
                 type="button"
                 onClick={onSubmitClick}
@@ -110,111 +365,56 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             </div>
 
             {/* AS SEEN ON */}
-            <div className="pt-6 space-y-3">
-              <div className="text-[11px] font-bold font-mono tracking-wider text-[#55556E] uppercase">
+            <div className="pt-4 space-y-2.5">
+              <div className="text-[10px] font-bold font-mono tracking-wider text-[#55556E] uppercase">
                 AS SEEN ON
               </div>
-              <div className="flex flex-wrap items-center gap-6 sm:gap-8 opacity-70">
-                <span className="font-heading font-extrabold text-sm sm:text-base text-[#14142B]">
+              <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-7 opacity-70">
+                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
                   TechCrunch
                 </span>
-                <span className="font-heading font-extrabold text-sm sm:text-base text-[#14142B]">
+                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
                   Hacker News
                 </span>
-                <span className="font-heading font-extrabold text-sm sm:text-base text-[#14142B]">
+                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
                   Product Hunt
                 </span>
-                <span className="font-heading font-extrabold text-sm sm:text-base text-[#14142B]">
+                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
                   Indie Hackers
                 </span>
-                <span className="font-heading font-extrabold text-sm sm:text-base text-[#14142B]">
+                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
                   Y Combinator
                 </span>
               </div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: FEATURED TODAY CARD (5 COLS) */}
-          <div className="lg:col-span-5">
-            <div className="rounded-2xl border border-[#E6E6F0] bg-white p-5 sm:p-6 shadow-[0_12px_40px_rgba(20,20,43,0.08)] space-y-3.5">
-              {/* Header: Featured today + SPONSORED badge + Promote yours link */}
-              <div className="flex items-center justify-between pb-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-base text-[#14142B]">
-                    Featured today
+          {/* ======================================================== */}
+          {/* 3. RIGHT COLUMN: 5 FEATURED CARDS (3 COLS ON DESKTOP)    */}
+          {/* ======================================================== */}
+          <div className="order-3 lg:order-3 lg:col-span-3">
+            <div className="rounded-2xl border border-[#E6E6F0] bg-white p-3.5 sm:p-4 shadow-[0_8px_30px_rgba(20,20,43,0.04)] space-y-2.5">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-1 border-b border-[#F1F1F8]">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold text-xs sm:text-sm text-[#14142B]">
+                    Top Sponsors
                   </span>
-                  <span className="rounded-full bg-[#FFF1D6] text-[#7A4E00] text-[10px] font-bold px-2 py-0.5 tracking-wide uppercase">
-                    SPONSORED
+                  <span className="rounded-full bg-[#E0DEFC] text-[#4F46E5] text-[9px] font-bold px-2 py-0.5 tracking-wide uppercase">
+                    SPOTLIGHT
                   </span>
                 </div>
                 <Link
                   href="/pricing"
-                  className="text-xs font-semibold text-[#4F46E5] hover:underline"
+                  className="text-[11px] font-semibold text-[#4F46E5] hover:underline"
                 >
-                  Promote yours &rarr;
+                  Promote &rarr;
                 </Link>
               </div>
 
-              {/* Dynamic Featured Products List */}
-              <div className="space-y-3">
-                {isLoading && featuredProducts.length === 0 ? (
-                  <div className="py-8 text-center text-xs font-mono text-[#55556E]">
-                    Loading featured launches...
-                  </div>
-                ) : featuredProducts.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#E6E6F0] p-6 text-center text-xs text-[#55556E]">
-                    No sponsored tools active today.{" "}
-                    <Link href="/pricing" className="text-[#4F46E5] font-semibold underline">
-                      Be the first
-                    </Link>
-                  </div>
-                ) : (
-                  featuredProducts.map((p) => (
-                    <Link
-                      key={p.id}
-                      href={`/product/${p.slug || p.id}`}
-                      className={`rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all cursor-pointer block ${
-                        p.isHighlighted
-                          ? "border-2 border-[#4F46E5] bg-[#F7F6FF]/30 hover:bg-[#F7F6FF]/50"
-                          : "border border-[#E6E6F0] bg-white hover:border-[#D4D4E4] hover:bg-[#F6F6FB]/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {/* Logo Squircle */}
-                        <div
-                          className={`w-11 h-11 rounded-xl ${p.logoBg || "bg-[#14142B] text-white"} font-bold text-sm flex items-center justify-center shrink-0 overflow-hidden shadow-2xs`}
-                        >
-                          {p.logoUrl ? (
-                            <img src={p.logoUrl} alt={p.name} className="w-full h-full object-cover" />
-                          ) : (
-                            p.initials
-                          )}
-                        </div>
-
-                        {/* Content */}
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-bold text-sm text-[#14142B] truncate">
-                              {p.name}
-                            </span>
-                            <span className="rounded-md bg-[#F1F1F8] text-[#55556E] text-[11px] font-medium px-2 py-0.5">
-                              {p.category}
-                            </span>
-                          </div>
-                          <p className="text-xs text-[#55556E] truncate mt-0.5">
-                            {p.tagline}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* View CTA */}
-                      <div className="rounded-lg bg-[#F6F6FB] group-hover:bg-[#EEEDFC] text-[#4F46E5] text-xs font-semibold px-2.5 py-1.5 transition-colors shrink-0 flex items-center gap-1">
-                        <span>View</span>
-                        <span>&rarr;</span>
-                      </div>
-                    </Link>
-                  ))
-                )}
+              {/* 5 Cards List */}
+              <div className="space-y-2">
+                {rightProducts.map((p, idx) => renderProductCard(p, idx === 0))}
               </div>
             </div>
           </div>

@@ -37,9 +37,11 @@ import { ProductCard } from "./ProductCard";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { ProductReviewsSection } from "./ProductReviewsSection";
-import { ProductCommentsSection } from "./ProductCommentsSection";
+import { UpvoteButton } from "./UpvoteButton";
+import { AuthModal } from "./AuthModal";
 import type { ApprovedListing } from "@/lib/listings";
 import { getSafeInitials } from "@/lib/utils";
+import { normalizeDirectoryPlan } from "@/config/site";
 
 export { getSafeInitials };
 
@@ -171,7 +173,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         tags: [
           listing.categories?.name || listing.custom_category || "SaaS",
           formatPricing(listing.pricing_model),
-          "DR 72+ Verified",
+          "Verified Listing",
         ],
       }
     : {
@@ -193,7 +195,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           handle: "@maker",
           role: "Solo Founder",
         },
-        tags: ["SaaS", "Freemium", "DR 72+ Verified"],
+        tags: ["SaaS", "Freemium", "Verified Listing"],
       };
 
   const gallery =
@@ -209,7 +211,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   const [logoError, setLogoError] = useState(false);
   const [upvotes, setUpvotes] = useState(product.upvotes);
   const [isUpvoted, setIsUpvoted] = useState(product.isUpvoted || false);
-  const [activeTab, setActiveTab] = useState<"about" | "reviews" | "comments" | "alternatives">("about");
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isUpdatingUpvote, setIsUpdatingUpvote] = useState(false);
+  const [activeTab, setActiveTab] = useState<"about" | "reviews" | "alternatives">("about");
   const [activeGalleryIdx, setActiveGalleryIdx] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedBadge, setCopiedBadge] = useState(false);
@@ -227,19 +231,56 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         body: JSON.stringify({ listing_id: listing.id }),
       }).catch(() => {});
     }
-  }, [listing?.id]);
+
+    // Load authentic upvote state from backend
+    const listingKey = listing?.id || product.id;
+    if (listingKey) {
+      fetch(`/api/listings/${listingKey}/upvote`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok) {
+            setIsUpvoted(Boolean(data.isUpvoted));
+            if (typeof data.upvotesCount === "number" && data.upvotesCount > 0) {
+              setUpvotes(data.upvotesCount);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [listing?.id, product.id]);
 
   // Comments state - clean empty state when no comments exist
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
 
-  const toggleUpvote = () => {
-    setIsUpvoted((prev) => {
-      const next = !prev;
-      setUpvotes((count) => (next ? count + 1 : count - 1));
-      return next;
-    });
+  const handleUpvoteToggle = async () => {
+    if (isUpdatingUpvote) return;
+    setIsUpdatingUpvote(true);
+    const listingKey = listing?.id || product.id;
+
+    try {
+      const res = await fetch(`/api/listings/${listingKey}/upvote`, {
+        method: "POST",
+      });
+      const data = await res.json();
+
+      if (res.status === 401 || data.requiresAuth) {
+        setShowAuthModal(true);
+        return;
+      }
+
+      if (data.ok) {
+        setIsUpvoted(Boolean(data.isUpvoted));
+        if (typeof data.upvotesCount === "number") {
+          setUpvotes(data.upvotesCount);
+        }
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setIsUpdatingUpvote(false);
+    }
   };
 
   const handleCopyLink = () => {
@@ -364,11 +405,18 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     {product.name}
                   </h1>
 
-                  {/* #1 Product of the Day Badge */}
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF1D6] border border-[#FCD34D] px-2.5 py-0.5 text-[11px] font-bold text-[#7A4E00]">
-                    <Crown className="h-3 w-3 text-[#F59E0B]" />
-                    <span>#1 of the Day</span>
-                  </span>
+                  {/* Plan Status Badge */}
+                  {normalizeDirectoryPlan(listing?.listing_plan) === "featured" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF1D6] border border-[#FCD34D] px-2.5 py-0.5 text-[11px] font-bold text-[#7A4E00]">
+                      <Crown className="h-3 w-3 text-[#F59E0B]" />
+                      <span>Featured Spotlight</span>
+                    </span>
+                  ) : normalizeDirectoryPlan(listing?.listing_plan) === "premium" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] px-2.5 py-0.5 text-[11px] font-bold text-[#0F8A5F]">
+                      <ShieldCheck className="h-3 w-3 text-[#0F8A5F]" />
+                      <span>Verified Maker</span>
+                    </span>
+                  ) : null}
 
                   {/* Category Pill */}
                   <span className="rounded-full bg-[#F7F6FF] text-[#4F46E5] border border-[#E0DEFC] px-2.5 py-0.5 text-[11px] font-semibold">
@@ -386,13 +434,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   {product.tagline}
                 </p>
 
-                {/* Meta details row: Backlink + Launch date + Domain */}
+                {/* Meta details row: Launch date + Domain */}
                 <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-mono text-[#55556E]">
-                  <span className="inline-flex items-center gap-1 text-[#0F8A5F] font-semibold">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    <span>DR 72+ Verified Backlink</span>
-                  </span>
-                  <span className="text-[#D4D4E4]">•</span>
                   <span>Launched {product.launchDate}</span>
                   {product.websiteUrl && (
                     <>
@@ -414,6 +457,15 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
             {/* Right: High-Impact CTAs */}
             <div className="flex items-center gap-2.5 shrink-0 pt-2 md:pt-0">
+              <UpvoteButton
+                count={upvotes}
+                isUpvoted={isUpvoted}
+                orientation="horizontal"
+                size="md"
+                disabled={isUpdatingUpvote}
+                onUpvoteToggle={handleUpvoteToggle}
+              />
+
               {/* Visit Website CTA */}
               {product.websiteUrl && (
                 <a
@@ -429,7 +481,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                       }).catch(() => {});
                     }
                   }}
-                  className="h-11 px-6 inline-flex items-center gap-2 rounded-[12px] bg-[#4F46E5] hover:bg-[#4338CA] text-xs sm:text-sm font-heading font-extrabold text-white transition-all cursor-pointer shadow-xs"
+                  className="h-10 px-5 inline-flex items-center gap-2 rounded-[10px] bg-[#4F46E5] hover:bg-[#4338CA] text-xs sm:text-sm font-heading font-extrabold text-white transition-all cursor-pointer shadow-xs"
                 >
                   <span>Visit website</span>
                   <ExternalLink className="h-4 w-4" />
@@ -574,19 +626,6 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
               <button
                 type="button"
-                onClick={() => setActiveTab("comments")}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                  activeTab === "comments"
-                    ? "bg-[#4F46E5] text-white shadow-xs"
-                    : "text-[#55556E] hover:text-[#14142B] hover:bg-[#F6F6FB]"
-                }`}
-              >
-                <MessageSquare className="h-3.5 w-3.5" />
-                <span>Comments &amp; AMA</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setActiveTab("alternatives")}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                   activeTab === "alternatives"
@@ -599,7 +638,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </button>
             </div>
 
-            {/* TAB 1: ABOUT (Overview + Reviews + Comments stacked) */}
+            {/* TAB 1: ABOUT (Overview + Reviews) */}
             {activeTab === "about" && (
               <div className="space-y-8 animate-in fade-in duration-200">
                 {/* Product Overview Card */}
@@ -617,16 +656,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   </p>
                 </div>
 
-                {/* Product Reviews Section */}
+                {/* Product Reviews & Rating Section */}
                 <ProductReviewsSection
-                  listingId={listing?.id || Number(product.id) || 50000001}
-                  listingSlug={listing?.slug || String(product.id)}
-                  listingName={product.name}
-                  currentUserId={currentUserId}
-                />
-
-                {/* Product Comments Section */}
-                <ProductCommentsSection
                   listingId={listing?.id || Number(product.id) || 50000001}
                   listingSlug={listing?.slug || String(product.id)}
                   listingName={product.name}
@@ -647,21 +678,10 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               </div>
             )}
 
-            {/* TAB 3: COMMENTS ONLY */}
-            {activeTab === "comments" && (
-              <div className="animate-in fade-in duration-200">
-                {/* Dynamic placeholder reference: `Ask a question or share your feedback on ${product.name}...` */}
-                {/* Fallback empty state: "No comments yet. Be the first to share your feedback." */}
-                <ProductCommentsSection
-                  listingId={listing?.id || Number(product.id) || 50000001}
-                  listingSlug={listing?.slug || String(product.id)}
-                  listingName={product.name}
-                  currentUserId={currentUserId}
-                />
-              </div>
-            )}
+            {/* Dynamic placeholder reference: `Ask a question or share your feedback on ${product.name}...` */}
+            {/* Fallback empty state: "No comments yet. Be the first to share your feedback." */}
 
-            {/* TAB 4: ALTERNATIVES */}
+            {/* TAB 3: ALTERNATIVES */}
             {activeTab === "alternatives" && (
               <div className="rounded-2xl border border-[#E6E6F0] bg-white p-6 sm:p-8 space-y-5 animate-in fade-in duration-200 shadow-xs">
                 <div className="border-b border-[#E6E6F0] pb-4">
@@ -758,13 +778,6 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     <Crown className="h-3.5 w-3.5 text-[#F59E0B]" /> Ranking:
                   </span>
                   <span className="font-bold text-[#7A4E00]">#1 Daily Champion</span>
-                </div>
-
-                <div className="flex items-center justify-between pt-2.5">
-                  <span className="text-[#55556E] flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#0F8A5F]" /> Backlink Quality:
-                  </span>
-                  <span className="font-bold text-[#0F8A5F]">rel=&quot;dofollow&quot; DR 72+</span>
                 </div>
 
                 {product.websiteUrl && (
@@ -912,6 +925,12 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           </div>
         )}
       </main>
+
+      {/* Auth Modal for Unauthenticated Upvoters */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
 
       <Footer />
     </div>

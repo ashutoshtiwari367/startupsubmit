@@ -173,3 +173,66 @@ export function getPlanById(planId: string): ResolvedLaunchPlan | null {
   };
 }
 
+export type CanonicalDirectoryPlan = "free" | "premium" | "featured";
+
+export const FEATURED_PLACEMENT_DAYS = 7;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Normalizes legacy directory plan aliases ('paid' -> 'premium', 'one_time' -> 'featured',
+ * 'freemium' -> 'free') into canonical directory placement tiers.
+ */
+export function normalizeDirectoryPlan(rawPlan?: string | null): CanonicalDirectoryPlan {
+  const clean = String(rawPlan || "").trim().toLowerCase();
+  if (clean === "featured" || clean === "one_time") return "featured";
+  if (clean === "premium" || clean === "paid") return "premium";
+  return "free";
+}
+
+export interface FeaturedWindowState {
+  isFeaturedActive: boolean;
+  featuredUntil: string | null;
+  featuredDaysRemaining: number;
+}
+
+/**
+ * Evaluates whether a 'featured' listing is currently inside its 7-day
+ * homepage header spotlight window anchored on approved_at (or created_at fallback).
+ */
+export function getFeaturedWindowState(
+  rawPlan: string | null | undefined,
+  approvedAt: string | null | undefined,
+  createdAt: string | null | undefined,
+  nowMs: number = Date.now()
+): FeaturedWindowState {
+  if (normalizeDirectoryPlan(rawPlan) !== "featured") {
+    return {
+      isFeaturedActive: false,
+      featuredUntil: null,
+      featuredDaysRemaining: 0,
+    };
+  }
+
+  const anchorIso = approvedAt || createdAt || "";
+  const anchorMs = Date.parse(anchorIso);
+  if (!Number.isFinite(anchorMs)) {
+    return {
+      isFeaturedActive: false,
+      featuredUntil: null,
+      featuredDaysRemaining: 0,
+    };
+  }
+
+  const featuredUntilMs = anchorMs + FEATURED_PLACEMENT_DAYS * ONE_DAY_MS;
+  const remainingMs = featuredUntilMs - nowMs;
+  const isFeaturedActive = remainingMs > 0;
+
+  return {
+    isFeaturedActive,
+    featuredUntil: new Date(featuredUntilMs).toISOString(),
+    featuredDaysRemaining: isFeaturedActive
+      ? Math.max(1, Math.ceil(remainingMs / ONE_DAY_MS))
+      : 0,
+  };
+}
+
