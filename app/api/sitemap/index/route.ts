@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
  * Returns the root <sitemapindex> pointing to chunked sitemaps:
  * - /sitemap/0.xml (Static Pages + Categories)
  * - /sitemap/1.xml (Approved Product Listings 1-1000)
+ * - /sitemap/2.xml (Blog Directory & Articles)
  */
 export async function GET() {
   const config = await getSeoConfig();

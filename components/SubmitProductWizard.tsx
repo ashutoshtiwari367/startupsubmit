@@ -152,6 +152,15 @@ export const SubmitProductWizard: React.FC = () => {
       return;
     }
 
+    const totalBytes = combined.reduce((acc, f) => acc + f.size, 0);
+    if (totalBytes > 25 * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        screenshots: "Total screenshots size cannot exceed 25MB.",
+      }));
+      return;
+    }
+
     for (const file of selected) {
       if (!file.type.startsWith("image/")) {
         setErrors((prev) => ({

@@ -48,19 +48,19 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
   const [pricingFilter, setPricingFilter] = useState<"all" | "Free" | "Freemium" | "Paid">("all");
   const [sortBy, setSortBy] = useState<"featured" | "name" | "comments">("featured");
 
-  // Dynamic Featured Tools state for Sticky Sidebar
+  // Dynamic Featured Tools state for Sticky Sidebar (strictly max 3 cards)
   const [featuredList, setFeaturedList] = useState<FeaturedToolSidebarItem[]>(
-    featuredTools && featuredTools.length > 0 ? featuredTools : []
+    featuredTools && featuredTools.length > 0 ? featuredTools.slice(0, 3) : []
   );
 
-  // Dynamically load approved featured products if not passed via SSR
+  // Dynamically load approved featured products if not passed via SSR (max 3)
   useEffect(() => {
     if (featuredTools && featuredTools.length > 0) {
-      setFeaturedList(featuredTools);
+      setFeaturedList(featuredTools.slice(0, 3));
       return;
     }
 
-    fetch("/api/listings?limit=12")
+    fetch("/api/listings?limit=10")
       .then((res) => res.json())
       .then((data) => {
         if (data?.ok && Array.isArray(data.listings)) {
@@ -73,7 +73,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
           );
           const list = featured.length > 0 ? featured : data.listings;
           setFeaturedList(
-            list.slice(0, 5).map((l: any) => ({
+            list.slice(0, 3).map((l: any) => ({
               id: l.id,
               slug: l.slug,
               name: l.name,
@@ -477,7 +477,7 @@ export const CategoryDetailView: React.FC<CategoryDetailViewProps> = ({
                     </Link>
                   </div>
                 ) : (
-                  featuredList.map((tool) => (
+                  featuredList.slice(0, 3).map((tool) => (
                     <Link
                       key={tool.id}
                       href={`/product/${tool.slug}`}

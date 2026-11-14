@@ -309,4 +309,150 @@ export async function getSimilarApprovedListings(
   }
 }
 
+/**
+ * Fetches related approved listings for the product detail page sidebar.
+ * 1. Prioritizes tools from the SAME category (excluding current listing).
+ * 2. If fewer than targetCount tools exist in that category, falls back to approved tools
+ *    from OTHER categories to guarantee high-value recommendations in the sticky sidebar.
+ */
+export async function getRelatedApprovedListingsWithFallback(
+  categoryId: number,
+  currentSlug: string,
+  targetCount = 3
+): Promise<ApprovedListing[]> {
+  try {
+    const cleanSlug = String(currentSlug || "").trim();
+    // 1. Fetch from the same category first
+    const sameCategoryTools = await getSimilarApprovedListings(categoryId, cleanSlug, targetCount);
+
+    if (sameCategoryTools.length >= targetCount) {
+      return sameCategoryTools.slice(0, targetCount);
+    }
+
+    // 2. Fallback to approved tools from other categories
+    const needed = targetCount - sameCategoryTools.length;
+    const existingSlugs = new Set([cleanSlug, ...sameCategoryTools.map((t) => t.slug)]);
+
+    const client = publicDb;
+    let query = client
+      .from("listings")
+      .select(`
+        id,
+        slug,
+        name,
+        tagline,
+        description_short,
+        description_long,
+        website_url,
+        logo_url,
+        category_id,
+        pricing_model,
+        starting_price,
+        currency,
+        billing_period,
+        listing_plan,
+        listing_plan_price,
+        status,
+        submitted_by_email,
+        created_at,
+        updated_at,
+        approved_at,
+        categories (
+          id,
+          slug,
+          name,
+          description
+        ),
+        listing_screenshots (
+          id,
+          url,
+          position
+        )
+      `)
+      .eq("status", "approved")
+      .neq("slug", cleanSlug);
+
+    if (categoryId && Number.isFinite(categoryId)) {
+      query = query.neq("category_id", categoryId);
+    }
+
+    const { data: otherData, error } = await query
+      .order("id", { ascending: false })
+      .limit(12);
+
+    if (error || !otherData || otherData.length === 0) {
+      return sameCategoryTools;
+    }
+
+    const fallbackTools: ApprovedListing[] = otherData
+      .filter((item) => item.status === "approved" && !existingSlugs.has(item.slug))
+      .slice(0, needed)
+      .map((item) => {
+        const categoryRaw = Array.isArray(item.categories)
+          ? item.categories[0]
+          : item.categories;
+
+        const normalizedCategory: ApprovedListingCategory | null = categoryRaw
+          ? {
+              id: Number(categoryRaw.id),
+              slug: String(categoryRaw.slug || ""),
+              name: String(categoryRaw.name || ""),
+              description: categoryRaw.description ? String(categoryRaw.description) : null,
+            }
+          : null;
+
+        const rawScreenshots = Array.isArray(item.listing_screenshots)
+          ? item.listing_screenshots
+          : [];
+
+        const sortedScreenshots: ApprovedListingScreenshot[] = rawScreenshots
+          .map((ss) => ({
+            id: Number(ss.id),
+            url: String(ss.url || ""),
+            position: Number(ss.position ?? 0),
+          }))
+          .filter((ss) => Boolean(ss.url))
+          .sort((a, b) => a.position - b.position);
+
+        return {
+          id: Number(item.id),
+          slug: String(item.slug),
+          name: String(item.name),
+          tagline: String(item.tagline),
+          description_short: String(item.description_short),
+          description_long: String(item.description_long),
+          website_url: String(item.website_url || ""),
+          logo_url: String(item.logo_url),
+          category_id: Number(item.category_id),
+          custom_category: null,
+          pricing_model: item.pricing_model as PricingModel,
+          starting_price:
+            (item as any).starting_price !== undefined && (item as any).starting_price !== null
+              ? Number((item as any).starting_price)
+              : null,
+          currency: (item as any).currency ? String((item as any).currency) : "USD",
+          billing_period: (item as any).billing_period ? String((item as any).billing_period) : null,
+          listing_plan: (item as any).listing_plan ? String((item as any).listing_plan) : "free",
+          listing_plan_price:
+            (item as any).listing_plan_price !== undefined && (item as any).listing_plan_price !== null
+              ? Number((item as any).listing_plan_price)
+              : 0,
+          status: item.status as ListingStatus,
+          submitted_by_email: sanitizePublicMakerAlias(item.submitted_by_email),
+          created_at: String(item.created_at),
+          updated_at: String(item.updated_at),
+          approved_at: item.approved_at ? String(item.approved_at) : null,
+          categories: normalizedCategory,
+          listing_screenshots: sortedScreenshots,
+        };
+      });
+
+    return [...sameCategoryTools, ...fallbackTools];
+  } catch (err: unknown) {
+    console.error("[lib/listings] Error fetching related listings with fallback:", err);
+    return [];
+  }
+}
+
+
 

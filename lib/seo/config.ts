@@ -123,6 +123,23 @@ export async function getSeoConfig(): Promise<SeoConfig> {
         }
       },
     },
+    blog: {
+      basePath: "/blog",
+      chunkSize: 1000,
+      getEntries: async (): Promise<DynamicEntry[]> => {
+        try {
+          const { getAllBlogPosts } = await import("@/lib/blog");
+          return getAllBlogPosts().map((post: any) => ({
+            slug: post.slug,
+            lastModified: post.publishedAt,
+            changeFrequency: "monthly" as const,
+            priority: 0.7,
+          }));
+        } catch {
+          return [];
+        }
+      },
+    },
     robots: {
       allow: "/",
       disallow: [

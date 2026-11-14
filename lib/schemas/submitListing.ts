@@ -29,6 +29,7 @@ export const SUBMIT_LIMITS = {
   CUSTOM_CATEGORY_MAX: 50,
   MAX_SCREENSHOTS: 5,
   MAX_FILE_SIZE_BYTES: 5 * 1024 * 1024,
+  MAX_TOTAL_SCREENSHOTS_SIZE_BYTES: 25 * 1024 * 1024,
 } as const;
 
 export function isValidHttpsWebsiteUrl(val: string): boolean {

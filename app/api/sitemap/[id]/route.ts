@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * Route handler for /sitemap/:id.xml (via next.config.ts rewrite).
  * - /sitemap/0.xml -> chunk 0 (Static Pages + Categories)
  * - /sitemap/1.xml -> chunk 1 (Approved Products 1-1000)
- * - /sitemap/2.xml -> chunk 2 (Approved Products 1001-2000)
+ * - /sitemap/2.xml -> chunk 2 (Blog Directory & Articles)
  */
 export async function GET(
   _req: Request,

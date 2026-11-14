@@ -258,12 +258,13 @@ describe("Hall of Winners Dynamic Ranking & Navigation System", () => {
     const detailViewPath = path.join(__dirname, "..", "components", "CategoryDetailView.tsx");
     const detailViewCode = fs.readFileSync(detailViewPath, "utf8");
 
-    // 1. Featured Tools in Sticky Sidebar
+    // 1. Featured Tools in Sticky Sidebar (strictly max 3 cards)
     assert.ok(
       detailViewCode.includes("Featured Tools") &&
       (detailViewCode.includes("sticky") || detailViewCode.includes("lg:sticky")) &&
-      detailViewCode.includes("featuredList"),
-      "CategoryDetailView must render a sticky sidebar with dynamic Featured Tools"
+      detailViewCode.includes("featuredList") &&
+      detailViewCode.includes("slice(0, 3)"),
+      "CategoryDetailView must render a sticky sidebar with strictly at most 3 dynamic Featured Tools cards"
     );
 
     // 2. 'Building in {category.name}?' card is removed
@@ -286,6 +287,64 @@ describe("Hall of Winners Dynamic Ranking & Navigation System", () => {
       pageCode.includes("featuredToolsList") &&
       pageCode.includes("featuredTools={featuredToolsList}"),
       "app/category/[slug]/page.tsx must dynamically fetch approved featured tools and pass to CategoryDetailView"
+    );
+  });
+
+  it("verifies Product Detail Page: Share Launch removed from sidebar, Embed Winner Badge moved to top, authentic upvotes, and Related Tools in Sticky Sidebar", () => {
+    const productViewPath = path.join(__dirname, "..", "components", "ProductDetailView.tsx");
+    const productViewCode = fs.readFileSync(productViewPath, "utf8");
+
+    // 1. Share Launch removed from sidebar
+    assert.ok(
+      !productViewCode.includes("Share Launch"),
+      "ProductDetailView must remove Share Launch card from sidebar"
+    );
+
+    // 2. Embed Winner Badge moved to top section (before 2-column main grid)
+    assert.ok(
+      productViewCode.includes("Embed Official Winner Badge") || productViewCode.includes("Embed Winner Badge"),
+      "ProductDetailView must render Embed Winner Badge"
+    );
+    const badgeIdx = productViewCode.indexOf("Embed Official Winner Badge");
+    const gridIdx = productViewCode.indexOf("grid grid-cols-1 lg:grid-cols-12");
+    assert.ok(
+      badgeIdx !== -1 && gridIdx !== -1 && badgeIdx < gridIdx,
+      "Embed Winner Badge must appear in the top section before the 2-column grid"
+    );
+
+    // 3. Real upvote count (no dummy 42)
+    assert.ok(
+      !productViewCode.includes("upvotes: 42"),
+      "ProductDetailView must completely eliminate dummy 42 upvotes count"
+    );
+
+    // 4. Sticky Sidebar with Related Tools
+    assert.ok(
+      productViewCode.includes("Related Tools") &&
+      (productViewCode.includes("sticky") || productViewCode.includes("lg:sticky")),
+      "ProductDetailView must render Related Tools in a sticky sidebar"
+    );
+
+    // 5. Server Component app/product/[id]/page.tsx passes authentic upvotes and fallback related tools
+    const productPagePath = path.join(__dirname, "..", "app", "product", "[id]", "page.tsx");
+    const productPageCode = fs.readFileSync(productPagePath, "utf8");
+
+    assert.ok(
+      productPageCode.includes("getListingUpvoteState") &&
+      productPageCode.includes("initialUpvotes={upvoteState.upvotesCount}") &&
+      productPageCode.includes("getRelatedApprovedListingsWithFallback") &&
+      productPageCode.includes("sidebarRelatedListings={sidebarRelatedListings}"),
+      "app/product/[id]/page.tsx must compute authoritative upvotes and related tools with fallback"
+    );
+
+    // 6. lib/listings.ts exports getRelatedApprovedListingsWithFallback with same category preference
+    const listingsLibPath = path.join(__dirname, "..", "lib", "listings.ts");
+    const listingsLibCode = fs.readFileSync(listingsLibPath, "utf8");
+    assert.ok(
+      listingsLibCode.includes("export async function getRelatedApprovedListingsWithFallback") &&
+      listingsLibCode.includes("getSimilarApprovedListings(categoryId, cleanSlug, targetCount)") &&
+      listingsLibCode.includes(".neq(\"category_id\", categoryId)"),
+      "lib/listings.ts must prioritize same category tools and fallback to other categories"
     );
   });
 });

@@ -184,9 +184,9 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       .eq("status", "approved")
       .in("listing_plan", ["featured", "one_time", "premium"])
       .order("approved_at", { ascending: false, nullsFirst: false })
-      .limit(6);
+      .limit(3);
 
-    let rows = featuredRows || [];
+    let rows = (featuredRows || []).slice(0, 3);
     if (rows.length === 0) {
       const { data: fallbackRows } = await publicDb
         .from("listings")
@@ -208,8 +208,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         `)
         .eq("status", "approved")
         .order("approved_at", { ascending: false, nullsFirst: false })
-        .limit(5);
-      rows = fallbackRows || [];
+        .limit(3);
+      rows = (fallbackRows || []).slice(0, 3);
     }
 
     if (rows.length > 0) {

@@ -2,9 +2,14 @@ import React from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductDetailView } from "@/components/ProductDetailView";
-import { getApprovedListingBySlug, getSimilarApprovedListings } from "@/lib/listings";
+import {
+  getApprovedListingBySlug,
+  getSimilarApprovedListings,
+  getRelatedApprovedListingsWithFallback,
+} from "@/lib/listings";
 import { getSiteUrl, buildSoftwareAppJsonLd, serializeJsonLd } from "@/lib/seo";
 import { createClient } from "@/lib/supabase/server";
+import { getListingUpvoteState, getListingUpvoteCountsMap } from "@/lib/upvotes";
 
 /**
  * Incremental Static Regeneration (ISR)
@@ -124,6 +129,27 @@ export default async function ProductDetailPage({
     data: { user },
   } = await supabase.auth.getUser();
 
+  // Authoritative server-side upvote state (real count & user's upvoted status)
+  const upvoteState = await getListingUpvoteState({
+    listingId: listing.id,
+    userId: user?.id || null,
+  });
+
+  // Fetch related tools for sticky sidebar: same category first, fallback to other categories
+  const rawSidebarTools = await getRelatedApprovedListingsWithFallback(
+    listing.category_id,
+    listing.slug,
+    3
+  );
+
+  const sidebarIds = rawSidebarTools.map((item) => item.id);
+  const upvoteCountsMap = await getListingUpvoteCountsMap(sidebarIds);
+
+  const sidebarRelatedListings = rawSidebarTools.map((tool) => ({
+    ...tool,
+    upvotesCount: upvoteCountsMap.get(tool.id) || 0,
+  }));
+
   const siteUrl = getSiteUrl();
   const jsonLd = buildSoftwareAppJsonLd(listing, siteUrl);
 
@@ -136,6 +162,9 @@ export default async function ProductDetailPage({
       <ProductDetailView
         listing={listing}
         similarListings={similarListings}
+        sidebarRelatedListings={sidebarRelatedListings}
+        initialUpvotes={upvoteState.upvotesCount}
+        initialIsUpvoted={upvoteState.isUpvoted}
         currentUserId={user?.id || null}
       />
     </>

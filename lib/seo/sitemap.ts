@@ -18,14 +18,16 @@ export function toSafeDate(
 /**
  * Returns chunk IDs for Next.js generateSitemaps().
  * id 0 = core static pages + categories (MAIN).
- * id 1..N = listings chunks (chunkSize items per chunk, chunk index = id - 1).
+ * id 1 = listings chunk (chunkSize items per chunk).
+ * id 2 = blog page + articles chunk (/sitemap/2.xml).
+ * id 3..N = additional listings chunks if total > chunkSize.
  */
 export async function sitemapChunkIds(
   config: SeoConfig
 ): Promise<{ id: number }[]> {
-  const ids = [{ id: 0 }];
+  const ids = [{ id: 0 }, { id: 1 }, { id: 2 }];
 
-  // 1. Listings chunks (e.g. 1000 items per chunk)
+  // Additional listings chunks if total listings exceed chunkSize
   if (config.listings) {
     let total = 0;
     try {
@@ -33,29 +35,10 @@ export async function sitemapChunkIds(
     } catch {
       total = 0;
     }
-    const chunks = Math.max(
-      1,
-      Math.ceil(total / Math.max(1, config.listings.chunkSize))
-    );
-    for (let i = 1; i <= chunks; i++) {
-      ids.push({ id: i });
+    const totalChunks = Math.max(1, Math.ceil(total / Math.max(1, config.listings.chunkSize)));
+    for (let i = 2; i <= totalChunks; i++) {
+      ids.push({ id: i + 1 });
     }
-    return ids;
-  }
-
-  // 2. Blog chunks fallback
-  if (config.blog) {
-    let total = 0;
-    try {
-      total = (await config.blog.getEntries()).length;
-    } catch {
-      total = 0;
-    }
-    const chunks = Math.ceil(total / Math.max(1, config.blog.chunkSize));
-    for (let i = 1; i <= chunks; i++) {
-      ids.push({ id: i });
-    }
-    return ids;
   }
 
   return ids;
@@ -96,7 +79,50 @@ export async function buildSitemapChunk(
     return staticItems;
   }
 
-  // id >= 1: Listings chunks (1000 items per chunk)
+  // id 2 = Dedicated Blog chunk (/sitemap/2.xml)
+  if (id === 2) {
+    const blogIndexItem: MetadataRoute.Sitemap[number] = {
+      url: `${baseUrl}/blog`,
+      lastModified: toSafeDate(new Date(), STATIC_LASTMOD),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    };
+
+    let blogPostItems: MetadataRoute.Sitemap = [];
+    if (config.blog) {
+      try {
+        const entries = await config.blog.getEntries();
+        blogPostItems = (entries || [])
+          .filter((e) => Boolean(e && e.slug))
+          .map((e) => ({
+            url: `${baseUrl}${config.blog!.basePath || "/blog"}/${encodeURIComponent(e.slug)}`,
+            lastModified: toSafeDate(e.lastModified, STATIC_LASTMOD),
+            changeFrequency: "monthly" as const,
+            priority: 0.7,
+          }));
+      } catch {
+        blogPostItems = [];
+      }
+    } else {
+      try {
+        const { getAllBlogPosts } = await import("@/lib/blog");
+        if (typeof getAllBlogPosts === "function") {
+          blogPostItems = getAllBlogPosts().map((post: any) => ({
+            url: `${baseUrl}/blog/${encodeURIComponent(post.slug)}`,
+            lastModified: toSafeDate(post.publishedAt, STATIC_LASTMOD),
+            changeFrequency: "monthly" as const,
+            priority: 0.7,
+          }));
+        }
+      } catch {
+        blogPostItems = [];
+      }
+    }
+
+    return [blogIndexItem, ...blogPostItems];
+  }
+
+  // id 1 (and any subsequent listings chunks): Listings chunks (1000 items per chunk)
   if (config.listings) {
     let entries;
     try {
@@ -104,7 +130,8 @@ export async function buildSitemapChunk(
     } catch {
       return [];
     }
-    const start = (id - 1) * config.listings.chunkSize;
+    const chunkIdx = id === 1 ? 0 : id > 2 ? id - 2 : 0;
+    const start = chunkIdx * config.listings.chunkSize;
     return (entries || [])
       .slice(start, start + config.listings.chunkSize)
       .filter((e) => Boolean(e && e.slug))
@@ -113,26 +140,6 @@ export async function buildSitemapChunk(
         lastModified: toSafeDate(e.lastModified, STATIC_LASTMOD),
         changeFrequency: e.changeFrequency ?? ("weekly" as const),
         priority: e.priority ?? 0.9,
-      }));
-  }
-
-  // id >= 1: Blog fallback
-  if (config.blog) {
-    let entries;
-    try {
-      entries = await config.blog.getEntries();
-    } catch {
-      return [];
-    }
-    const start = (id - 1) * config.blog.chunkSize;
-    return (entries || [])
-      .slice(start, start + config.blog.chunkSize)
-      .filter((e) => Boolean(e && e.slug))
-      .map((e) => ({
-        url: `${baseUrl}${config.blog!.basePath}/${encodeURIComponent(e.slug)}`,
-        lastModified: toSafeDate(e.lastModified, STATIC_LASTMOD),
-        changeFrequency: "weekly" as const,
-        priority: 0.8,
       }));
   }
 
@@ -181,7 +188,32 @@ export async function buildFullSitemap(
         }));
     }
 
-    return [...staticItems, ...catItems, ...listingItems];
+    let blogItems: MetadataRoute.Sitemap = [];
+    if (config.blog) {
+      try {
+        const blogEntries = await config.blog.getEntries();
+        blogItems = [
+          {
+            url: `${baseUrl}/blog`,
+            lastModified: toSafeDate(new Date(), STATIC_LASTMOD),
+            changeFrequency: "weekly" as const,
+            priority: 0.8,
+          },
+          ...(blogEntries || [])
+            .filter((b) => Boolean(b && b.slug))
+            .map((b) => ({
+              url: `${baseUrl}${config.blog!.basePath || "/blog"}/${encodeURIComponent(b.slug)}`,
+              lastModified: toSafeDate(b.lastModified, STATIC_LASTMOD),
+              changeFrequency: "monthly" as const,
+              priority: 0.7,
+            })),
+        ];
+      } catch {
+        blogItems = [];
+      }
+    }
+
+    return [...staticItems, ...catItems, ...listingItems, ...blogItems];
   } catch (err) {
     console.error("buildFullSitemap error:", err);
     return staticItems;

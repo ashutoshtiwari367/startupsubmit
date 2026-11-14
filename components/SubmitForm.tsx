@@ -17,6 +17,8 @@ import {
   RefreshCw,
   ChevronDown,
   Lock,
+  Plus,
+  UploadCloud,
 } from "lucide-react";
 import { Button } from "./Button";
 import { Navbar } from "./Navbar";
@@ -229,10 +231,24 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
   const [logoError, setLogoError] = useState<string | null>(null);
   const [isDraggingLogo, setIsDraggingLogo] = useState(false);
 
-  const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
-  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
+  // 5 Dedicated Screenshot Boxes (Max 5, total 25MB)
+  const [screenshotFiles, setScreenshotFiles] = useState<(File | null)[]>([
+    null,
+    null,
+    null,
+    null,
+    null,
+  ]);
+  const [screenshotPreviews, setScreenshotPreviews] = useState<(string | null)[]>([
+    null,
+    null,
+    null,
+    null,
+    null,
+  ]);
   const [screenshotsError, setScreenshotsError] = useState<string | null>(null);
-  const [isDraggingScreenshots, setIsDraggingScreenshots] = useState(false);
+  const [draggingSlot, setDraggingSlot] = useState<number | null>(null);
+  const targetSlotRef = useRef<number>(0);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const screenshotsInputRef = useRef<HTMLInputElement>(null);
@@ -282,31 +298,46 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
     processLogoFile(file);
   };
 
-  const processScreenshotsFiles = (selected: File[]) => {
+  const handleFilesForSlot = (startSlot: number, selected: File[]) => {
     if (selected.length === 0) return;
 
-    const combined = [...screenshotFiles, ...selected];
-    if (combined.length > SUBMIT_LIMITS.MAX_SCREENSHOTS) {
+    for (const file of selected) {
+      if (!file.type.startsWith("image/")) {
+        setScreenshotsError("All screenshots must be valid image files (PNG, JPG, WebP, GIF).");
+        return;
+      }
+      if (file.size > SUBMIT_LIMITS.MAX_FILE_SIZE_BYTES) {
+        setScreenshotsError(`"${file.name}" exceeds the 5MB per-file limit.`);
+        return;
+      }
+    }
+
+    const nextFiles = [...screenshotFiles];
+    const nextPreviews = [...screenshotPreviews];
+
+    let currentSlot = startSlot;
+    for (const file of selected) {
+      while (currentSlot < 5 && selected.length > 1 && nextFiles[currentSlot] && currentSlot !== startSlot) {
+        currentSlot++;
+      }
+      if (currentSlot >= 5) break;
+
+      nextFiles[currentSlot] = file;
+      nextPreviews[currentSlot] = URL.createObjectURL(file);
+      currentSlot++;
+    }
+
+    // Strict 25MB total screenshot size cap
+    const totalBytes = nextFiles.reduce((acc, f) => acc + (f ? f.size : 0), 0);
+    if (totalBytes > SUBMIT_LIMITS.MAX_TOTAL_SCREENSHOTS_SIZE_BYTES) {
       setScreenshotsError(
-        `You can upload a maximum of ${SUBMIT_LIMITS.MAX_SCREENSHOTS} screenshots.`
+        `Total screenshots size cannot exceed 25MB (would be ${(totalBytes / (1024 * 1024)).toFixed(1)}MB). Please upload smaller or compressed images.`
       );
       return;
     }
 
-    for (const file of selected) {
-      if (!file.type.startsWith("image/")) {
-        setScreenshotsError("All screenshots must be valid image files.");
-        return;
-      }
-      if (file.size > SUBMIT_LIMITS.MAX_FILE_SIZE_BYTES) {
-        setScreenshotsError(`"${file.name}" exceeds the 5MB file size limit.`);
-        return;
-      }
-    }
-
-    const newPreviews = selected.map((f) => URL.createObjectURL(f));
-    setScreenshotFiles(combined);
-    setScreenshotPreviews((prev) => [...prev, ...newPreviews]);
+    setScreenshotFiles(nextFiles);
+    setScreenshotPreviews(nextPreviews);
     setScreenshotsError(null);
     if (screenshotsInputRef.current) {
       screenshotsInputRef.current.value = "";
@@ -315,12 +346,25 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
 
   const handleScreenshotsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
-    processScreenshotsFiles(selected);
+    handleFilesForSlot(targetSlotRef.current, selected);
+  };
+
+  const triggerBoxUpload = (slotIndex: number) => {
+    targetSlotRef.current = slotIndex;
+    screenshotsInputRef.current?.click();
   };
 
   const removeScreenshot = (index: number) => {
-    setScreenshotFiles((prev) => prev.filter((_, i) => i !== index));
-    setScreenshotPreviews((prev) => prev.filter((_, i) => i !== index));
+    setScreenshotFiles((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
+    setScreenshotPreviews((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
     setScreenshotsError(null);
   };
 
@@ -371,7 +415,15 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
         formData.append("logo", logoFile);
       }
 
-      for (const file of screenshotFiles) {
+      const activeScreenshots = screenshotFiles.filter((f): f is File => Boolean(f));
+      const totalScreenshotsBytes = activeScreenshots.reduce((acc, f) => acc + f.size, 0);
+      if (totalScreenshotsBytes > SUBMIT_LIMITS.MAX_TOTAL_SCREENSHOTS_SIZE_BYTES) {
+        setScreenshotsError("Total screenshots size cannot exceed 25MB.");
+        setServerBannerError("Total screenshots size cannot exceed 25MB.");
+        return;
+      }
+
+      for (const file of activeScreenshots) {
         formData.append("screenshots", file);
       }
 
@@ -452,9 +504,17 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
       setLogoError("Tool logo image is required.");
       hasFileError = true;
     }
-    if (screenshotFiles.length > SUBMIT_LIMITS.MAX_SCREENSHOTS) {
+    const activeScreenshots = screenshotFiles.filter((f): f is File => Boolean(f));
+    if (activeScreenshots.length > SUBMIT_LIMITS.MAX_SCREENSHOTS) {
       setScreenshotsError(
         `You can upload a maximum of ${SUBMIT_LIMITS.MAX_SCREENSHOTS} screenshots.`
+      );
+      hasFileError = true;
+    }
+    const totalScreenshotsBytes = activeScreenshots.reduce((acc, f) => acc + f.size, 0);
+    if (totalScreenshotsBytes > SUBMIT_LIMITS.MAX_TOTAL_SCREENSHOTS_SIZE_BYTES) {
+      setScreenshotsError(
+        `Total screenshots size cannot exceed 25MB (current: ${(totalScreenshotsBytes / (1024 * 1024)).toFixed(1)}MB).`
       );
       hasFileError = true;
     }
@@ -499,7 +559,7 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
         preflightFormData.append("submitted_by_email", values.submitted_by_email);
         if (values.website_url) preflightFormData.append("website_url", values.website_url);
         if (logoFile) preflightFormData.append("logo", logoFile);
-        for (const file of screenshotFiles) {
+        for (const file of activeScreenshots) {
           preflightFormData.append("screenshots", file);
         }
 
@@ -645,8 +705,8 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
     setLogoFile(null);
     setLogoPreview("");
     setLogoError(null);
-    setScreenshotFiles([]);
-    setScreenshotPreviews([]);
+    setScreenshotFiles([null, null, null, null, null]);
+    setScreenshotPreviews([null, null, null, null, null]);
     setScreenshotsError(null);
     setSubmittedResult(null);
     setServerBannerError(null);
@@ -668,6 +728,12 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") ||
     "your-tool";
+
+  const activeScreenshotsCount = screenshotFiles.filter(Boolean).length;
+  const totalScreenshotsBytes = screenshotFiles.reduce(
+    (acc, f) => acc + (f ? f.size : 0),
+    0
+  );
 
   return (
     <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] selection:bg-[#4F46E5]/15 selection:text-[#4F46E5]">
@@ -1305,15 +1371,34 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
                   )}
                 </div>
 
-                {/* Screenshots dropzone */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-semibold text-[#14142B]">
-                      Screenshots
-                    </label>
-                    <span className="text-xs text-[#55556E] font-mono">
-                      {screenshotFiles.length}/5
-                    </span>
+                {/* 5 Dedicated Screenshot Boxes */}
+                <div className="space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                    <div>
+                      <label className="text-xs font-semibold text-[#14142B] block">
+                        Screenshots
+                      </label>
+                      <span className="text-[11px] text-[#55556E]">
+                        Upload up to 5 screenshots (Max 5MB each, max 25MB total).
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 font-mono text-xs shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded-md border text-[11px] font-bold ${
+                          totalScreenshotsBytes > SUBMIT_LIMITS.MAX_TOTAL_SCREENSHOTS_SIZE_BYTES
+                            ? "bg-[#FEF2F2] border-[#FCA5A5] text-[#DC2626]"
+                            : totalScreenshotsBytes > 0
+                            ? "bg-[#F0FDF4] border-[#BBF7D0] text-[#0F8A5F]"
+                            : "bg-[#F6F6FB] border-[#E6E6F0] text-[#55556E]"
+                        }`}
+                      >
+                        {(totalScreenshotsBytes / (1024 * 1024)).toFixed(1)} / 25 MB
+                      </span>
+                      <span className="text-[#55556E] font-semibold text-[11px]">
+                        {activeScreenshotsCount}/5
+                      </span>
+                    </div>
                   </div>
 
                   <input
@@ -1325,64 +1410,82 @@ export const SubmitForm: React.FC<SubmitFormProps> = ({ initialEmail = "" }) => 
                     className="hidden"
                   />
 
-                  {screenshotFiles.length < SUBMIT_LIMITS.MAX_SCREENSHOTS && (
-                    <div
-                      onClick={() => screenshotsInputRef.current?.click()}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        setIsDraggingScreenshots(true);
-                      }}
-                      onDragLeave={() => setIsDraggingScreenshots(false)}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        setIsDraggingScreenshots(false);
-                        const files = Array.from(e.dataTransfer.files || []);
-                        if (files.length) processScreenshotsFiles(files);
-                      }}
-                      className={`w-full rounded-2xl border-2 border-dashed py-8 px-4 text-center cursor-pointer transition-colors ${
-                        screenshotsError
-                          ? "border-[#DC2626] bg-[#FEF2F2]"
-                          : isDraggingScreenshots
-                          ? "border-[#4F46E5] bg-[#F7F6FF]/40"
-                          : "border-[#D4D4E4] bg-[#F6F6FB] hover:bg-[#F1F1F8] hover:border-[#55556E]"
-                      }`}
-                    >
-                      <span className="text-sm font-semibold text-[#14142B] block mb-1">
-                        Add up to 5 screenshots
-                      </span>
-                      <span className="text-xs text-[#55556E] block">
-                        Show your tool&apos;s interface
-                      </span>
-                    </div>
-                  )}
+                  {/* The 5 Screenshot Boxes Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {[0, 1, 2, 3, 4].map((slotIdx) => {
+                      const file = screenshotFiles[slotIdx];
+                      const preview = screenshotPreviews[slotIdx];
+                      const isDragging = draggingSlot === slotIdx;
+
+                      return (
+                        <div key={slotIdx} className="space-y-1">
+                          {preview && file ? (
+                            <div className="relative group rounded-xl border border-[#E6E6F0] overflow-hidden bg-[#F6F6FB] aspect-[4/3] shadow-2xs hover:border-[#4F46E5] transition-all">
+                              <img
+                                src={preview}
+                                alt={`Screenshot ${slotIdx + 1}`}
+                                className="h-full w-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-bold text-white bg-black/60 px-1.5 py-0.5 rounded">
+                                    {(file.size / (1024 * 1024)).toFixed(1)} MB
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeScreenshot(slotIdx)}
+                                    className="h-6 w-6 rounded-full bg-[#DC2626] text-white flex items-center justify-center hover:bg-[#B91C1C] transition-colors cursor-pointer shadow-xs"
+                                    title="Remove screenshot"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => triggerBoxUpload(slotIdx)}
+                                  className="w-full py-1 rounded bg-white text-[#14142B] text-[10px] font-bold transition-all text-center cursor-pointer shadow-xs hover:bg-[#F6F6FB]"
+                                >
+                                  Change Image
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              onClick={() => triggerBoxUpload(slotIdx)}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                setDraggingSlot(slotIdx);
+                              }}
+                              onDragLeave={() => setDraggingSlot(null)}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                setDraggingSlot(null);
+                                const files = Array.from(e.dataTransfer.files || []);
+                                if (files.length) handleFilesForSlot(slotIdx, files);
+                              }}
+                              className={`group rounded-xl border-2 border-dashed p-3 text-center cursor-pointer transition-all aspect-[4/3] flex flex-col items-center justify-center gap-2 ${
+                                isDragging
+                                  ? "border-[#4F46E5] bg-[#F7F6FF]"
+                                  : screenshotsError
+                                  ? "border-[#FCA5A5] bg-[#FEF2F2]/60 hover:border-[#DC2626]"
+                                  : "border-[#D4D4E4] bg-[#F6F6FB] hover:border-[#4F46E5] hover:bg-[#F7F6FF]/40"
+                              }`}
+                            >
+                              <div className="h-8 w-8 rounded-full bg-white border border-[#E0DEFC] text-[#4F46E5] flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                                <Plus className="h-4 w-4" />
+                              </div>
+                              <span className="text-xs font-bold text-[#4F46E5] group-hover:text-[#4338CA] transition-colors">
+                                + Add Image
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
 
                   {screenshotsError && (
-                    <p className="mt-1.5 text-xs text-[#DC2626]">{screenshotsError}</p>
-                  )}
-
-                  {screenshotPreviews.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-                      {screenshotPreviews.map((src, idx) => (
-                        <div
-                          key={idx}
-                          className="relative group rounded-xl border border-[#E6E6F0] overflow-hidden bg-[#F6F6FB] aspect-video"
-                        >
-                          <img
-                            src={src}
-                            alt={`Screenshot ${idx + 1}`}
-                            className="h-full w-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeScreenshot(idx)}
-                            className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-[#14142B]/80 text-white flex items-center justify-center hover:bg-[#DC2626] transition-colors cursor-pointer"
-                            title="Remove screenshot"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    <p className="mt-1.5 text-xs text-[#DC2626] font-medium">{screenshotsError}</p>
                   )}
                 </div>
               </div>

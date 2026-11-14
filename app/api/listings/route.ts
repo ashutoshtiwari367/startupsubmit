@@ -137,7 +137,7 @@ export async function GET(req: NextRequest) {
         ok: true,
         listing: {
           ...data,
-          upvotes: 42 + upvoteState.upvotesCount,
+          upvotes: upvoteState.upvotesCount,
           isUpvoted: upvoteState.isUpvoted,
         },
       });
@@ -340,6 +340,20 @@ export async function POST(req: NextRequest) {
         if (entry instanceof File && entry.size > 0) {
           screenshotFiles.push(entry);
         }
+      }
+
+      const totalScreenshotsBytes = screenshotFiles.reduce((acc, f) => acc + f.size, 0);
+      if (totalScreenshotsBytes > 25 * 1024 * 1024) {
+        return NextResponse.json(
+          {
+            ok: false,
+            message: "Total screenshots size cannot exceed 25MB.",
+            errors: {
+              screenshots: "Total screenshots size cannot exceed 25MB.",
+            },
+          },
+          { status: 400 }
+        );
       }
     } else if (contentType.includes("application/json")) {
       rawFields = await req.json();

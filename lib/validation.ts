@@ -32,6 +32,7 @@ export const ALLOWED_IMAGE_MIME_TYPES = new Set([
 ]);
 
 export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB per image
+export const MAX_TOTAL_SCREENSHOTS_SIZE_BYTES = 25 * 1024 * 1024; // 25MB total across all screenshots
 export const MIN_SUBMIT_TIME_MS = config.minSubmitTimeMs || 2000; // Minimum 2 seconds to fill & submit form
 
 export interface HoneypotCheckResult {
@@ -435,11 +436,12 @@ export function validateSubmissionServer(input: {
     }
   }
 
-  // 3. Validate Screenshots (Max 5, safe raster image MIME types, <= 5MB each)
+  // 3. Validate Screenshots (Max 5, safe raster image MIME types, <= 5MB each, total <= 25MB)
   const screenshots = input.screenshots || [];
   if (screenshots.length > config.maxScreenshots) {
     errors.screenshots = `You can upload a maximum of ${config.maxScreenshots} screenshots (received ${screenshots.length}).`;
   } else {
+    let totalScreenshotsBytes = 0;
     for (let i = 0; i < screenshots.length; i++) {
       const file = screenshots[i];
       if (!file || !ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
@@ -450,6 +452,10 @@ export function validateSubmissionServer(input: {
         errors.screenshots = `Screenshot #${i + 1} must be between 1 byte and 5MB.`;
         break;
       }
+      totalScreenshotsBytes += file.size;
+    }
+    if (!errors.screenshots && totalScreenshotsBytes > MAX_TOTAL_SCREENSHOTS_SIZE_BYTES) {
+      errors.screenshots = `Total screenshots size cannot exceed 25MB (received ${(totalScreenshotsBytes / (1024 * 1024)).toFixed(1)}MB).`;
     }
   }
 
