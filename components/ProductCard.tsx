@@ -297,8 +297,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             </div>
 
-            {/* 1-line Tagline (Truncate) */}
-            <p className="text-xs sm:text-sm text-[#55556E] leading-relaxed truncate mb-4">
+            {/* 2-line Tagline (line-clamp-2) */}
+            <p className="text-xs sm:text-sm text-[#55556E] leading-relaxed line-clamp-2 mb-4">
               {product.tagline}
             </p>
           </div>
@@ -448,8 +448,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         </div>
 
-        {/* 1-line Tagline (Truncate) */}
-        <p className="text-xs text-[#55556E] leading-relaxed truncate mb-4">
+        {/* 2-line Tagline (line-clamp-2) */}
+        <p className="text-xs text-[#55556E] leading-relaxed line-clamp-2 mb-4">
           {product.tagline}
         </p>
       </div>

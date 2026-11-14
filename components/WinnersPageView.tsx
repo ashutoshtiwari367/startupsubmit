@@ -1,354 +1,522 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Trophy,
   Crown,
+  Medal,
   Award,
   Sparkles,
-  ShieldCheck,
   Calendar,
   ArrowRight,
   ExternalLink,
   Flame,
-  ArrowBigUp,
-  Copy,
-  Check,
+  ChevronUp,
+  RotateCw,
+  Globe,
+  Layers,
 } from "lucide-react";
 import { Navbar } from "./Navbar";
 import { Footer } from "./Footer";
 import { FinalCTA } from "./FinalCTA";
 import { Badge } from "./Badge";
 import { Button } from "./Button";
-import { ProductCard } from "./ProductCard";
-import { MOCK_PRODUCTS } from "@/lib/mock-data";
+import type { WinnerListingItem, AvailableMonthOption } from "@/lib/winners";
 
 export const WinnersPageView: React.FC = () => {
-  const [filterPeriod, setFilterPeriod] = useState<"all" | "month" | "week">("month");
-  const [dynamicWinners, setDynamicWinners] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  React.useEffect(() => {
-    fetch("/api/listings?limit=12")
+  const periodParam = (searchParams.get("period") || "monthly").toLowerCase();
+  const monthParam = searchParams.get("month") || "";
+
+  const [period, setPeriod] = useState<string>(periodParam);
+  const [selectedMonth, setSelectedMonth] = useState<string>(monthParam);
+  const [winners, setWinners] = useState<WinnerListingItem[]>([]);
+  const [periodLabel, setPeriodLabel] = useState<string>("Winner of the Month");
+  const [availableMonths, setAvailableMonths] = useState<AvailableMonthOption[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [imgErrors, setImgErrors] = useState<Record<string, boolean>>({});
+
+  // Sync state with URL search params
+  useEffect(() => {
+    const urlPeriod = (searchParams.get("period") || "monthly").toLowerCase();
+    const urlMonth = searchParams.get("month") || "";
+    setPeriod(urlPeriod);
+    setSelectedMonth(urlMonth);
+  }, [searchParams]);
+
+  // Fetch winners authoritatively from backend API
+  useEffect(() => {
+    setIsLoading(true);
+    const query = new URLSearchParams();
+    if (period) query.set("period", period);
+    if (selectedMonth && period === "monthly") query.set("month", selectedMonth);
+
+    fetch(`/api/winners?${query.toString()}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.ok && data.listings && data.listings.length > 0) {
-          const sorted = [...data.listings].sort((a: any, b: any) => (b.upvotes || 0) - (a.upvotes || 0));
-          setDynamicWinners(
-            sorted.map((l: any, idx: number) => {
-              const rank = (idx % 3) + 1;
-              return {
-                id: l.id,
-                name: l.name,
-                tagline: l.tagline,
-                category: l.category,
-                rank,
-                placeLabel:
-                  rank === 1
-                    ? "1st Place Winner"
-                    : rank === 2
-                    ? "2nd Place Winner"
-                    : "3rd Place Winner",
-                badgeColor:
-                  rank === 1
-                    ? "from-[#FFF1D6] to-[#FDE68A] text-[#7A4E00] border-[#FCD34D]"
-                    : rank === 2
-                    ? "from-[#F1F5F9] to-[#E2E8F0] text-[#475569] border-[#CBD5E1]"
-                    : "from-[#FFF7ED] to-[#FFEDD5] text-[#9A3412] border-[#FDBA74]",
-                votes: l.upvotes || 380 - idx * 25,
-                date: "Leaderboard Winner",
-                founder: l.author || "Maker",
-                founderHandle: `@${(l.slug || "maker").replace(/[^a-zA-Z0-9]/g, "")}`,
-                url: `/product/${l.slug || l.id}`,
-                backlinkDomain: `${l.slug}.io`,
-              };
-            })
-          );
+        if (data.ok) {
+          setWinners(data.winners || []);
+          setPeriodLabel(data.periodLabel || "Hall of Winners");
+          if (Array.isArray(data.availableMonths)) {
+            setAvailableMonths(data.availableMonths);
+          }
+          if (data.selectedMonth && !selectedMonth) {
+            setSelectedMonth(data.selectedMonth);
+          }
+        } else {
+          setWinners([]);
         }
       })
-      .catch(() => {})
-      .finally(() => setIsLoading(false));
-  }, []);
+      .catch((err) => {
+        console.error("Failed to load winners:", err);
+        setWinners([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [period, selectedMonth]);
 
-  const winnersList = dynamicWinners.length > 0 ? dynamicWinners : [
-    {
-      id: "p-1",
-      name: "Cortex AI",
-      tagline: "Autonomous customer success agents for modern B2B SaaS teams",
-      category: "AI & Agents",
-      rank: 1,
-      placeLabel: "1st Place Winner",
-      badgeColor: "from-[#FFF1D6] to-[#FDE68A] text-[#7A4E00] border-[#FCD34D]",
-      votes: 384,
-      date: "Nov 9, 2026 (Today)",
-      founder: "Austin Miller",
-      founderHandle: "@austinm",
-      url: "/product/p-1",
-      backlinkDomain: "cortexflow.ai",
-    },
-    {
-      id: "p-2",
-      name: "VectorFlow",
-      tagline: "Instant vector database deployment with zero cold starts",
-      category: "Developer Tools",
-      rank: 2,
-      placeLabel: "2nd Place Winner",
-      badgeColor: "from-[#F1F5F9] to-[#E2E8F0] text-[#475569] border-[#CBD5E1]",
-      votes: 312,
-      date: "Nov 9, 2026 (Today)",
-      founder: "Elena Rostova",
-      founderHandle: "@elena_dev",
-      url: "/product/p-2",
-      backlinkDomain: "vectorflow.io",
-    },
-    {
-      id: "p-3",
-      name: "OmniMetrics",
-      tagline: "Privacy-first revenue analytics synced directly with your Stripe billing engine",
-      category: "Analytics & Data",
-      rank: 3,
-      placeLabel: "3rd Place Winner",
-      badgeColor: "from-[#FFF7ED] to-[#FFEDD5] text-[#9A3412] border-[#FDBA74]",
-      votes: 279,
-      date: "Nov 9, 2026 (Today)",
-      founder: "Marcus Chen",
-      founderHandle: "@mchen_saas",
-      url: "/product/p-3",
-      backlinkDomain: "omnirate.app",
-    },
-    {
-      id: "p-4",
-      name: "SuperTask",
-      tagline: "Keyboard-first task management for engineers who hate Jira",
-      category: "Productivity",
-      rank: 1,
-      placeLabel: "1st Place (Yesterday)",
-      badgeColor: "from-[#FFF1D6] to-[#FDE68A] text-[#7A4E00] border-[#FCD34D]",
-      votes: 418,
-      date: "Nov 8, 2026",
-      founder: "Liam Vance",
-      founderHandle: "@liamv",
-      url: "/product/p-1",
-      backlinkDomain: "supertask.io",
-    },
-    {
-      id: "p-5",
-      name: "PulseBoard",
-      tagline: "Public roadmap and user feedback widgets embedded in under 60 seconds",
-      category: "Productivity",
-      rank: 2,
-      placeLabel: "2nd Place (Yesterday)",
-      badgeColor: "from-[#F1F5F9] to-[#E2E8F0] text-[#475569] border-[#CBD5E1]",
-      votes: 356,
-      date: "Nov 8, 2026",
-      founder: "Chloe Bennett",
-      founderHandle: "@chloeb",
-      url: "/product/p-2",
-      backlinkDomain: "pulseboard.dev",
-    },
-    {
-      id: "p-6",
-      name: "Lumina Studio",
-      tagline: "AI video generation studio with custom enterprise brand voice models",
-      category: "Design & UX",
-      rank: 3,
-      placeLabel: "3rd Place (Yesterday)",
-      badgeColor: "from-[#FFF7ED] to-[#FFEDD5] text-[#9A3412] border-[#FDBA74]",
-      votes: 294,
-      date: "Nov 8, 2026",
-      founder: "Devon Reed",
-      founderHandle: "@devonreed",
-      url: "/product/p-3",
-      backlinkDomain: "luminastudio.ai",
-    },
-  ];
+  const handlePeriodChange = (newPeriod: string) => {
+    setPeriod(newPeriod);
+    const params = new URLSearchParams();
+    params.set("period", newPeriod);
+    if (newPeriod === "monthly" && selectedMonth) {
+      params.set("month", selectedMonth);
+    }
+    router.push(`/winners?${params.toString()}`);
+  };
+
+  const handleMonthChange = (monthSlug: string) => {
+    setSelectedMonth(monthSlug);
+    setPeriod("monthly");
+    router.push(`/winners?period=monthly&month=${monthSlug}`);
+  };
+
+  const top3 = winners.slice(0, 3);
+  const remaining = winners.slice(3);
+
+  const renderLogo = (item: WinnerListingItem, sizeClass = "h-14 w-14") => {
+    const hasError = imgErrors[item.id];
+    const initials = (item.name || "TL").slice(0, 2).toUpperCase();
+
+    if (item.logoUrl && !hasError) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={item.logoUrl}
+          alt={item.name}
+          onError={() => setImgErrors((prev) => ({ ...prev, [item.id]: true }))}
+          className={`${sizeClass} rounded-2xl object-cover border border-[#E6E6F0] bg-white shrink-0 shadow-2xs`}
+        />
+      );
+    }
+
+    return (
+      <div
+        className={`${sizeClass} rounded-2xl bg-gradient-to-br from-[#4F46E5] to-[#818CF8] text-white flex items-center justify-center font-heading font-extrabold text-base border border-[#E6E6F0] shrink-0 shadow-2xs`}
+      >
+        {initials}
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#F6F6FB] text-[#14142B] selection:bg-[#4F46E5]/15 selection:text-[#4F46E5]">
       <Navbar />
 
-      <main className="max-w-[1240px] mx-auto px-6 py-10 sm:py-16 space-y-12">
-        {/* Header Hero */}
-        <div className="text-center max-w-2xl mx-auto space-y-3">
-          <Badge variant="accent" size="sm" icon={<Trophy className="h-3 w-3" />}>
-            HALL OF FAME
-          </Badge>
-          <h1 className="font-heading font-extrabold text-3xl sm:text-5xl text-[#14142B] tracking-[-0.03em]">
-            Daily & Weekly Winners
-          </h1>
-          <p className="text-base text-[#55556E] leading-relaxed">
-            Every top 3 product earns an official embeddable winner badge and permanent directory spotlight.
-          </p>
+      <main className="max-w-[1240px] mx-auto px-4 sm:px-6 pt-5 pb-12 sm:pt-6 sm:pb-16 space-y-6 sm:space-y-8">
+        {/* ======================================================== */}
+        {/* ULTRA-PREMIUM COMPACT HEADER & CONTROLS                  */}
+        {/* ======================================================== */}
+        <div className="relative rounded-2xl sm:rounded-3xl border border-[#E6E6F0] bg-gradient-to-b from-white via-[#FCFCFE] to-[#F7F6FF]/70 p-5 sm:p-7 shadow-[0_4px_24px_rgba(20,20,43,0.03)] space-y-4 overflow-hidden">
+          {/* Ambient subtle glow background */}
+          <div className="absolute -top-12 -right-12 w-80 h-40 bg-[#4F46E5]/6 blur-3xl pointer-events-none rounded-full" />
+          <div className="absolute -bottom-8 -left-8 w-60 h-32 bg-[#FCD34D]/10 blur-2xl pointer-events-none rounded-full" />
 
-          {/* Timeframe Filter Pills */}
-          <div className="pt-2 flex items-center justify-center">
-            <div className="inline-flex items-center rounded-full border border-[#E6E6F0] bg-white p-1">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
+            {/* Title, Badge & Subtitle */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="accent" size="sm" icon={<Trophy className="h-3 w-3 text-[#D97706]" />}>
+                  HALL OF WINNERS
+                </Badge>
+                <span className="text-[11px] font-mono text-[#0F8A5F] font-bold bg-[#ECFDF5] px-2.5 py-0.5 rounded-full border border-[#A7F3D0]">
+                  ● Verified Community Upvotes
+                </span>
+              </div>
+
+              <h1 className="font-heading font-extrabold text-2xl sm:text-3xl lg:text-4xl text-[#14142B] tracking-tight">
+                {periodLabel}
+              </h1>
+
+              <p className="text-xs sm:text-sm text-[#55556E] max-w-xl">
+                Official maker leaderboard authoritatively ranked by community upvotes.
+                Top 3 champions earn permanent spotlight and verified backlink attribution.
+              </p>
+            </div>
+
+            {/* Segmented Period Tabs */}
+            <div className="inline-flex flex-wrap items-center gap-1 bg-[#F1F1F8]/90 p-1.5 rounded-2xl border border-[#E6E6F0] shrink-0 self-start lg:self-center shadow-2xs">
               <button
                 type="button"
-                onClick={() => setFilterPeriod("week")}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  filterPeriod === "week"
-                    ? "bg-[#4F46E5] text-white "
+                onClick={() => handlePeriodChange("monthly")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  period === "monthly"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
                     : "text-[#55556E] hover:text-[#14142B]"
                 }`}
               >
-                This Week
+                <Trophy className="h-3.5 w-3.5" />
+                <span>Month</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setFilterPeriod("month")}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  filterPeriod === "month"
-                    ? "bg-[#4F46E5] text-white "
+                onClick={() => handlePeriodChange("weekly")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  period === "weekly"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
                     : "text-[#55556E] hover:text-[#14142B]"
                 }`}
               >
-                November 2026
+                <Flame className="h-3.5 w-3.5" />
+                <span>Week</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setFilterPeriod("all")}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                  filterPeriod === "all"
-                    ? "bg-[#4F46E5] text-white "
+                onClick={() => handlePeriodChange("quarterly")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  period === "quarterly"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
                     : "text-[#55556E] hover:text-[#14142B]"
                 }`}
               >
-                All-Time Champions
+                <Crown className="h-3.5 w-3.5" />
+                <span>Quarter</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handlePeriodChange("yearly")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  period === "yearly"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
+                    : "text-[#55556E] hover:text-[#14142B]"
+                }`}
+              >
+                <Award className="h-3.5 w-3.5" />
+                <span>Year</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handlePeriodChange("all")}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  period === "all"
+                    ? "bg-[#4F46E5] text-white shadow-xs"
+                    : "text-[#55556E] hover:text-[#14142B]"
+                }`}
+              >
+                <Medal className="h-3.5 w-3.5" />
+                <span>All-Time</span>
               </button>
             </div>
           </div>
-        </div>
 
-        {/* TOP 3 PODIUM HERO CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
-          {winnersList.slice(0, 3).map((w) => (
-            <div
-              key={w.id}
-              className={`relative rounded-2xl border bg-white p-6  transition-all hover:-translate-y-1 ${
-                w.rank === 1
-                  ? "border-[#FCD34D] ring-2 ring-[#FFF1D6]"
-                  : w.rank === 2
-                  ? "border-[#CBD5E1]"
-                  : "border-[#FDBA74]"
-              } flex flex-col justify-between`}
-            >
-              <div className="space-y-4">
-                {/* Header Rank Badge */}
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-gradient-to-r ${w.badgeColor}`}
+          {/* Monthly Archives Pills (when period === "monthly") */}
+          {period === "monthly" && availableMonths.length > 0 && (
+            <div className="pt-2.5 border-t border-[#E6E6F0]/80 flex flex-wrap items-center gap-2 relative z-10 animate-in fade-in duration-150">
+              <span className="text-[11px] font-mono font-bold text-[#55556E] flex items-center gap-1 mr-1">
+                <Calendar className="h-3.5 w-3.5 text-[#4F46E5]" />
+                Monthly Archives:
+              </span>
+              {availableMonths.map((m) => {
+                const isSelected = selectedMonth === m.slug;
+                return (
+                  <button
+                    key={m.slug}
+                    type="button"
+                    onClick={() => handleMonthChange(m.slug)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer border ${
+                      isSelected
+                        ? "bg-[#4F46E5] text-white border-[#4F46E5] shadow-xs"
+                        : "bg-white text-[#55556E] border-[#E6E6F0] hover:border-[#4F46E5] hover:text-[#14142B]"
+                    }`}
                   >
-                    {w.rank === 1 && <Crown className="h-3.5 w-3.5 text-[#7A4E00]" />}
-                    {w.placeLabel}
-                  </span>
-                </div>
-
-                {/* Product Name & Tagline */}
-                <div>
-                  <h3 className="font-heading font-extrabold text-xl text-[#14142B] tracking-tight">
-                    {w.name}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-[#55556E] mt-1 line-clamp-2">
-                    {w.tagline}
-                  </p>
-                </div>
-
-                {/* Meta details */}
-                <div className="rounded-[10px] bg-[#F6F6FB] p-3 text-xs space-y-1.5 font-mono text-[#55556E]">
-                  <div className="flex justify-between">
-                    <span>Status:</span>
-                    <span className="font-bold text-[#0F8A5F] font-sans flex items-center gap-0.5">
-                      ★ Hall of Fame
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Launched by:</span>
-                    <span className="font-sans font-semibold text-[#4F46E5]">
-                      {w.founder} ({w.founderHandle})
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Website:</span>
-                    <span className="text-[#4F46E5] truncate max-w-[140px] font-bold">
-                      {w.backlinkDomain}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <div className="pt-5 border-t border-[#E6E6F0] mt-5">
-                <Link href={w.url} className="w-full block">
-                  <Button variant="secondary" size="md" className="w-full font-bold text-xs justify-between">
-                    <span>Inspect Winning Launch</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Button>
-                </Link>
-              </div>
+                    <span>{m.label}</span>
+                    {m.isCurrent && (
+                      <span
+                        className={`ml-1.5 text-[9px] font-mono uppercase px-1.5 py-0.2 rounded-full font-bold ${
+                          isSelected ? "bg-white/20 text-white" : "bg-[#FFF1D6] text-[#7A4E00]"
+                        }`}
+                      >
+                        Active
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
-          ))}
+          )}
         </div>
 
-        {/* FULL ARCHIVE LIST */}
-        <div className="space-y-4 pt-6">
-          <div className="border-b border-[#E6E6F0] pb-3">
-            <h2 className="font-heading font-extrabold text-xl text-[#14142B] tracking-tight">
-              Historical Hall of Fame Archive
-            </h2>
-            <p className="text-xs text-[#55556E]">
-              Every verified champion product with permanent SEO attribution.
+        {/* ======================================================== */}
+        {/* LOADING STATE                                            */}
+        {/* ======================================================== */}
+        {isLoading && (
+          <div className="py-16 text-center space-y-3">
+            <RotateCw className="h-8 w-8 text-[#4F46E5] animate-spin mx-auto" />
+            <p className="text-sm font-mono text-[#55556E]">
+              Calculating community rankings from verified upvotes...
             </p>
           </div>
+        )}
 
-          <div className="space-y-3">
-            {winnersList.map((item, idx) => (
-              <div
-                key={idx}
-                className="rounded-2xl border border-[#E6E6F0] bg-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-[#D4D4E4] transition-all"
+        {/* ======================================================== */}
+        {/* EMPTY STATE                                              */}
+        {/* ======================================================== */}
+        {!isLoading && winners.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-[#E6E6F0] bg-white p-10 sm:p-14 text-center max-w-xl mx-auto space-y-4">
+            <div className="h-14 w-14 rounded-2xl bg-[#F7F6FF] text-[#4F46E5] flex items-center justify-center mx-auto">
+              <Trophy className="h-7 w-7" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-heading font-extrabold text-xl text-[#14142B]">
+                No Winning Products for {periodLabel}
+              </h3>
+              <p className="text-xs sm:text-sm text-[#55556E]">
+                No approved tools with verified upvotes were recorded for this timeframe.
+              </p>
+            </div>
+            <div className="pt-2 flex flex-wrap justify-center gap-3">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handlePeriodChange("monthly")}
               >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`h-10 w-10 rounded-[10px] flex items-center justify-center font-heading font-extrabold text-sm shrink-0 border ${item.badgeColor}`}
-                  >
-                    #{item.rank}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-heading font-bold text-base text-[#14142B]">
-                        {item.name}
-                      </h3>
-                      <span className="rounded-full bg-[#F6F6FB] border border-[#E6E6F0] px-2 py-0.2 text-[10px] font-semibold text-[#55556E]">
-                        {item.category}
-                      </span>
-                      <span className="text-xs font-mono text-[#55556E]">
-                        {item.date}
-                      </span>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#55556E] mt-0.5 line-clamp-1">
-                      {item.tagline}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
-                  <div className="text-right hidden sm:block">
-                    <div className="text-xs font-bold text-[#4F46E5]">
-                      ★ Winner
-                    </div>
-                  </div>
-
-                  <Link href={item.url}>
-                    <Button variant="secondary" size="sm" className="font-semibold text-xs">
-                      View Launch
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            ))}
+                View Current Month Winners
+              </Button>
+              <Link href="/submit">
+                <Button variant="primary" size="sm">
+                  Submit Your Tool
+                </Button>
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* TOP 3 PODIUM HERO CARDS                                  */}
+        {/* ======================================================== */}
+        {!isLoading && top3.length > 0 && (
+          <section className="space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E6E6F0] pb-2">
+              <div className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-[#D97706]" />
+                <h2 className="font-heading font-extrabold text-xl text-[#14142B]">
+                  Leaderboard Podium (Top 3 Champions)
+                </h2>
+              </div>
+              <span className="text-xs font-mono text-[#55556E]">
+                Sorted strictly by verified upvotes
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+              {top3.map((w) => (
+                <div
+                  key={w.id}
+                  className={`relative rounded-2xl border bg-white p-6 transition-all duration-200 hover:-translate-y-1 flex flex-col justify-between ${
+                    w.rank === 1
+                      ? "border-[#FCD34D] ring-2 ring-[#FFF1D6] shadow-[0_6px_24px_rgba(252,211,77,0.18)] hover:shadow-[0_10px_32px_rgba(252,211,77,0.25)]"
+                      : w.rank === 2
+                      ? "border-[#CBD5E1] shadow-[0_4px_20px_rgba(203,213,225,0.25)] hover:shadow-[0_8px_28px_rgba(203,213,225,0.35)]"
+                      : "border-[#FDBA74] shadow-[0_4px_20px_rgba(253,186,116,0.2)] hover:shadow-[0_8px_28px_rgba(253,186,116,0.3)]"
+                  }`}
+                >
+                  <div className="space-y-4">
+                    {/* Header Rank Badge & Winner Month */}
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold bg-gradient-to-r border ${w.badgeColor}`}
+                      >
+                        {w.rank === 1 && <Crown className="h-3.5 w-3.5 text-[#7A4E00]" />}
+                        {w.rank === 2 && <Medal className="h-3.5 w-3.5 text-[#475569]" />}
+                        {w.rank === 3 && <Award className="h-3.5 w-3.5 text-[#9A3412]" />}
+                        <span>{w.placeLabel}</span>
+                      </span>
+
+                      {/* Verified Upvotes Pill */}
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#F7F6FF] text-[#4F46E5] font-mono font-bold text-xs border border-[#E0DEFC]">
+                        <ChevronUp className="h-3.5 w-3.5" />
+                        <span>{w.upvotes} upvotes</span>
+                      </span>
+                    </div>
+
+                    {/* Logo + Product Name + Category */}
+                    <div className="flex items-start gap-3.5">
+                      {renderLogo(w, "h-14 w-14")}
+
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Link href={w.url} className="group/title">
+                            <h3 className="font-heading font-extrabold text-lg sm:text-xl text-[#14142B] group-hover/title:text-[#4F46E5] transition-colors truncate">
+                              {w.name}
+                            </h3>
+                          </Link>
+                        </div>
+                        <span className="inline-block rounded-md bg-[#F1F1F8] text-[#55556E] text-[10px] font-semibold px-2 py-0.5">
+                          {w.category}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2-line Tagline (line-clamp-2) */}
+                    <p className="text-xs sm:text-sm text-[#55556E] leading-relaxed line-clamp-2">
+                      {w.tagline}
+                    </p>
+
+                    {/* Winner Metadata: Winner Month, Website Link, Launched By */}
+                    <div className="rounded-xl bg-[#F6F6FB] p-3 text-xs space-y-2 font-mono text-[#55556E] border border-[#E6E6F0]/60">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[#8E8E93]">Winner Period:</span>
+                        <span className="font-sans font-bold text-[#14142B]">
+                          ★ {w.winnerPeriod}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[#8E8E93]">Launched By:</span>
+                        <span className="font-sans font-semibold text-[#4F46E5]">
+                          {w.founder} ({w.founderHandle})
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[#8E8E93]">Website Link:</span>
+                        <a
+                          href={w.websiteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[#4F46E5] hover:underline font-bold max-w-[170px] truncate"
+                          title={`Visit ${w.name}`}
+                        >
+                          <Globe className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{w.websiteDomain}</span>
+                          <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action CTA: Inspect Launch */}
+                  <div className="pt-4 border-t border-[#E6E6F0] mt-4">
+                    <Link href={w.url} className="w-full block">
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        className="w-full font-bold text-xs justify-between"
+                      >
+                        <span>Inspect Winning Launch</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ======================================================== */}
+        {/* FULL RANKED WINNERS DIRECTORY (Ranks 4+)                  */}
+        {/* ======================================================== */}
+        {!isLoading && remaining.length > 0 && (
+          <section className="space-y-4 pt-4">
+            <div className="border-b border-[#E6E6F0] pb-3">
+              <h2 className="font-heading font-extrabold text-xl text-[#14142B] tracking-tight">
+                All Ranked Winners ({remaining.length} Additional Products)
+              </h2>
+              <p className="text-xs text-[#55556E]">
+                Every verified product ranked by actual upvotes in this timeframe.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {remaining.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-[#E6E6F0] bg-white p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-[#D4D4E4] transition-all"
+                >
+                  <div className="flex items-start gap-4 min-w-0 flex-1">
+                    {/* Rank Badge */}
+                    <div className="h-10 w-10 rounded-xl bg-[#F6F6FB] border border-[#E6E6F0] text-[#14142B] flex items-center justify-center font-mono font-extrabold text-sm shrink-0">
+                      #{item.rank}
+                    </div>
+
+                    {/* Logo */}
+                    {renderLogo(item, "h-11 w-11")}
+
+                    {/* Content */}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Link href={item.url} className="group/itemTitle">
+                          <h3 className="font-heading font-bold text-base text-[#14142B] group-hover/itemTitle:text-[#4F46E5] transition-colors truncate">
+                            {item.name}
+                          </h3>
+                        </Link>
+                        <span className="rounded-md bg-[#F1F1F8] border border-[#E6E6F0] px-2 py-0.5 text-[10px] font-semibold text-[#55556E]">
+                          {item.category}
+                        </span>
+                        <span className="text-xs font-mono text-[#55556E]">
+                          ★ {item.winnerPeriod}
+                        </span>
+                      </div>
+
+                      {/* 2-line Tagline */}
+                      <p className="text-xs text-[#55556E] line-clamp-2 leading-relaxed">
+                        {item.tagline}
+                      </p>
+
+                      {/* Website Link */}
+                      <div className="pt-0.5">
+                        <a
+                          href={item.websiteUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-mono text-[#4F46E5] hover:underline"
+                        >
+                          <Globe className="h-3 w-3" />
+                          <span>{item.websiteDomain}</span>
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Upvotes + View Launch */}
+                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-auto">
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#F7F6FF] text-[#4F46E5] font-mono font-bold text-xs border border-[#E0DEFC]">
+                      <ChevronUp className="h-3.5 w-3.5" />
+                      <span>{item.upvotes} upvotes</span>
+                    </span>
+
+                    <Link href={item.url}>
+                      <Button variant="secondary" size="sm" className="font-semibold text-xs">
+                        View Launch
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
 
       <FinalCTA />

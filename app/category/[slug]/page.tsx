@@ -4,13 +4,13 @@ import { notFound } from "next/navigation";
 import { CategoryDetailView } from "@/components/CategoryDetailView";
 import {
   getCategoryBySlug,
-  getCuratedToolsForCategory,
   getRelatedCategories,
   CategoryToolItem,
 } from "@/lib/categories";
 import { publicDb } from "@/lib/db";
 import { getSiteUrl } from "@/lib/seo";
 import { normalizeDirectoryPlan } from "@/config/site";
+import { getListingUpvoteCountsMap } from "@/lib/upvotes";
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -65,10 +65,17 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  // 1. Fetch any approved real listings from Supabase for this category
+  // 1. Fetch strictly real approved listings from Supabase for this category
   let dbToolItems: CategoryToolItem[] = [];
   try {
-    const { data: dbListings } = await publicDb
+    // Look up category in Supabase by slug or name
+    const { data: dbCat } = await publicDb
+      .from("categories")
+      .select("id, slug, name")
+      .or(`slug.eq.${category.slug},slug.eq.${cleanSlug},name.ilike.${category.name}`)
+      .maybeSingle();
+
+    let query = publicDb
       .from("listings")
       .select(`
         id,
@@ -83,22 +90,39 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         currency,
         billing_period,
         listing_plan,
+        upvotes_count,
         approved_at,
         created_at,
-        categories!inner (
+        categories (
           id,
           slug,
           name
         )
       `)
-      .eq("categories.slug", category.slug)
-      .eq("status", "approved")
+      .eq("status", "approved");
+
+    if (dbCat?.id) {
+      query = query.eq("category_id", dbCat.id);
+    } else {
+      query = query.eq("categories.slug", category.slug);
+    }
+
+    const { data: dbListings } = await query
       .order("approved_at", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false });
 
     if (dbListings && dbListings.length > 0) {
+      const fetchedIds = dbListings.map((item: any) => Number(item.id)).filter(Boolean);
+      const upvoteCountsMap =
+        fetchedIds.length > 0
+          ? await getListingUpvoteCountsMap(fetchedIds)
+          : new Map<number, number>();
+
       dbToolItems = dbListings.map((item: any) => {
         const listingPlan = normalizeDirectoryPlan(item.listing_plan);
+        const dynamicVotes =
+          upvoteCountsMap.get(Number(item.id)) || Number(item.upvotes_count || 0);
+
         return {
           id: `db-${item.id}`,
           name: item.name,
@@ -117,8 +141,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
               : item.pricing_model === "free"
               ? "100% Free"
               : undefined,
-          upvotes: 120,
-          commentsCount: 8,
+          upvotes: dynamicVotes,
+          commentsCount: 0,
           initials: (item.name || "TL").slice(0, 2).toUpperCase(),
           logoBg: "bg-[#4F46E5] text-white",
           logoUrl: item.logo_url,
@@ -133,11 +157,84 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     console.warn(`[CategoryPage] Error querying DB listings for ${category.slug}:`, err);
   }
 
-  // 2. Fetch curated tools for this category (e.g. Sales)
-  const curatedTools = getCuratedToolsForCategory(category.slug);
+  // 2. Strictly real approved listings (NO dummy/fake tools injected)
+  const allTools = dbToolItems;
 
-  // 3. Merge real approved DB listings first, then curated tools
-  const allTools = [...dbToolItems, ...curatedTools];
+  // 3. Fetch dynamically approved featured tools for Sticky Sidebar
+  let featuredToolsList: any[] = [];
+  try {
+    const { data: featuredRows } = await publicDb
+      .from("listings")
+      .select(`
+        id,
+        slug,
+        name,
+        tagline,
+        logo_url,
+        pricing_model,
+        starting_price,
+        listing_plan,
+        upvotes_count,
+        categories (
+          id,
+          slug,
+          name
+        )
+      `)
+      .eq("status", "approved")
+      .in("listing_plan", ["featured", "one_time", "premium"])
+      .order("approved_at", { ascending: false, nullsFirst: false })
+      .limit(6);
+
+    let rows = featuredRows || [];
+    if (rows.length === 0) {
+      const { data: fallbackRows } = await publicDb
+        .from("listings")
+        .select(`
+          id,
+          slug,
+          name,
+          tagline,
+          logo_url,
+          pricing_model,
+          starting_price,
+          listing_plan,
+          upvotes_count,
+          categories (
+            id,
+            slug,
+            name
+          )
+        `)
+        .eq("status", "approved")
+        .order("approved_at", { ascending: false, nullsFirst: false })
+        .limit(5);
+      rows = fallbackRows || [];
+    }
+
+    if (rows.length > 0) {
+      const featIds = rows.map((r: any) => Number(r.id)).filter(Boolean);
+      const featVotesMap =
+        featIds.length > 0
+          ? await getListingUpvoteCountsMap(featIds)
+          : new Map<number, number>();
+
+      featuredToolsList = rows.map((r: any) => ({
+        id: String(r.id),
+        slug: r.slug,
+        name: r.name,
+        tagline: r.tagline,
+        logoUrl: r.logo_url,
+        initials: (r.name || "TL").slice(0, 2).toUpperCase(),
+        pricingModel: r.pricing_model,
+        category: (r.categories as any)?.name || category.name,
+        upvotes: featVotesMap.get(Number(r.id)) || Number(r.upvotes_count || 0),
+        listingPlan: r.listing_plan,
+      }));
+    }
+  } catch (err) {
+    console.warn("[CategoryPage] Error querying featured tools for sidebar:", err);
+  }
 
   // 4. Related categories
   const related = getRelatedCategories(category.slug, 5);
@@ -147,6 +244,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       category={category}
       initialTools={allTools}
       relatedCategories={related}
+      featuredTools={featuredToolsList}
     />
   );
 }

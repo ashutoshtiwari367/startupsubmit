@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { SITE_INFO } from "@/config/site-info";
 
 export interface FeaturedItem {
   id: string;
@@ -237,16 +238,16 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     <Link
       key={p.id}
       href={`/product/${p.slug || p.id}`}
-      className={`group rounded-xl p-2.5 sm:p-3 flex items-center justify-between gap-2.5 transition-all cursor-pointer block border ${
+      className={`group rounded-xl p-2.5 sm:p-3 flex items-center gap-3 transition-all duration-150 cursor-pointer block border hover:-translate-y-0.5 ${
         p.isHighlighted || isFirst
-          ? "border-[#4F46E5] bg-[#F7F6FF]/40 hover:bg-[#F7F6FF] shadow-2xs"
-          : "border-[#E6E6F0] bg-white hover:border-[#D4D4E4] hover:bg-[#F6F6FB]/80 shadow-[0_1px_2px_rgba(20,20,43,0.02)]"
+          ? "border-[#4F46E5] bg-[#F7F6FF]/40 hover:bg-[#F7F6FF] shadow-2xs hover:shadow-xs"
+          : "border-[#E6E6F0] bg-white hover:border-[#D4D4E4] hover:bg-[#F6F6FB]/80 shadow-[0_1px_3px_rgba(20,20,43,0.03)] hover:shadow-xs"
       }`}
     >
       <div className="flex items-center gap-2.5 min-w-0 flex-1">
         {/* Logo Squircle */}
         <div
-          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${p.logoBg || "bg-[#14142B] text-white"} font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden shadow-2xs`}
+          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl ${p.logoBg || "bg-[#14142B] text-white"} font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden shadow-2xs border border-[#E6E6F0]/60`}
         >
           {p.logoUrl ? (
             <img src={p.logoUrl} alt={p.name} className="w-full h-full object-cover" />
@@ -255,39 +256,28 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           )}
         </div>
 
-        {/* Content */}
+        {/* Content - Clean, balanced, full available space */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center justify-between gap-1.5">
             <span className="font-bold text-xs sm:text-sm text-[#14142B] group-hover:text-[#4F46E5] transition-colors truncate">
               {p.name}
             </span>
-            {p.isFeaturedActive && (
-              <span className="rounded-md bg-[#FFF1D6] text-[#7A4E00] text-[9px] font-bold px-1.5 py-0.5 shrink-0 uppercase tracking-wide">
-                Featured{p.featuredDaysRemaining ? ` · ${p.featuredDaysRemaining}d` : ""}
-              </span>
-            )}
             <span className="rounded-md bg-[#F1F1F8] text-[#55556E] text-[10px] font-medium px-1.5 py-0.5 shrink-0">
               {p.category}
             </span>
           </div>
-          <p className="text-[11px] text-[#55556E] truncate mt-0.5 leading-snug">
+          <p className="text-[11px] sm:text-xs text-[#55556E] line-clamp-2 mt-0.5 leading-snug">
             {p.tagline}
           </p>
         </div>
-      </div>
-
-      {/* View CTA */}
-      <div className="rounded-lg bg-[#F6F6FB] group-hover:bg-[#EEEDFC] text-[#4F46E5] text-[11px] font-semibold px-2 py-1 transition-colors shrink-0 flex items-center gap-0.5">
-        <span>View</span>
-        <span className="text-[10px]">&rarr;</span>
       </div>
     </Link>
   );
 
   return (
-    <section className="relative w-full bg-white py-10 md:py-14 lg:py-16 border-b border-[#E6E6F0]">
+    <section className="relative w-full bg-white pt-5 pb-8 sm:pt-6 sm:pb-10 md:pt-6 md:pb-12 border-b border-[#E6E6F0]">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 items-start">
           {/* ======================================================== */}
           {/* 1. LEFT COLUMN: 5 FEATURED CARDS (3 COLS ON DESKTOP)     */}
           {/* ======================================================== */}
@@ -297,17 +287,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <div className="flex items-center justify-between pb-1 border-b border-[#F1F1F8]">
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-xs sm:text-sm text-[#14142B]">
-                    Featured Today
+                    {SITE_INFO.featuredTab.title}
                   </span>
                   <span className="rounded-full bg-[#FFF1D6] text-[#7A4E00] text-[9px] font-bold px-2 py-0.5 tracking-wide uppercase">
-                    SPONSORED
+                    {SITE_INFO.featuredTab.badge}
                   </span>
                 </div>
                 <Link
-                  href="/pricing"
+                  href={SITE_INFO.featuredTab.promoteLink}
                   className="text-[11px] font-semibold text-[#4F46E5] hover:underline"
                 >
-                  Promote &rarr;
+                  {SITE_INFO.featuredTab.promoteText}
                 </Link>
               </div>
 
@@ -321,27 +311,26 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
           {/* ======================================================== */}
           {/* 2. CENTER COLUMN: HERO HEADLINE & ACTIONS (6 COLS)       */}
           {/* ======================================================== */}
-          <div className="order-1 lg:order-2 lg:col-span-6 text-center space-y-6 px-2 sm:px-4">
+          <div className="order-1 lg:order-2 lg:col-span-6 text-center space-y-4 sm:space-y-5 px-2 sm:px-4">
             {/* Pill badge: • 30,000+ founders launch here */}
             <div className="inline-flex items-center gap-2 rounded-full border border-[#E6E6F0] bg-white px-3.5 py-1.5 shadow-2xs">
               <span className="h-2 w-2 rounded-full bg-[#0F8A5F] animate-pulse" />
               <span className="text-xs font-medium text-[#55556E]">
-                30,000+ founders launch here
+                {SITE_INFO.hero.pillText}
               </span>
             </div>
 
             {/* Main H1 Heading */}
-            <h1 className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-[46px] xl:text-[52px] leading-[1.1] tracking-[-0.035em] text-[#14142B] max-w-2xl mx-auto">
-              Launch your product.
+            <h1 className="font-heading font-extrabold text-3xl sm:text-4xl lg:text-[44px] xl:text-[50px] leading-[1.1] tracking-[-0.035em] text-[#14142B] max-w-2xl mx-auto">
+              {SITE_INFO.hero.headlineLine1}
               <br />
-              Get seen. Get{" "}
-              <span className="text-[#4F46E5]">users.</span>
+              {SITE_INFO.hero.headlineLine2Prefix}
+              <span className="text-[#4F46E5]">{SITE_INFO.hero.headlineLine2Highlight}</span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-sm sm:text-base text-[#55556E] leading-relaxed max-w-lg mx-auto">
-              Daily launches, curated directories, and verified discovery
-              for top featured products.
+              {SITE_INFO.hero.subtitle}
             </p>
 
             {/* Action CTA Buttons */}
@@ -351,7 +340,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 onClick={onSubmitClick}
                 className="px-6 py-3.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-semibold text-sm transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <span>Submit your product</span>
+                <span>{SITE_INFO.hero.primaryCtaText}</span>
                 <span>&rarr;</span>
               </button>
 
@@ -360,31 +349,24 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
                 onClick={onBrowseClick}
                 className="px-6 py-3.5 rounded-xl bg-white hover:bg-[#F6F6FB] text-[#14142B] border border-[#E6E6F0] font-semibold text-sm transition-colors cursor-pointer"
               >
-                Browse launches
+                {SITE_INFO.hero.secondaryCtaText}
               </button>
             </div>
 
             {/* AS SEEN ON */}
-            <div className="pt-4 space-y-2.5">
+            <div className="pt-3 space-y-2">
               <div className="text-[10px] font-bold font-mono tracking-wider text-[#55556E] uppercase">
-                AS SEEN ON
+                {SITE_INFO.hero.asSeenOnLabel}
               </div>
               <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-7 opacity-70">
-                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
-                  TechCrunch
-                </span>
-                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
-                  Hacker News
-                </span>
-                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
-                  Product Hunt
-                </span>
-                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
-                  Indie Hackers
-                </span>
-                <span className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]">
-                  Y Combinator
-                </span>
+                {SITE_INFO.hero.asSeenOnLogos.map((brand) => (
+                  <span
+                    key={brand}
+                    className="font-heading font-extrabold text-xs sm:text-sm text-[#14142B]"
+                  >
+                    {brand}
+                  </span>
+                ))}
               </div>
             </div>
           </div>
@@ -398,17 +380,17 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
               <div className="flex items-center justify-between pb-1 border-b border-[#F1F1F8]">
                 <div className="flex items-center gap-1.5">
                   <span className="font-bold text-xs sm:text-sm text-[#14142B]">
-                    Top Sponsors
+                    {SITE_INFO.featuredTab.rightTitle || "Top Sponsors"}
                   </span>
                   <span className="rounded-full bg-[#E0DEFC] text-[#4F46E5] text-[9px] font-bold px-2 py-0.5 tracking-wide uppercase">
-                    SPOTLIGHT
+                    {SITE_INFO.featuredTab.rightBadge || "SPOTLIGHT"}
                   </span>
                 </div>
                 <Link
-                  href="/pricing"
+                  href={SITE_INFO.featuredTab.promoteLink}
                   className="text-[11px] font-semibold text-[#4F46E5] hover:underline"
                 >
-                  Promote &rarr;
+                  {SITE_INFO.featuredTab.promoteText}
                 </Link>
               </div>
 

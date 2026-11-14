@@ -73,7 +73,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onSubmitClick }) => 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8 items-start">
           {/* Col 1: Brand & Subtext (3 Cols) */}
           <div className="lg:col-span-3 space-y-3">
-            <Link href="/" className="inline-flex items-center gap-2.5 group">
+            <Link
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = "/";
+              }}
+              className="inline-flex items-center gap-2.5 group cursor-pointer"
+            >
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#4F46E5] text-white group-hover:scale-105 transition-transform">
                 <Sparkles className="h-4 w-4" />
               </div>

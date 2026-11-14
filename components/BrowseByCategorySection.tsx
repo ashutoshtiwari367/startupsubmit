@@ -33,7 +33,7 @@ export const CATEGORIES_DATA: CategoryCardData[] = [
     id: "artificial-intelligence",
     slug: "artificial-intelligence",
     name: "Artificial Intelligence",
-    count: 426,
+    count: 0,
     iconBg: "bg-[#F0EEFF]",
     iconColor: "text-[#4F46E5]",
     icon: <Bot className="h-5 w-5" />,
@@ -47,7 +47,7 @@ export const CATEGORIES_DATA: CategoryCardData[] = [
     id: "sales",
     slug: "sales",
     name: "Sales",
-    count: 240,
+    count: 0,
     iconBg: "bg-[#F0FDF4]",
     iconColor: "text-[#15803D]",
     icon: <Briefcase className="h-5 w-5" />,
@@ -61,7 +61,7 @@ export const CATEGORIES_DATA: CategoryCardData[] = [
     id: "marketing",
     slug: "marketing",
     name: "Marketing",
-    count: 295,
+    count: 0,
     iconBg: "bg-[#FFF4ED]",
     iconColor: "text-[#EA580C]",
     icon: <Megaphone className="h-5 w-5" />,
@@ -75,7 +75,7 @@ export const CATEGORIES_DATA: CategoryCardData[] = [
     id: "productivity",
     slug: "productivity",
     name: "Productivity",
-    count: 312,
+    count: 0,
     iconBg: "bg-[#FEFCE8]",
     iconColor: "text-[#7A4E00]",
     icon: <Zap className="h-5 w-5" />,
@@ -89,7 +89,7 @@ export const CATEGORIES_DATA: CategoryCardData[] = [
     id: "developer-tools",
     slug: "developer-tools",
     name: "Developer Tools",
-    count: 390,
+    count: 0,
     iconBg: "bg-[#F0FDF4]",
     iconColor: "text-[#0F8A5F]",
     icon: <Code2 className="h-5 w-5" />,
@@ -103,7 +103,7 @@ export const CATEGORIES_DATA: CategoryCardData[] = [
     id: "design",
     slug: "design",
     name: "Design",
-    count: 246,
+    count: 0,
     iconBg: "bg-[#FDF2F8]",
     iconColor: "text-[#DB2777]",
     icon: <Palette className="h-5 w-5" />,
@@ -117,7 +117,7 @@ export const CATEGORIES_DATA: CategoryCardData[] = [
     id: "fintech",
     slug: "fintech",
     name: "Fintech",
-    count: 198,
+    count: 0,
     iconBg: "bg-[#ECFEFF]",
     iconColor: "text-[#0D9488]",
     icon: <Coins className="h-5 w-5" />,
@@ -131,7 +131,7 @@ export const CATEGORIES_DATA: CategoryCardData[] = [
     id: "health-fitness",
     slug: "health-fitness",
     name: "Health & Fitness",
-    count: 174,
+    count: 0,
     iconBg: "bg-[#FFF1F2]",
     iconColor: "text-[#E11D48]",
     icon: <HeartPulse className="h-5 w-5" />,
@@ -162,7 +162,7 @@ export const BrowseByCategorySection: React.FC<BrowseByCategorySectionProps> = (
             Browse by category
           </h2>
           <p className="mt-1 text-sm sm:text-base text-[#55556E]">
-            Explore 2,600+ curated SaaS products, developer tools and AI agents.
+            Explore curated SaaS products, developer tools and AI agents.
           </p>
         </div>
 
@@ -170,7 +170,7 @@ export const BrowseByCategorySection: React.FC<BrowseByCategorySectionProps> = (
           href="/categories"
           className="text-xs sm:text-sm font-bold text-[#4F46E5] hover:text-[#4338CA] hover:underline flex items-center gap-1 self-start sm:self-auto"
         >
-          <span>View all 35 categories</span>
+          <span>View all categories</span>
           <span>&rarr;</span>
         </Link>
       </div>

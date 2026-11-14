@@ -68,14 +68,6 @@ function formatRelativeLaunchTime(dateStr?: string): string {
 }
 
 function formatPlanBadge(item: DirectoryListingItem) {
-  if (item.listingPlan === "featured") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF1D6] text-[#7A4E00] border border-[#FCD34D]/60 text-[10px] font-bold px-2 py-0.5 uppercase tracking-wide">
-        <Sparkles className="h-2.5 w-2.5" />
-        Featured
-      </span>
-    );
-  }
   if (item.listingPlan === "premium") {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-[#F7F6FF] text-[#4F46E5] border border-[#E0DEFC] text-[10px] font-bold px-2 py-0.5">
@@ -242,11 +234,11 @@ export const LaunchingNowSection: React.FC<LaunchingNowSectionProps> = ({
               )}
             </div>
 
-            <p className="text-xs text-[#55556E] truncate mt-0.5">{item.tagline}</p>
+            <p className="text-xs text-[#55556E] line-clamp-2 mt-0.5 leading-snug">{item.tagline}</p>
           </div>
         </div>
 
-        {/* Time + Upvote + View CTA */}
+        {/* Time + Upvote */}
         <div className="flex items-center gap-2.5 shrink-0">
           <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono text-[#55556E]">
             <Clock className="h-3 w-3" />
@@ -269,15 +261,6 @@ export const LaunchingNowSection: React.FC<LaunchingNowSectionProps> = ({
           >
             <ChevronUp className={`h-3.5 w-3.5 ${item.isUpvoted ? "text-[#4F46E5]" : "text-[#55556E]"}`} />
             <span>{item.upvotes}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onProductClick?.(item.slug || item.id)}
-            className="rounded-lg bg-[#F6F6FB] hover:bg-[#EEEDFC] text-[#4F46E5] text-xs font-semibold px-3 py-1.5 transition-colors cursor-pointer shrink-0 flex items-center gap-1"
-          >
-            <span>View</span>
-            <span>&rarr;</span>
           </button>
         </div>
       </div>

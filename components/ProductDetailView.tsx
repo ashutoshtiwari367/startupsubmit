@@ -508,10 +508,22 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 </div>
 
                 {/* Compact Address Bar */}
-                <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white border border-[#E6E6F0] text-[10px] font-mono text-[#55556E] max-w-[200px] truncate">
-                  <Lock className="h-2.5 w-2.5 text-[#0F8A5F] shrink-0" />
-                  <span className="truncate">{websiteDomain}</span>
-                </div>
+                {product.websiteUrl ? (
+                  <a
+                    href={product.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white border border-[#E6E6F0] hover:border-[#4F46E5] text-[10px] font-mono text-[#55556E] hover:text-[#4F46E5] transition-colors max-w-[200px] truncate cursor-pointer"
+                  >
+                    <Lock className="h-2.5 w-2.5 text-[#0F8A5F] shrink-0" />
+                    <span className="truncate">{websiteDomain}</span>
+                  </a>
+                ) : (
+                  <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white border border-[#E6E6F0] text-[10px] font-mono text-[#55556E] max-w-[200px] truncate">
+                    <Lock className="h-2.5 w-2.5 text-[#0F8A5F] shrink-0" />
+                    <span className="truncate">{websiteDomain}</span>
+                  </div>
+                )}
 
                 <div className="text-[10px] font-mono text-[#55556E] font-medium">
                   {gallery.length > 0 ? `${activeGalleryIdx + 1}/${gallery.length}` : "Verified Preview"}
@@ -785,9 +797,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                     <span className="text-[#55556E] flex items-center gap-1.5">
                       <Globe className="h-3.5 w-3.5 text-[#4F46E5]" /> Domain:
                     </span>
-                    <span className="font-mono text-[#4F46E5] font-semibold truncate max-w-[140px]">
+                    <a
+                      href={product.websiteUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-[#4F46E5] hover:underline font-semibold truncate max-w-[140px] cursor-pointer"
+                    >
                       {websiteDomain}
-                    </span>
+                    </a>
                   </div>
                 )}
               </div>

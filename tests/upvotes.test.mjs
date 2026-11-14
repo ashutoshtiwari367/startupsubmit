@@ -144,4 +144,104 @@ describe("Authenticated Upvote & Dynamic Community Ranking System", () => {
       "Admin login button must not say 'Sign In to Admin Queue'"
     );
   });
+
+  it("verifies Header Spacing is compact, items-start aligned, and removes extra space above Featured tab", () => {
+    const heroPath = path.join(__dirname, "..", "components", "HeroSection.tsx");
+    const heroCode = fs.readFileSync(heroPath, "utf8");
+
+    assert.ok(
+      heroCode.includes("items-start"),
+      "HeroSection grid must use items-start to align Featured tabs to the top without extra space"
+    );
+    assert.ok(
+      heroCode.includes("pt-5") || heroCode.includes("pt-6"),
+      "HeroSection must use compact top padding"
+    );
+    assert.ok(
+      !heroCode.includes("py-16"),
+      "HeroSection must not have oversized py-16 padding"
+    );
+  });
+
+  it("verifies Product Card UI removes Featured and View buttons to maximize content space", () => {
+    const heroPath = path.join(__dirname, "..", "components", "HeroSection.tsx");
+    const heroCode = fs.readFileSync(heroPath, "utf8");
+
+    assert.ok(
+      !heroCode.includes("<span>View</span>"),
+      "Product cards in HeroSection must not render redundant 'View' button"
+    );
+    assert.ok(
+      !heroCode.includes('p.isFeaturedActive && (\n              <span className="rounded-md bg-[#FFF1D6]'),
+      "Product cards must not render redundant 'Featured' button"
+    );
+    assert.ok(
+      heroCode.includes("min-w-0 flex-1"),
+      "Product card content container must maximize available width"
+    );
+  });
+
+  it("verifies Featured Tab content is centrally managed via config/site-info and config/site", () => {
+    const configPath = path.join(__dirname, "..", "config", "site-info.ts");
+    assert.ok(fs.existsSync(configPath), "config/site-info.ts must exist");
+
+    const configCode = fs.readFileSync(configPath, "utf8");
+    assert.ok(
+      configCode.includes("title: \"Featured Today\""),
+      "config/site-info.ts must define title for Featured Today"
+    );
+
+    const heroPath = path.join(__dirname, "..", "components", "HeroSection.tsx");
+    const heroCode = fs.readFileSync(heroPath, "utf8");
+    assert.ok(
+      heroCode.includes("SITE_INFO.featuredTab.title"),
+      "HeroSection must consume SITE_INFO.featuredTab.title instead of hardcoding"
+    );
+  });
+
+  it("verifies Domain Name click triggers page refresh and navigation to root URL", () => {
+    const navbarPath = path.join(__dirname, "..", "components", "Navbar.tsx");
+    const navbarCode = fs.readFileSync(navbarPath, "utf8");
+    assert.ok(
+      navbarCode.includes('window.location.href = "/"'),
+      "Clicking domain/brand logo in Navbar must trigger page reload and navigate to /"
+    );
+
+    const footerPath = path.join(__dirname, "..", "components", "Footer.tsx");
+    const footerCode = fs.readFileSync(footerPath, "utf8");
+    assert.ok(
+      footerCode.includes('window.location.href = "/"'),
+      "Clicking domain/brand logo in Footer must trigger page reload and navigate to /"
+    );
+
+    const detailPath = path.join(__dirname, "..", "components", "ProductDetailView.tsx");
+    const detailCode = fs.readFileSync(detailPath, "utf8");
+    assert.ok(
+      detailCode.includes('href={product.websiteUrl}') && detailCode.includes('{websiteDomain}'),
+      "ProductDetailView must render domain as a clickable link navigating to tool URL"
+    );
+  });
+
+  it("verifies Product Card tagline content renders as double line (line-clamp-2) instead of single line", () => {
+    const heroPath = path.join(__dirname, "..", "components", "HeroSection.tsx");
+    const heroCode = fs.readFileSync(heroPath, "utf8");
+    assert.ok(
+      heroCode.includes("line-clamp-2") && heroCode.includes("{p.tagline}"),
+      "HeroSection card tagline must use line-clamp-2 for double line display"
+    );
+
+    const launchingPath = path.join(__dirname, "..", "components", "LaunchingNowSection.tsx");
+    const launchingCode = fs.readFileSync(launchingPath, "utf8");
+    assert.ok(
+      launchingCode.includes("line-clamp-2") && launchingCode.includes("{item.tagline}"),
+      "LaunchingNowSection listing tagline must use line-clamp-2 for double line display"
+    );
+
+    const productCardPath = path.join(__dirname, "..", "components", "ProductCard.tsx");
+    const productCardCode = fs.readFileSync(productCardPath, "utf8");
+    assert.ok(
+      productCardCode.includes("line-clamp-2 mb-4"),
+      "ProductCard must use line-clamp-2 for multi-line tagline readability"
+    );
+  });
 });

@@ -84,14 +84,45 @@ export async function GET() {
           slug: cat.slug,
           name: cat.name,
           description: cat.description,
+          count: 0,
+          tool_count: 0,
           created_at: new Date().toISOString(),
         })),
       });
     }
 
+    // Query approved listings to calculate real tool counts per category (strictly no fake numbers)
+    const countMap = new Map<number, number>();
+    try {
+      const { data: listings } = await db
+        .from("listings")
+        .select("category_id")
+        .eq("status", "approved");
+
+      if (Array.isArray(listings)) {
+        for (const item of listings) {
+          const cid = Number(item.category_id);
+          if (cid) {
+            countMap.set(cid, (countMap.get(cid) || 0) + 1);
+          }
+        }
+      }
+    } catch {}
+
+    const categoriesWithCounts = (data || []).map((cat: any) => ({
+      id: cat.id,
+      slug: cat.slug,
+      name: cat.name,
+      description: cat.description || "",
+      parent_id: cat.parent_id || null,
+      count: countMap.get(Number(cat.id)) || 0,
+      tool_count: countMap.get(Number(cat.id)) || 0,
+      created_at: cat.created_at,
+    }));
+
     return NextResponse.json({
       ok: true,
-      categories: data,
+      categories: categoriesWithCounts,
     });
   } catch (err: unknown) {
     console.warn(
@@ -105,6 +136,8 @@ export async function GET() {
         slug: cat.slug,
         name: cat.name,
         description: cat.description,
+        count: 0,
+        tool_count: 0,
         created_at: new Date().toISOString(),
       })),
     });
